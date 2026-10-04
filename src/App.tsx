@@ -8,6 +8,7 @@ import { SeedDataModal } from './components/common/SeedDataModal';
 import { Dashboard } from './components/dashboard/Dashboard';
 import { QuizController } from './components/quiz/QuizController';
 import { TopicSelectorView } from './components/quiz/TopicSelectorView';
+import { MockExamSelectorView } from './components/quiz/MockExamSelectorView';
 import { FlashcardsView } from './components/study/FlashcardsView';
 import { StudyNotesView } from './components/study/StudyNotesView';
 import { AdminView } from './components/admin/AdminView';
@@ -26,21 +27,28 @@ export function App() {
     setProgress(loadProgress());
   }, [currentTab, activeSession]);
 
-  const handleStartQuiz = (mode: QuizMode, topic?: MongoTopic) => {
-    const session = createSession(mode, topic);
+  const handleStartQuiz = (mode: QuizMode, topic?: MongoTopic, mockExamId?: string) => {
+    const session = createSession(mode, topic, mockExamId);
     setActiveSession(session);
   };
 
   const handleSelectTab = (tab: NavTab) => {
-    // If selecting a quiz mode tab directly:
     if (tab === 'practice') {
       handleStartQuiz('practice');
     } else if (tab === 'quiz') {
       handleStartQuiz('quiz');
-    } else if (tab === 'mock-test') {
-      handleStartQuiz('mock-test');
+    } else if (tab === 'challenge') {
+      handleStartQuiz('challenge');
+    } else if (tab === 'mastery') {
+      handleStartQuiz('mastery');
+    } else if (tab === 'weak-areas') {
+      handleStartQuiz('weak-areas');
+    } else if (tab === 'revision') {
+      handleStartQuiz('revision');
+    } else if (tab === 'datasets') {
+      setIsSeedDataOpen(true);
+      return;
     } else {
-      // Clear active quiz if navigating elsewhere
       setActiveSession(null);
     }
     setCurrentTab(tab);
@@ -48,7 +56,7 @@ export function App() {
 
   const handleRestartQuiz = () => {
     if (!activeSession) return;
-    const newSession = createSession(activeSession.mode, activeSession.selectedTopic);
+    const newSession = createSession(activeSession.mode, activeSession.selectedTopic, activeSession.mockExamId);
     setActiveSession(newSession);
   };
 
@@ -75,11 +83,21 @@ export function App() {
         return (
           <Dashboard
             progress={progress}
-            onStartQuiz={(mode, topic) => {
-              handleStartQuiz(mode, topic);
+            onStartQuiz={(mode, topic, mockExamId) => {
+              handleStartQuiz(mode, topic, mockExamId);
             }}
             onNavigateTab={(tab) => handleSelectTab(tab)}
             onOpenSeedData={() => setIsSeedDataOpen(true)}
+          />
+        );
+
+      case 'mock-exam-selector':
+        return (
+          <MockExamSelectorView
+            bestMockScore={progress.bestMockScore}
+            onSelectExam={(preset) => {
+              handleStartQuiz('mock-test', undefined, preset.id);
+            }}
           />
         );
 
@@ -120,7 +138,7 @@ export function App() {
         return (
           <Dashboard
             progress={progress}
-            onStartQuiz={(mode, topic) => handleStartQuiz(mode, topic)}
+            onStartQuiz={(mode, topic, mockExamId) => handleStartQuiz(mode, topic, mockExamId)}
             onNavigateTab={(tab) => handleSelectTab(tab)}
             onOpenSeedData={() => setIsSeedDataOpen(true)}
           />
@@ -154,7 +172,7 @@ export function App() {
         </main>
       </div>
 
-      {/* GptData02 Seed Dataset Modal Inspector */}
+      {/* Live Datasets Modal Explorer */}
       <SeedDataModal
         isOpen={isSeedDataOpen}
         onClose={() => setIsSeedDataOpen(false)}

@@ -442,3 +442,205 @@ export const GptData02: StudentDocument[] = [
     Misc: [17, 32, 47, 58]
   }
 ];
+
+// Hospital Management Dataset
+export const HospitalData = [
+  {
+    _id: "HOSP-001",
+    patientName: "Adeleke Benson",
+    age: 45,
+    bloodGroup: "O+",
+    allergies: ["Penicillin", "Sulfa"],
+    vitals: { heartRate: 72, bloodPressure: "120/80", temperature: 36.8 },
+    department: "Cardiology",
+    admitted: true,
+    doctorInCharge: "Dr. Alabi",
+    prescriptions: [
+      { medication: "Lisinopril", dosage: "10mg", frequency: "Daily" },
+      { medication: "Aspirin", dosage: "81mg", frequency: "Daily" }
+    ],
+    billing: { total: 45000, paid: 30000, status: "partial" }
+  },
+  {
+    _id: "HOSP-002",
+    patientName: "Miriam Kalu",
+    age: 29,
+    bloodGroup: "A+",
+    allergies: [],
+    vitals: { heartRate: 80, bloodPressure: "115/75", temperature: 37.1 },
+    department: "Maternity",
+    admitted: false,
+    doctorInCharge: "Dr. Mrs. Briggs",
+    prescriptions: [
+      { medication: "Folic Acid", dosage: "5mg", frequency: "Daily" }
+    ],
+    billing: { total: 12000, paid: 12000, status: "paid" }
+  },
+  {
+    _id: "HOSP-003",
+    patientName: "Tariq Mansoor",
+    age: 63,
+    bloodGroup: "B-",
+    allergies: ["Ibuprofen"],
+    vitals: { heartRate: 88, bloodPressure: "145/95", temperature: 37.4 },
+    department: "Oncology",
+    admitted: true,
+    doctorInCharge: "Dr. Okon",
+    prescriptions: [
+      { medication: "Cisplatin", dosage: "50mg", frequency: "Weekly" }
+    ],
+    billing: { total: 180000, paid: 50000, status: "unpaid" }
+  }
+];
+
+// Banking & Financial Transactions Dataset
+export const BankingData = [
+  {
+    _id: "ACC-1001",
+    accountNumber: "0123456789",
+    accountHolder: "Nnamdi Kanu Tech Ventures",
+    tier: 3,
+    balance: 1450000.50,
+    currency: "NGN",
+    status: "active",
+    kycVerified: true,
+    branches: ["Victoria Island", "Lekki Phase 1"],
+    limits: { dailyTransfer: 5000000, international: true },
+    recentTransfers: [
+      { ref: "TX-9901", amount: 250000, type: "debit", recipient: "Amazon AWS", date: "2026-09-01" },
+      { ref: "TX-9902", amount: 800000, type: "credit", sender: "Client Retainer", date: "2026-09-03" }
+    ]
+  },
+  {
+    _id: "ACC-1002",
+    accountNumber: "0987654321",
+    accountHolder: "Grace Opara",
+    tier: 1,
+    balance: 84200.00,
+    currency: "NGN",
+    status: "active",
+    kycVerified: true,
+    branches: ["Ikeja Mall"],
+    limits: { dailyTransfer: 100000, international: false },
+    recentTransfers: [
+      { ref: "TX-9903", amount: 15000, type: "debit", recipient: "Supermarket POS", date: "2026-09-04" }
+    ]
+  },
+  {
+    _id: "ACC-1003",
+    accountNumber: "0554433221",
+    accountHolder: "Suleiman Minerals Ltd",
+    tier: 3,
+    balance: 12500000.00,
+    currency: "NGN",
+    status: "dormant",
+    kycVerified: false,
+    branches: ["Abuja Central"],
+    limits: { dailyTransfer: 10000000, international: true },
+    recentTransfers: []
+  }
+];
+
+// E-Commerce Product & Orders Dataset
+export const EcommerceData = [
+  {
+    _id: "PROD-501",
+    sku: "LAPTOP-MBP-16",
+    title: "MacBook Pro 16-inch M3 Max",
+    category: "Computers",
+    price: 3499.00,
+    stock: 14,
+    tags: ["electronics", "apple", "developer", "hardware"],
+    ratings: { average: 4.8, reviewCount: 124 },
+    attributes: { ram: "64GB", storage: "1TB SSD", color: "Space Black" },
+    discounts: [{ code: "STUDENT10", percentage: 10, validTill: "2026-12-31" }]
+  },
+  {
+    _id: "PROD-502",
+    sku: "PHONE-PX-9P",
+    title: "Google Pixel 9 Pro XL",
+    category: "Phones",
+    price: 1099.00,
+    stock: 45,
+    tags: ["electronics", "mobile", "ai", "android"],
+    ratings: { average: 4.6, reviewCount: 88 },
+    attributes: { ram: "16GB", storage: "256GB", color: "Obsidian" },
+    discounts: []
+  },
+  {
+    _id: "PROD-503",
+    sku: "MON-DELL-4K",
+    title: "Dell UltraSharp 32 4K USB-C Hub Monitor",
+    category: "Monitors",
+    price: 899.99,
+    stock: 0,
+    tags: ["electronics", "displays", "productivity"],
+    ratings: { average: 4.7, reviewCount: 52 },
+    attributes: { size: "32 inch", resolution: "3840x2160", panel: "IPS Black" },
+    discounts: []
+  }
+];
+
+// Hotel Reservation Dataset
+export const HotelData = [
+  {
+    _id: "RES-701",
+    guestName: "Alexander Wright",
+    roomNumber: 402,
+    roomType: "Executive Suite",
+    checkIn: "2026-10-10",
+    checkOut: "2026-10-15",
+    guestsCount: 2,
+    amenities: ["Ocean View", "King Bed", "Jacuzzi", "High-speed WiFi"],
+    pricePerNight: 280,
+    isPaid: true,
+    specialRequests: ["Late checkout 2PM", "Extra pillow"]
+  },
+  {
+    _id: "RES-702",
+    guestName: "Fatou Diop",
+    roomNumber: 215,
+    roomType: "Deluxe Single",
+    checkIn: "2026-10-12",
+    checkOut: "2026-10-14",
+    guestsCount: 1,
+    amenities: ["City View", "Queen Bed", "Desk"],
+    pricePerNight: 120,
+    isPaid: false,
+    specialRequests: []
+  }
+];
+
+// All Datasets Registry for interactive multi-collection viewing
+export const ALL_DATASETS: Record<string, { label: string; collectionName: string; count: number; data: any[] }> = {
+  GptData02: {
+    label: "School & Students (GptData02)",
+    collectionName: "db.GptData02",
+    count: GptData02.length,
+    data: GptData02
+  },
+  hospital: {
+    label: "Hospital Management",
+    collectionName: "db.patients",
+    count: HospitalData.length,
+    data: HospitalData
+  },
+  banking: {
+    label: "Banking & Accounts",
+    collectionName: "db.accounts",
+    count: BankingData.length,
+    data: BankingData
+  },
+  ecommerce: {
+    label: "E-Commerce Products & Orders",
+    collectionName: "db.products",
+    count: EcommerceData.length,
+    data: EcommerceData
+  },
+  hotel: {
+    label: "Hotel & Reservations",
+    collectionName: "db.reservations",
+    count: HotelData.length,
+    data: HotelData
+  }
+};

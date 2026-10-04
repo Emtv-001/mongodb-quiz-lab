@@ -1,6 +1,7 @@
 import { DEFAULT_QUESTIONS } from '../data/questions';
+import { MOCK_EXAM_PRESETS } from '../data/mockExams';
 import { MongoTopic, Question, QuizMode, QuizSession } from '../types';
-import { loadCustomQuestions } from './storage';
+import { loadCustomQuestions, loadProgress } from './storage';
 
 /**
  * Fisher-Yates array shuffle
@@ -15,7 +16,7 @@ export function shuffleArray<T>(array: T[]): T[] {
 }
 
 /**
- * Fetches all available questions (built-in + teacher custom questions)
+ * Fetches all available questions (built-in + instructor custom questions)
  */
 export function getAllQuestions(): Question[] {
   const custom = loadCustomQuestions();
@@ -23,10 +24,10 @@ export function getAllQuestions(): Question[] {
 }
 
 /**
- * Anti-memorization: creates question variations with shuffled options for MCQs/Scenarios/Errors
+ * Anti-memorization: creates question variations with shuffled options
  */
 export function prepareQuestionForSession(q: Question): Question {
-  // If multiple-choice / scenario / predict / find-error, randomize the option order
+  // If multiple-choice / scenario / predict / find-error / multiple-select, randomize the option order
   if (q.options && q.options.length > 1 && q.correctOptionIndex !== undefined) {
     const correctOption = q.options[q.correctOptionIndex];
     const shuffledOptions = shuffleArray(q.options);
@@ -58,73 +59,125 @@ export function prepareQuestionForSession(q: Question): Question {
 }
 
 /**
- * Generates questions for different quiz modes
+ * Generates questions tailored for each specific learning and practice mode
  */
 export function generateQuizQuestions(
   mode: QuizMode,
   selectedTopic?: MongoTopic,
+  mockExamId?: string,
   limitCount: number = 10
 ): Question[] {
   const all = getAllQuestions();
+  const progress = loadProgress();
 
   if (mode === 'topic-practice' && selectedTopic) {
     const topicQuestions = all.filter(q => q.topic === selectedTopic);
-    return shuffleArray(topicQuestions).map(prepareQuestionForSession);
+    return shuffleArray(topicQuestions).slice(0, 15).map(prepareQuestionForSession);
   }
 
   if (mode === 'mock-test') {
-    // NIIT-Style Practical Assessment:
-    // Difficulty progression: Easy -> Medium -> Hard -> Expert
-    const easy = shuffleArray(all.filter(q => q.difficulty === 'Easy'));
-    const medium = shuffleArray(all.filter(q => q.difficulty === 'Medium'));
-    const hard = shuffleArray(all.filter(q => q.difficulty === 'Hard'));
-    const expert = shuffleArray(all.filter(q => q.difficulty === 'Expert'));
+    const preset = MOCK_EXAM_PRESETS.find(p => p.id === mockExamId) || MOCK_EXAM_PRESETS[8]; // Full mock default
+    const matchingTopics = preset.topics;
 
-    const mockSet: Question[] = [
-      ...easy.slice(0, 3),
-      ...medium.slice(0, 5),
-      ...hard.slice(0, 4),
-      ...expert.slice(0, 3)
-    ];
-
-    // Fallback if not enough in specific tiers
-    if (mockSet.length < 15) {
-      const remaining = all.filter(q => !mockSet.some(m => m.id === q.id));
-      mockSet.push(...shuffleArray(remaining).slice(0, 15 - mockSet.length));
+    let pool = all.filter(q => matchingTopics.includes(q.topic));
+    if (pool.length < preset.questionCount) {
+      pool = all;
     }
 
-    return mockSet.map(prepareQuestionForSession);
+    // Difficulty progression: Easy -> Medium -> Hard -> Expert
+    const easy = shuffleArray(pool.filter(q => q.difficulty === 'Easy'));
+    const medium = shuffleArray(pool.filter(q => q.difficulty === 'Medium'));
+    const hard = shuffleArray(pool.filter(q => q.difficulty === 'Hard'));
+    const expert = shuffleArray(pool.filter(q => q.difficulty === 'Expert'));
+
+    const mockSet: Question[] = [
+      ...easy.slice(0, Math.ceil(preset.questionCount * 0.2)),
+      ...medium.slice(0, Math.ceil(preset.questionCount * 0.4)),
+      ...hard.slice(0, Math.ceil(preset.questionCount * 0.25)),
+      ...expert.slice(0, Math.ceil(preset.questionCount * 0.15))
+    ];
+
+    if (mockSet.length < preset.questionCount) {
+      const remaining = pool.filter(q => !mockSet.some(m => m.id === q.id));
+      mockSet.push(...shuffleArray(remaining).slice(0, preset.questionCount - mockSet.length));
+    }
+
+    return mockSet.slice(0, preset.questionCount).map(prepareQuestionForSession);
   }
 
-  // Standard Quiz or Practice Mode: random selection
+  if (mode === 'challenge') {
+    // Difficult practical questions (Hard and Expert only)
+    const challengePool = all.filter(q => q.difficulty === 'Hard' || q.difficulty === 'Expert');
+    return shuffleArray(challengePool.length > 0 ? challengePool : all).slice(0, 10).map(prepareQuestionForSession);
+  }
+
+  if (mode === 'weak-areas') {
+    // Automatically target topics where accuracy is under 60%
+    const weakTopics = Object.entries(progress.topicStats)
+      .filter(([_, stats]) => stats.attempted > 0 && (stats.correct / stats.attempted) < 0.6)
+      .map(([topic]) => topic as MongoTopic);
+
+    let weakPool = all.filter(q => weakTopics.includes(q.topic));
+    if (weakPool.length < 5) {
+      // If not enough weak topics identified, take from less practiced topics
+      const leastPracticed = Object.entries(progress.topicStats)
+        .sort((a, b) => a[1].attempted - b[1].attempted)
+        .slice(0, 3)
+        .map(([topic]) => topic as MongoTopic);
+      weakPool = all.filter(q => leastPracticed.includes(q.topic));
+    }
+
+    return shuffleArray(weakPool.length > 0 ? weakPool : all).slice(0, 10).map(prepareQuestionForSession);
+  }
+
+  if (mode === 'revision') {
+    // Spaced repetition queue
+    const today = new Date().toISOString().split('T')[0];
+    const dueQuestionIds = Object.values(progress.spacedRepetition)
+      .filter(sr => sr.nextReviewDate <= today || sr.consecutiveCorrect === 0)
+      .map(sr => sr.questionId);
+
+    const revisionPool = all.filter(q => dueQuestionIds.includes(q.id) || progress.bookmarkedQuestionIds.includes(q.id));
+    return shuffleArray(revisionPool.length > 0 ? revisionPool : all).slice(0, 10).map(prepareQuestionForSession);
+  }
+
+  if (mode === 'mastery') {
+    // Real-world project scenarios (Level 9) & multi-stage architectures
+    const masteryPool = all.filter(q => q.level >= 8 || q.difficulty === 'Expert' || q.datasetName);
+    return shuffleArray(masteryPool.length > 0 ? masteryPool : all).slice(0, 12).map(prepareQuestionForSession);
+  }
+
+  // Standard Quiz, Practice Mode, Random
   const shuffled = shuffleArray(all);
   return shuffled.slice(0, limitCount).map(prepareQuestionForSession);
 }
 
 /**
- * Creates a new quiz session
+ * Creates a new quiz or mock exam session
  */
 export function createSession(
   mode: QuizMode,
   selectedTopic?: MongoTopic,
+  mockExamId?: string,
   questionCount: number = 10
 ): QuizSession {
-  const questions = generateQuizQuestions(mode, selectedTopic, questionCount);
+  const questions = generateQuizQuestions(mode, selectedTopic, mockExamId, questionCount);
 
-  // Time durations:
-  // Practice mode: unlimited (undefined)
-  // Standard quiz: 60 seconds per question
-  // Mock test: 20 minutes (1200 seconds)
   let duration: number | undefined;
-  if (mode === 'quiz') {
+
+  if (mode === 'mock-test' && mockExamId) {
+    const preset = MOCK_EXAM_PRESETS.find(p => p.id === mockExamId);
+    duration = (preset ? preset.durationMinutes : 20) * 60;
+  } else if (mode === 'quiz' || mode === 'challenge') {
     duration = questions.length * 75; // 75s per question
-  } else if (mode === 'mock-test') {
-    duration = 1200; // 20 mins for full mock test
+  } else if (mode === 'mastery') {
+    duration = questions.length * 90; // 90s per practical mastery question
   }
 
   return {
     id: 'session_' + Date.now(),
     mode,
+    mockExamId,
     selectedTopic,
     totalQuestions: questions.length,
     timeRemainingSeconds: duration,
@@ -132,6 +185,7 @@ export function createSession(
     currentIndex: 0,
     questions,
     attempts: {},
+    flaggedQuestionIds: [],
     completed: false,
     startTime: Date.now()
   };

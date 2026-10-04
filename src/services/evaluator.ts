@@ -16,32 +16,6 @@ export function normalizeMongoCommand(cmd: string): string {
 }
 
 /**
- * Calculates Levenshtein distance between two strings
- */
-function levenshtein(a: string, b: string): number {
-  const an = a ? a.length : 0;
-  const bn = b ? b.length : 0;
-  if (an === 0) return bn;
-  if (bn === 0) return an;
-  const matrix: number[][] = [];
-  for (let i = 0; i <= bn; ++i) matrix[i] = [i];
-  for (let i = 0; i <= an; ++i) matrix[0][i] = i;
-  for (let i = 1; i <= bn; ++i) {
-    for (let j = 1; j <= an; ++j) {
-      if (b.charAt(i - 1) === a.charAt(j - 1)) {
-        matrix[i][j] = matrix[i - 1][j - 1];
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1, // substitution
-          Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1) // insertion, deletion
-        );
-      }
-    }
-  }
-  return matrix[bn][an];
-}
-
-/**
  * Evaluates student's code command with intelligent partial credit scoring.
  */
 export function evaluateCodeCommand(
@@ -87,6 +61,7 @@ export function evaluateCodeCommand(
       correctAnswer: question.expectedCommand,
       feedback: "No command was submitted.",
       concept: question.conceptFocus,
+      misconception: question.misconception,
       breakdown: {
         awardedPoints: 0,
         maxPoints: maxScore,
@@ -104,7 +79,7 @@ export function evaluateCodeCommand(
   const missedCriteria: string[] = [];
   const feedbackItems: string[] = [];
 
-  // A. Collection & Method Check (e.g. db.GptData02.updateOne) - 2.0 pts
+  // A. Collection & Method Check (e.g. db.GptData02.updateOne or db.accounts.find) - 2.0 pts
   const methodMatch = question.expectedCommand?.match(/db\.([a-zA-Z0-9_]+)\.([a-zA-Z0-9]+)/);
   if (methodMatch) {
     const expectedCol = methodMatch[1];
@@ -126,7 +101,7 @@ export function evaluateCodeCommand(
     }
   }
 
-  // B. Query Filter Check (e.g. {_id: 1} or {_id: 10}) - 2.5 pts
+  // B. Query Filter Check - 2.5 pts
   const filterMatch = question.expectedCommand?.match(/\(\s*(\{.*?\})\s*,/s);
   if (filterMatch) {
     const expectedFilterClean = normalizeMongoCommand(filterMatch[1]);
@@ -136,7 +111,7 @@ export function evaluateCodeCommand(
     if (studentFilterClean === expectedFilterClean || (studentFilterClean && normalizedStudent.includes(expectedFilterClean))) {
       awarded += 2.5;
       matchedCriteria.push("Accurate query filter document");
-    } else if (studentFilterClean && (studentFilterClean.includes('_id') || studentFilterClean.includes('Courses'))) {
+    } else if (studentFilterClean && (studentFilterClean.includes('_id') || studentFilterClean.includes('accountNumber') || studentFilterClean.includes('status'))) {
       awarded += 1.5;
       matchedCriteria.push("Query filter partially matched target document");
       feedbackItems.push("The filter document had slight discrepancies from the required criteria.");
@@ -146,7 +121,7 @@ export function evaluateCodeCommand(
     }
   }
 
-  // C. MongoDB Operators Check (e.g. $push, $each, $position, $slice, $sort, $min, $max, $set, $unset, $rename, $inc, $pull, $pullAll, $pop, $addToSet, $setOnInsert) - 3.5 pts
+  // C. MongoDB Operators Check ($push, $each, $inc, $group, $match, etc.) - 3.5 pts
   const operatorsInExpected = (question.expectedCommand?.match(/\$[a-zA-Z0-9]+/g) || []);
   const uniqueExpectedOps = Array.from(new Set(operatorsInExpected));
 
@@ -177,8 +152,7 @@ export function evaluateCodeCommand(
     }
   }
 
-  // D. Field Names & Typos Check (e.g. Address.HouseNo vs Address.HouseNumber) - 2.0 pts
-  // Detect known target fields from expected command
+  // D. Field Names & Typos Check - 2.0 pts
   const fieldNamesRegex = /["']?([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*)["']?\s*:/g;
   const expectedFields: string[] = [];
   let m;
@@ -193,17 +167,15 @@ export function evaluateCodeCommand(
     if (rawInput.includes(expectedField)) {
       fieldsMatched++;
     } else {
-      // Check for common abbreviation/typo like HouseNo instead of HouseNumber
       const dotParts = expectedField.split('.');
       const leafName = dotParts[dotParts.length - 1];
       if (
         (leafName.toLowerCase() === 'housenumber' && /houseno\b/i.test(rawInput)) ||
-        (leafName.toLowerCase() === 'state' && /province\b/i.test(rawInput)) ||
-        (leafName.toLowerCase() === 'active' && /status\b/i.test(rawInput)) ||
+        (leafName.toLowerCase() === 'balance' && /bal\b/i.test(rawInput)) ||
         (leafName.toLowerCase() === 'courses' && /\bcourse\b/i.test(rawInput))
       ) {
         awarded += 1.0;
-        feedbackItems.push(`Your answer used an abbreviated or alternate field name instead of "${expectedField}". Your operator logic was recognized, so partial credit was awarded.`);
+        feedbackItems.push(`Your answer used an abbreviated field name instead of "${expectedField}". Partial credit awarded.`);
       } else {
         missedCriteria.push(`Expected field "${expectedField}"`);
       }
@@ -215,25 +187,10 @@ export function evaluateCodeCommand(
     matchedCriteria.push(`All target field names matched correctly`);
   }
 
-  // E. Upsert option check if required
-  if (question.expectedCommand?.includes('upsert')) {
-    if (rawInput.includes('upsert') && /upsert\s*:\s*true/i.test(rawInput)) {
-      matchedCriteria.push("Included {upsert: true} option");
-    } else {
-      missedCriteria.push("Missing {upsert: true} option in update arguments");
-      feedbackItems.push("Remember to include { upsert: true } as the third argument.");
-    }
-  }
-
-  // Cap awarded score between 0 and maxScore
+  // Cap awarded score
   let finalScore = Math.min(maxScore, Math.max(0, Math.round(awarded * 10) / 10));
-  // If close to full score but slightly different formatting, give at least 9 or 8
-  const isPartial = finalScore > 0 && finalScore < maxScore;
   const isCorrect = finalScore >= (maxScore * 0.95);
-
-  if (isCorrect) {
-    finalScore = maxScore;
-  }
+  if (isCorrect) finalScore = maxScore;
 
   const detailedFeedback = feedbackItems.length > 0
     ? feedbackItems.join(' ')
@@ -248,6 +205,7 @@ export function evaluateCodeCommand(
     correctAnswer: question.expectedCommand,
     feedback: detailedFeedback,
     concept: question.conceptFocus,
+    misconception: question.misconception,
     breakdown: {
       awardedPoints: finalScore,
       maxPoints: maxScore,
@@ -260,7 +218,7 @@ export function evaluateCodeCommand(
 }
 
 /**
- * Universal evaluator handling all question types
+ * Universal evaluator handling all 10 question types
  */
 export function evaluateAnswer(
   question: Question,
@@ -270,12 +228,54 @@ export function evaluateAnswer(
 
   switch (question.type) {
     case 'write-command':
+    case 'fix-query':
       return evaluateCodeCommand(studentAnswer as string, question);
+
+    case 'multiple-select': {
+      // studentAnswer is number[]
+      const selected = (studentAnswer as number[]) || [];
+      const expected = question.correctOptionIndices || [];
+
+      const correctSelected = selected.filter(i => expected.includes(i)).length;
+      const incorrectSelected = selected.filter(i => !expected.includes(i)).length;
+
+      const isExact = expected.length > 0 &&
+        correctSelected === expected.length &&
+        incorrectSelected === 0;
+
+      const earned = isExact
+        ? maxScore
+        : Math.max(0, Math.round(((correctSelected - (incorrectSelected * 0.5)) / expected.length) * maxScore * 10) / 10);
+
+      const isPart = earned > 0 && !isExact;
+
+      return {
+        isCorrect: isExact,
+        isPartial: isPart,
+        score: earned,
+        maxScore,
+        studentAnswer: selected.map(i => question.options?.[i] || `${i}`),
+        correctAnswer: expected.map(i => question.options?.[i] || `${i}`),
+        feedback: isExact
+          ? "All correct options selected!"
+          : `Selected ${correctSelected} of ${expected.length} correct options. ${incorrectSelected > 0 ? `${incorrectSelected} incorrect options selected.` : ''}`,
+        concept: question.conceptFocus,
+        misconception: question.misconception,
+        breakdown: {
+          awardedPoints: earned,
+          maxPoints: maxScore,
+          matchedCriteria: isExact ? ["All correct choices identified"] : [`${correctSelected}/${expected.length} matched`],
+          missedCriteria: isExact ? [] : ["Incomplete or extra choices"],
+          feedbackNotes: question.explanation
+        }
+      };
+    }
 
     case 'multiple-choice':
     case 'predict-output':
     case 'find-error':
-    case 'scenario': {
+    case 'scenario':
+    case 'true-false': {
       const selectedIndex = Number(studentAnswer);
       const isCorrect = selectedIndex === question.correctOptionIndex;
       const score = isCorrect ? maxScore : 0;
@@ -297,6 +297,7 @@ export function evaluateAnswer(
           ? "Correct! You identified the right MongoDB behavior."
           : `Incorrect. The correct choice was: "${correctOptionText}".`,
         concept: question.conceptFocus,
+        misconception: question.misconception,
         breakdown: {
           awardedPoints: score,
           maxPoints: maxScore,
@@ -308,7 +309,6 @@ export function evaluateAnswer(
     }
 
     case 'match-operator': {
-      // studentAnswer is Record<string, string> where key = operatorId, value = definitionId
       const matches = (studentAnswer as Record<string, string>) || {};
       const pairs = question.matchPairs || [];
       if (pairs.length === 0) return { isCorrect: true, isPartial: false, score: maxScore, maxScore, studentAnswer, correctAnswer: null, feedback: "Valid", concept: question.conceptFocus };
@@ -342,6 +342,7 @@ export function evaluateAnswer(
           ? "All operators matched correctly!"
           : `You matched ${correctCount} of ${pairs.length} operators correctly. ${missed.length > 0 ? `Review: ${missed.join(', ')}.` : ''}`,
         concept: question.conceptFocus,
+        misconception: question.misconception,
         breakdown: {
           awardedPoints: earned,
           maxPoints: maxScore,
@@ -353,7 +354,6 @@ export function evaluateAnswer(
     }
 
     case 'arrange-command': {
-      // studentAnswer is array of block IDs: string[]
       const studentOrder = (studentAnswer as string[]) || [];
       const expectedOrder = question.correctArrangeOrder || [];
       const isExact = JSON.stringify(studentOrder) === JSON.stringify(expectedOrder);
@@ -378,7 +378,6 @@ export function evaluateAnswer(
         };
       }
 
-      // Check partial sequential matches
       let sequentialMatches = 0;
       for (let i = 0; i < expectedOrder.length; i++) {
         if (studentOrder[i] === expectedOrder[i]) {
@@ -395,9 +394,10 @@ export function evaluateAnswer(
         studentAnswer: studentOrder,
         correctAnswer: expectedOrder,
         feedback: partialScore > 0
-          ? `Partially correct order (${sequentialMatches}/${expectedOrder.length} blocks placed correctly). Notice the order of modifiers like $each before $position or $sort.`
+          ? `Partially correct order (${sequentialMatches}/${expectedOrder.length} blocks placed correctly).`
           : "The command sequence was incorrect. Review the required modifier order.",
         concept: question.conceptFocus,
+        misconception: question.misconception,
         breakdown: {
           awardedPoints: partialScore,
           maxPoints: maxScore,

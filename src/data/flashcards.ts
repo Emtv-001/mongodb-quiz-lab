@@ -3,7 +3,8 @@ import { Flashcard } from '../types';
 export const FLASHCARDS: Flashcard[] = [
   {
     id: "fc-1",
-    topic: "Array Updates",
+    topic: "Update Operators & Modifiers",
+    level: 3,
     difficulty: "Easy",
     front: "What is the difference between $pop: -1 and $pop: 1?",
     back: "$pop: -1 removes the FIRST element (index 0) of an array, while $pop: 1 removes the LAST element of an array.",
@@ -13,7 +14,8 @@ export const FLASHCARDS: Flashcard[] = [
   },
   {
     id: "fc-2",
-    topic: "Array Updates",
+    topic: "Update Operators & Modifiers",
+    level: 3,
     difficulty: "Medium",
     front: "Can you use the $position modifier without $each in $push?",
     back: "NO! In MongoDB, the $position modifier MUST be used alongside $each, even if you are inserting a single element.",
@@ -23,7 +25,8 @@ export const FLASHCARDS: Flashcard[] = [
   },
   {
     id: "fc-3",
-    topic: "Array Updates",
+    topic: "Update Operators & Modifiers",
+    level: 3,
     difficulty: "Medium",
     front: "What is the difference between $slice: 4 and $slice: -4 in a $push update?",
     back: "$slice: 4 retains only the FIRST 4 elements in the array. $slice: -4 retains only the LAST 4 elements in the array.",
@@ -33,7 +36,8 @@ export const FLASHCARDS: Flashcard[] = [
   },
   {
     id: "fc-4",
-    topic: "$addToSet vs $push",
+    topic: "Update Operators & Modifiers",
+    level: 3,
     difficulty: "Easy",
     front: "What is the core difference between $push and $addToSet?",
     back: "$push allows duplicate items and always appends. $addToSet treats the array like a mathematical set, adding the item ONLY if it does not already exist.",
@@ -43,7 +47,8 @@ export const FLASHCARDS: Flashcard[] = [
   },
   {
     id: "fc-5",
-    topic: "Upsert & $setOnInsert",
+    topic: "CRUD Operations",
+    level: 3,
     difficulty: "Medium",
     front: "When does the $setOnInsert operator execute its updates?",
     back: "$setOnInsert ONLY assigns fields when an upsert operation creates a brand new document. If a matching document already exists, $setOnInsert is completely ignored.",
@@ -53,72 +58,57 @@ export const FLASHCARDS: Flashcard[] = [
   },
   {
     id: "fc-6",
-    topic: "Update Operators",
-    difficulty: "Easy",
-    front: "How do $min and $max update operators behave?",
-    back: "$min updates the field only if the specified value is LESS than the current value (keeps the smaller). $max updates only if the specified value is GREATER (keeps the larger).",
-    syntax: "db.collection.updateOne({ _id: 1 }, { $min: { GPA: 3.0 }, $max: { Marks: 95 } })",
-    example: "If GPA is 3.4, $min: 3.0 updates it to 3.0. If GPA is 2.8, $min: 3.0 leaves it as 2.8.",
-    note: "Think: $min sets a ceiling; $max sets a floor."
+    topic: "Indexes & ESR Rule",
+    level: 6,
+    difficulty: "Hard",
+    front: "What does the ESR rule prescribe for compound index ordering?",
+    back: "1. Equality fields first (exact matches =)\n2. Sort fields second (order by)\n3. Range filter fields last (>, <, $in)\nThis eliminates in-memory blocking sorts and narrows index scans.",
+    syntax: "db.orders.createIndex({ status: 1, customerId: 1, createdAt: 1 })",
+    example: "Equality (status), Sort (customerId), Range (createdAt).",
+    note: "ESR = Equality, Sort, Range."
   },
   {
     id: "fc-7",
-    topic: "Arrays",
-    difficulty: "Easy",
-    front: "What does the query db.GptData02.find({'Courses.0': 'Java'}) mean?",
-    back: "It checks whether the very first element (index 0) of the Courses array is equal to 'Java'. Array indexes in MongoDB are strictly 0-based.",
-    syntax: "db.GptData02.find({ 'Courses.0': 'Java' })",
-    example: "Matches ['Java', 'Python'] but does NOT match ['Python', 'Java'].",
-    note: "Always enclose dot notation in quotes: 'Courses.0'."
+    topic: "Performance & explain()",
+    level: 6,
+    difficulty: "Hard",
+    front: "What does a COLLSCAN execution stage indicate in an explain plan?",
+    back: "COLLSCAN indicates a full collection scan where every single document in the collection was loaded from disk into memory to test query filters, signaling a missing or unindexed query field.",
+    syntax: "db.orders.find({ orderNumber: 9912 }).explain('executionStats')",
+    example: "totalDocsExamined = 1,000,000 but nReturned = 1.",
+    note: "Aim for IXSCAN (Index Scan) and totalDocsExamined == nReturned."
   },
   {
     id: "fc-8",
-    topic: "Nested Documents",
-    difficulty: "Easy",
-    front: "How do you update only the State field inside a nested Address document?",
-    back: "Use dot notation wrapped in quotes: $set: { 'Address.State': 'Lagos' }. Do NOT do $set: { Address: { State: 'Lagos' } } because that replaces the entire Address object!",
-    syntax: "db.GptData02.updateOne({ _id: 10 }, { $set: { 'Address.State': 'Lagos' } })",
-    example: "Leaves Address.Country, Address.City, and Address.HouseNumber completely intact.",
-    note: "Quoting the key ('Address.State') is mandatory."
+    topic: "Aggregation Pipelines",
+    level: 5,
+    difficulty: "Medium",
+    front: "What is the difference between $project and $set / $addFields?",
+    back: "$project reshapes the document and excludes unlisted fields by default (unless explicitly included). $set and $addFields add or overwrite specified fields while leaving all other existing fields completely untouched.",
+    syntax: "db.collection.aggregate([{ $addFields: { isSenior: { $gte: ['$age', 60] } } }])",
+    example: "Use $set/$addFields when you only want to add a calculated property without re-specifying every other field.",
+    note: "$set is an alias for $addFields introduced in MongoDB 4.2."
   },
   {
     id: "fc-9",
-    topic: "Removing Array Elements",
-    difficulty: "Medium",
-    front: "What is the difference between $pull and $pullAll?",
-    back: "$pull can remove elements matching specific values OR conditions (e.g. { $gt: 20 }). $pullAll only accepts a fixed array of literal values to remove and cannot evaluate condition expressions.",
-    syntax: "db.collection.updateOne({ _id: 1 }, { $pullAll: { Skills: ['Git', 'Python'] } })",
-    example: "$pull: { Misc: { $gt: 20 } } works with $pull, but not with $pullAll.",
-    note: "$pullAll is syntactic sugar for $pull: { field: { $in: [...] } }."
+    topic: "Transactions & Consistency",
+    level: 8,
+    difficulty: "Hard",
+    front: "What does Write Concern 'w: majority' guarantee?",
+    back: "It guarantees that a write operation is committed to disk and acknowledged by a majority of voting replica set members before the client receives an acknowledgement, preventing rollback during failover.",
+    syntax: "db.accounts.updateOne({ _id: 1 }, { $set: { balance: 500 } }, { writeConcern: { w: 'majority' } })",
+    example: "Protects against data loss if the primary node crashes immediately after writing.",
+    note: "'w: majority' is default in MongoDB 5.0+."
   },
   {
     id: "fc-10",
-    topic: "Comparison Operators",
-    difficulty: "Easy",
-    front: "Does { Age: 20 } match a document where Age is stored as '20' (string)?",
-    back: "NO! MongoDB comparison operations are strictly type-aware based on BSON types. Numeric 20 will never match string '20'.",
-    syntax: "db.GptData02.find({ Age: 20 }) vs db.GptData02.find({ Age: '20' })",
-    example: "BSON type integer != BSON type string.",
-    note: "Always verify data types when testing numerical values."
-  },
-  {
-    id: "fc-11",
-    topic: "Aggregation",
+    topic: "Security & RBAC",
+    level: 7,
     difficulty: "Medium",
-    front: "Where should the $match stage ideally be placed in an aggregation pipeline?",
-    back: "As early as possible in the pipeline (usually as the first stage). Early $match filters out unnecessary documents, reduces memory consumption, and can utilize collection indexes.",
-    syntax: "db.SetData.aggregate([ { $match: { Section: 'A' } }, { $group: { ... } } ])",
-    example: "Placing $match before $group avoids grouping millions of rows that would later be discarded.",
-    note: "Pipeline optimization rule: filter first, aggregate second."
-  },
-  {
-    id: "fc-12",
-    topic: "Aggregation",
-    difficulty: "Hard",
-    front: "Why must field names in $group accumulators have a '$' prefix?",
-    back: "In MongoDB aggregation expressions, a dollar sign prefix like '$Marks' tells MongoDB to evaluate the value of the field from each incoming document. Without the '$', it is treated as a string literal.",
-    syntax: "{ $group: { _id: '$Section', Total: { $sum: '$Marks' } } }",
-    example: "{ $sum: '$Marks' } sums numbers; { $sum: 'Marks' } results in 0 because it treats 'Marks' as a literal string.",
-    note: "'$Field' = Field Value Reference. 'Field' = Raw String."
+    front: "What is the Principle of Least Privilege in MongoDB security?",
+    back: "Users and application microservices should only be granted the absolute minimum privileges and roles necessary to perform their functions (e.g. read or readWrite on a single database, never clusterAdmin or root).",
+    syntax: "db.createUser({ user: 'appSvc', pwd: '...', roles: [{ role: 'readWrite', db: 'orders' }] })",
+    example: "Never connect public web apps with the 'root' administrator credential.",
+    note: "Built-in roles include read, readWrite, dbAdmin, userAdmin, clusterAdmin."
   }
 ];

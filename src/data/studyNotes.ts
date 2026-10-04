@@ -2,420 +2,219 @@ import { StudyNoteSection } from '../types';
 
 export const STUDY_NOTES: StudyNoteSection[] = [
   {
-    id: "note-basic-queries",
-    topic: "Basic Queries",
-    title: "Basic Queries, Projection, Sorting & Pagination",
-    summary: "Master retrieval of MongoDB documents using find(), field projections, sort orders, and pagination using limit() and skip().",
+    id: "note-fundamentals",
+    topic: "MongoDB Fundamentals",
+    level: 1,
+    title: "MongoDB Architecture, Documents & BSON Anatomy",
+    summary: "Understand document databases, JSON vs BSON binary representation, ObjectId anatomy, and the flexible schema model.",
     keyOperators: [
       {
-        name: "find(filter, projection)",
-        description: "Queries documents matching the filter. The second parameter controls field visibility (1 to show, 0 to hide).",
-        example: 'db.GptData02.find({ Section: "A" }, { Name: 1, GPA: 1, _id: 0 })'
+        name: "BSON Types",
+        description: "BSON preserves strict types (Double: 1, String: 2, Object: 3, Array: 4, BinData: 5, ObjectId: 7, Bool: 8, Date: 9, Null: 10, Regex: 11, Int32: 16, Timestamp: 17, Int64: 18, Decimal128: 19).",
+        example: '{ $type: "decimal" } or { $type: 19 }'
       },
       {
-        name: "sort({ field: 1 | -1 })",
-        description: "Orders query results in ascending (1) or descending (-1) sequence.",
-        example: 'db.GptData02.find().sort({ GPA: -1, Marks: 1 })'
-      },
-      {
-        name: "limit(n) & skip(n)",
-        description: "Paginates results. skip(n) omits the first n results, limit(n) caps output to n documents.",
-        example: 'db.GptData02.find().sort({ GPA: -1 }).skip(5).limit(5)'
+        name: "ObjectId('...')",
+        description: "12-byte identifier composed of 4-byte timestamp + 5-byte random value + 3-byte incrementing counter.",
+        example: 'ObjectId("66fa9b4a1b2c3d4e5f6a7b8c").getTimestamp()'
       }
     ],
     importantRules: [
-      "_id is included by default in projections unless explicitly excluded with {_id: 0}.",
-      "You cannot mix inclusion (1) and exclusion (0) in the same projection object, with the sole exception of _id.",
-      "MongoDB applies operations in this standard order regardless of chain syntax: sort -> skip -> limit."
+      "Documents in MongoDB have a hard 16MB limit to prevent memory exhaustion and encourage normalized relationships when data grows unbounded.",
+      "Field order matters in embedded document equality: { a: 1, b: 2 } != { b: 2, a: 1 }."
     ],
     commonMistakes: [
-      "Writing {Name: 1, Age: 0} which produces Projection Error: Cannot do exclusion on field Age in inclusion projection.",
-      "Forgetting quotes around string values, e.g. Section: A instead of Section: \"A\"."
+      "Assuming numbers are stored as arbitrary text strings; numeric 20 != string '20'.",
+      "Treating ObjectId as completely random instead of chronologically sortable."
+    ],
+    realWorldScenario: "In school and enterprise setups, use ObjectId timestamps for audit trails without needing separate createdAt columns."
+  },
+  {
+    id: "note-crud",
+    topic: "CRUD Operations",
+    level: 3,
+    title: "Comprehensive CRUD & Atomic Methods",
+    summary: "Execute inserts, granular updates, atomic find-and-modify, and filter-based deletions.",
+    keyOperators: [
+      {
+        name: "findOneAndUpdate(filter, update, options)",
+        description: "Atomically updates a document and returns either the pre-update or post-update document ({ returnDocument: 'after' }).",
+        example: 'db.accounts.findOneAndUpdate({ _id: "ACC-1" }, { $inc: { balance: 100 } }, { returnDocument: "after" })'
+      },
+      {
+        name: "replaceOne(filter, replacement)",
+        description: "Replaces the entire document while preserving the original _id.",
+        example: 'db.patients.replaceOne({ _id: "HOSP-1" }, { patientName: "John", age: 30 })'
+      }
+    ],
+    importantRules: [
+      "updateOne() modifies ONLY the first document matched, while updateMany() updates all matching documents.",
+      "Upsert ({ upsert: true }) updates a matched document or atomically inserts a new document if no match is found."
+    ],
+    commonMistakes: [
+      "Passing { age: 30 } instead of { $set: { age: 30 } } in updateOne, which throws an error in modern MongoDB.",
+      "Using updateOne followed by find() rather than findOneAndUpdate() in multi-threaded workflows."
     ]
   },
   {
-    id: "note-comparison-operators",
-    topic: "Comparison Operators",
-    title: "Comparison Operators ($gt, $gte, $lt, $lte, $eq, $ne, $in, $nin)",
-    summary: "Filter documents by comparing field values against specific thresholds or sets.",
+    id: "note-data-modeling",
+    topic: "Data Modeling & Schema Design",
+    level: 4,
+    title: "Schema Design: Embedding vs Referencing",
+    summary: "Model relationships (1:1, 1:N, N:M), evaluate access patterns, cardinality, and avoid the 16MB document boundary.",
     keyOperators: [
       {
-        name: "$gt / $gte",
-        description: "Greater than (>) / Greater than or equal to (>=).",
-        example: 'db.GptData02.find({ GPA: { $gte: 3.5 } })'
+        name: "1-to-Few (Embedding)",
+        description: "Embed bounded data frequently accessed together with the parent.",
+        example: '{ _id: "user-1", name: "Sarah", addresses: [{ city: "Lagos", zip: "100001" }] }'
       },
       {
-        name: "$lt / $lte",
-        description: "Less than (<) / Less than or equal to (<=).",
-        example: 'db.GptData02.find({ Age: { $lt: 21 } })'
-      },
-      {
-        name: "$eq / $ne",
-        description: "Matches values equal to ($eq) or not equal to ($ne) a specified value.",
-        example: 'db.GptData02.find({ Active: { $ne: false } })'
-      },
-      {
-        name: "$in / $nin",
-        description: "Matches any value present ($in) or absent ($nin) in a given array of values.",
-        example: 'db.GptData02.find({ Section: { $in: ["A", "B"] } })'
+        name: "1-to-Squillions (Referencing)",
+        description: "Store child records in a separate collection with a parent foreign key reference.",
+        example: 'db.logs.find({ deviceId: "DEV-109" }).sort({ timestamp: -1 })'
       }
     ],
     importantRules: [
-      "Numeric vs String types: { Age: 20 } does NOT match { Age: \"20\" } because MongoDB is strictly type-aware (BSON types).",
-      "$in accepts an array of values and evaluates as an OR condition among those values."
+      "Model your data for your application's read and write access patterns, not generic third-normal-form (3NF) relational tables.",
+      "Favor embedding when entities have a 1-to-few relationship and are updated together."
     ],
     commonMistakes: [
-      "Writing { GPA: { gt: 3.5 } } without the leading dollar sign ($).",
-      "Passing a single scalar to $in instead of an array: { Section: { $in: \"A\" } } causes an error; it must be [\"A\"]."
-    ]
-  },
-  {
-    id: "note-logical-operators",
-    topic: "Logical Operators",
-    title: "Logical Operators ($and, $or, $nor, $not)",
-    summary: "Combine or negate multiple query condition clauses.",
-    keyOperators: [
-      {
-        name: "$or",
-        description: "Joins query clauses with a logical OR; returns documents that match at least one clause.",
-        example: 'db.GptData02.find({ $or: [{ Section: "A" }, { GPA: { $gt: 3.8 } }] })'
-      },
-      {
-        name: "$and",
-        description: "Joins query clauses with a logical AND; required when repeating the same field or operator.",
-        example: 'db.GptData02.find({ $and: [{ GPA: { $gt: 3.0 } }, { GPA: { $lt: 3.7 } }] })'
-      },
-      {
-        name: "$nor",
-        description: "Returns documents that fail all query clauses in the array.",
-        example: 'db.GptData02.find({ $nor: [{ Active: false }, { Marks: { $lt: 60 } }] })'
-      },
-      {
-        name: "$not",
-        description: "Performs logical NOT on a specific operator-expression.",
-        example: 'db.GptData02.find({ Marks: { $not: { $lt: 70 } } })'
-      }
-    ],
-    importantRules: [
-      "Comma-separated fields in a single query document default to an implicit $and.",
-      "$or and $nor take an array of condition objects: [{ cond1 }, { cond2 }]."
-    ],
-    commonMistakes: [
-      "Using $or without an array: { $or: { Active: true } } fails validation.",
-      "Applying $not as a top-level operator like $or; $not applies directly to an expression: { field: { $not: { ... } } }."
-    ]
-  },
-  {
-    id: "note-regex",
-    topic: "Regular Expressions",
-    title: "Regular Expressions ($regex, $options, Anchors)",
-    summary: "Pattern matching for strings and array elements using regular expressions.",
-    keyOperators: [
-      {
-        name: "$regex & $options",
-        description: "Matches string patterns. $options: 'i' enables case-insensitivity.",
-        example: 'db.GptData02.find({ Name: { $regex: "^chioma", $options: "i" } })'
-      },
-      {
-        name: "^ (Start anchor)",
-        description: "Matches strings that begin with the specified pattern.",
-        example: 'db.GptData02.find({ Name: { $regex: "^Tunde" } })'
-      },
-      {
-        name: "$ (End anchor)",
-        description: "Matches strings that end with the specified pattern.",
-        example: 'db.GptData02.find({ DOB: { $regex: "-14$" } })'
-      },
-      {
-        name: "Regex in Arrays",
-        description: "When applied to an array of strings (e.g. Courses), matches if any element matches the pattern.",
-        example: 'db.GptData02.find({ Courses: { $regex: "react", $options: "i" } })'
-      }
-    ],
-    importantRules: [
-      "Regex queries can target arrays of strings directly; MongoDB inspects every element in the array.",
-      "Using index-prefixed expressions like ^Pattern allows index prefix scans, whereas .*pattern cannot utilize indexes efficiently."
-    ],
-    commonMistakes: [
-      "Forgetting $options: 'i' when testing case-insensitive names, leading to 0 results.",
-      "Confusing the end-of-string regex anchor $ with MongoDB operator prefix $."
-    ]
-  },
-  {
-    id: "note-arrays",
-    topic: "Arrays",
-    title: "Array Queries & Zero-Based Indexing",
-    summary: "Querying arrays by size, set containment, element matching, and position.",
-    keyOperators: [
-      {
-        name: "Zero-Based Indexing",
-        description: "Index 0 refers to the very first array element. Must be enclosed in quotes.",
-        example: 'db.GptData02.find({ "Courses.0": "Java" })'
-      },
-      {
-        name: "$size",
-        description: "Matches arrays with an exact number of elements (cannot be used with comparisons like $gt).",
-        example: 'db.GptData02.find({ Skills: { $size: 3 } })'
-      },
-      {
-        name: "$all",
-        description: "Matches arrays that contain all specified elements, regardless of order.",
-        example: 'db.GptData02.find({ Skills: { $all: ["Python", "SQL"] } })'
-      },
-      {
-        name: "$elemMatch",
-        description: "Matches documents where at least one array element satisfies all specified criteria.",
-        example: 'db.GptData02.find({ Misc: { $elemMatch: { $gt: 20, $lt: 40 } } })'
-      }
-    ],
-    importantRules: [
-      "Array indexing is strictly zero-based: 'Courses.0' targets the 1st element, 'Courses.1' targets the 2nd element.",
-      "$size requires an exact integer; it does NOT accept range operators like { $size: { $gt: 2 } }.",
-      "$all requires every element in the given array to be present in the document's array."
-    ],
-    commonMistakes: [
-      "Omitting quotation marks around dot-notated array index queries: Courses.0 will cause syntax errors in JS/Mongo shell.",
-      "Confusing $in (matches if array contains at least one) with $all (must contain all listed elements)."
-    ]
-  },
-  {
-    id: "note-nested-docs",
-    topic: "Nested Documents",
-    title: "Nested Documents & Dot Notation",
-    summary: "Accessing and modifying embedded objects using dot notation.",
-    keyOperators: [
-      {
-        name: 'Dot Notation ("Parent.Child")',
-        description: "Accesses fields inside embedded documents. Always wrap in quotation marks.",
-        example: 'db.GptData02.find({ "Address.State": "Lagos" })'
-      },
-      {
-        name: 'Updating Nested Fields',
-        description: "Modifies only the specified nested property without replacing the entire parent object.",
-        example: 'db.GptData02.updateOne({ _id: 10 }, { $set: { "Address.City": "Victoria Island" } })'
-      }
-    ],
-    importantRules: [
-      "Any path containing a dot (e.g. 'Address.State') MUST be quoted in queries and update expressions.",
-      "Writing { Address: { State: 'Lagos' } } replaces the entire Address document and removes other fields! Use dot notation: { 'Address.State': 'Lagos' } instead."
-    ],
-    commonMistakes: [
-      "Replacing the entire object when only updating one nested field.",
-      "Typing unquoted Address.State which leads to a ReferenceError in JavaScript."
-    ]
-  },
-  {
-    id: "note-update-operators",
-    topic: "Update Operators",
-    title: "Standard Update Operators ($set, $unset, $rename, $inc, $mul, $min, $max, $currentDate)",
-    summary: "Perform precise field-level updates on documents.",
-    keyOperators: [
-      {
-        name: "$set & $unset",
-        description: "$set changes or adds field values. $unset deletes the specified field completely.",
-        example: 'db.GptData02.updateOne({ _id: 10 }, { $set: { Active: false }, $unset: { "Address.Country": "" } })'
-      },
-      {
-        name: "$rename",
-        description: "Renames the key name of a field in a document.",
-        example: 'db.GptData02.updateOne({ _id: 10 }, { $rename: { "Address.State": "Address.Province" } })'
-      },
-      {
-        name: "$inc & $mul",
-        description: "$inc increments/decrements a numeric field by n. $mul multiplies a numeric field by n.",
-        example: 'db.GptData02.updateOne({ _id: 1 }, { $inc: { Age: 2, "Address.HouseNumber": 10 } })'
-      },
-      {
-        name: "$min & $max",
-        description: "$min updates the field only if the specified value is LESS than the current value. $max updates only if GREATER.",
-        example: 'db.GptData02.updateOne({ _id: 1 }, { $min: { GPA: 3.0 }, $max: { Marks: 90 } })'
-      },
-      {
-        name: "$currentDate",
-        description: "Sets the value of a field to current date/timestamp.",
-        example: 'db.GptData02.updateOne({ _id: 1 }, { $currentDate: { LastUpdated: true } })'
-      }
-    ],
-    importantRules: [
-      "$min preserves whichever value is smaller. If current GPA is 3.4 and {$min: {GPA: 3.0}}, new GPA becomes 3.0. If current GPA was 2.8, it remains 2.8.",
-      "$max preserves whichever value is larger.",
-      "$inc with a negative number performs a decrement (e.g. { $inc: { Age: -1 } })."
-    ],
-    commonMistakes: [
-      "Confusing $min with $max: thinking $min picks the minimum from an array or sets a floor.",
-      "Writing $inc with a string value like { $inc: { Age: '2' } } which causes a type error."
-    ]
-  },
-  {
-    id: "note-array-updates",
-    topic: "Array Updates",
-    title: "Array Update Operators & Modifiers ($push, $each, $position, $slice, $sort)",
-    summary: "Add and format items inside arrays using $push with its powerful modifiers.",
-    keyOperators: [
-      {
-        name: "$push",
-        description: "Appends an item to an array. Allows duplicate items.",
-        example: 'db.GptData02.updateOne({ _id: 1 }, { $push: { Courses: "React" } })'
-      },
-      {
-        name: "$each modifier",
-        description: "Used with $push or $addToSet to add multiple elements at once.",
-        example: 'db.GptData02.updateOne({ _id: 2 }, { $push: { Courses: { $each: ["React", "Node.js", "Express"] } } })'
-      },
-      {
-        name: "$position modifier",
-        description: "Specifies insertion index: 0 = start of array, 1 = after 1st element, etc. Requires $each.",
-        example: 'db.GptData02.updateOne({ _id: 1 }, { $push: { Courses: { $each: ["React"], $position: 0 } } })'
-      },
-      {
-        name: "$slice modifier",
-        description: "Limits total array length after push. Positive n keeps first n items; negative -n keeps last n items.",
-        example: 'db.GptData02.updateOne({ _id: 2 }, { $push: { Courses: { $each: ["Angular"], $slice: 4 } } })'
-      },
-      {
-        name: "$sort modifier",
-        description: "Sorts the array after push. 1 for ascending, -1 for descending. Can sort objects or primitives.",
-        example: 'db.GptData02.updateOne({ _id: 2 }, { $push: { Courses: { $each: ["Python"], $sort: 1 } } })'
-      }
-    ],
-    importantRules: [
-      "CRITICAL: To use $position, $slice, or $sort with $push, you MUST use the $each modifier, even if inserting only one element!",
-      "$slice: 4 keeps the first 4 elements. $slice: -4 keeps the last 4 elements.",
-      "$sort: 1 orders items ascending; $sort: -1 orders items descending.",
-      "Combined Modifier Execution Order: During execution, elements are inserted at $position, the array is $sorted, and finally trimmed to $slice."
-    ],
-    commonMistakes: [
-      "Using $position without $each: { $push: { Courses: 'React', $position: 0 } } is INVALID syntax.",
-      "Thinking $slice: 4 deletes 4 elements; it retains at most 4 elements."
-    ]
-  },
-  {
-    id: "note-addtoset-vs-push",
-    topic: "$addToSet vs $push",
-    title: "$addToSet vs $push: Preventing Duplicates",
-    summary: "Understand the core differences between set behavior and list behavior in MongoDB.",
-    keyOperators: [
-      {
-        name: "$addToSet",
-        description: "Treats the array as a mathematical set. Appends an element ONLY if it does not already exist in the array.",
-        example: 'db.GptData02.updateOne({ _id: 1 }, { $addToSet: { Skills: "Java" } })'
-      },
-      {
-        name: "$addToSet with $each",
-        description: "Adds multiple distinct elements, skipping any elements that are already present.",
-        example: 'db.GptData02.updateOne({ _id: 1 }, { $addToSet: { Skills: { $each: ["Python", "Git", "Docker"] } } })'
-      }
-    ],
-    importantRules: [
-      "$push always appends elements, allowing duplicate values.",
-      "$addToSet checks for equality before inserting; if the item already exists, no change is made and nModified will be 0.",
-      "$position, $slice, and $sort CANNOT be used with $addToSet (they are exclusive to $push)."
-    ],
-    commonMistakes: [
-      "Using $push when unique tags or skills are required.",
-      "Attempting to use $sort or $slice modifiers inside $addToSet."
-    ]
-  },
-  {
-    id: "note-removing-array-elements",
-    topic: "Removing Array Elements",
-    title: "Removing Array Elements ($pull, $pullAll, $pop)",
-    summary: "Delete specific elements, lists of elements, or elements at boundaries from arrays.",
-    keyOperators: [
-      {
-        name: "$pull",
-        description: "Removes all instances of a value or elements matching a query condition from an array.",
-        example: 'db.GptData02.updateOne({ _id: 1 }, { $pull: { Skills: "Git" } })'
-      },
-      {
-        name: "$pull with conditions",
-        description: "Removes array items satisfying comparison expressions like $gt, $regex, etc.",
-        example: 'db.GptData02.updateOne({ _id: 15 }, { $pull: { Misc: { $gt: 20 } } })'
-      },
-      {
-        name: "$pullAll",
-        description: "Removes all instances of the specified values provided in an array.",
-        example: 'db.GptData02.updateOne({ _id: 1 }, { $pullAll: { Skills: ["Python", "Java"] } })'
-      },
-      {
-        name: "$pop",
-        description: "Removes the first (-1) or last (1) item of an array.",
-        example: 'db.GptData02.updateOne({ _id: 1 }, { $pop: { Skills: -1 } }) // removes first'
-      }
-    ],
-    importantRules: [
-      "$pop: -1 removes the FIRST element (index 0).",
-      "$pop: 1 removes the LAST element.",
-      "$pop only accepts 1 or -1; you cannot pass any other number to remove multiple items.",
-      "$pull with a query condition filters all elements that match the filter condition."
-    ],
-    commonMistakes: [
-      "Thinking $pop: 1 removes the first element (it removes the LAST).",
-      "Passing a condition to $pullAll; $pullAll only takes literal values, whereas $pull accepts conditions."
-    ]
-  },
-  {
-    id: "note-upsert-setoninsert",
-    topic: "Upsert & $setOnInsert",
-    title: "Upsert Option & $setOnInsert Operator",
-    summary: "Handle update-or-insert workflows seamlessly without race conditions.",
-    keyOperators: [
-      {
-        name: "{ upsert: true }",
-        description: "Update the document if a match is found; otherwise, insert a new document.",
-        example: 'db.GptData02.updateOne({ _id: 50 }, { $set: { Name: "New Student", Age: 20 } }, { upsert: true })'
-      },
-      {
-        name: "$setOnInsert",
-        description: "Assigns field values ONLY when the upsert creates a new document. Ignored if document already existed.",
-        example: 'db.Students.updateOne({ _id: 27 }, { $setOnInsert: { Name: "Test Mic", CreatedBy: "MongoTest" } }, { upsert: true })'
-      }
-    ],
-    importantRules: [
-      "When a document matches the query filter, $setOnInsert does NOTHING.",
-      "When no document matches and a new document is inserted, both $set and $setOnInsert fields are written.",
-      "Ideal for setting creation timestamps, creator IDs, or default non-overwritten values."
-    ],
-    commonMistakes: [
-      "Assuming $setOnInsert updates an existing document if the field is missing; it only applies on INSERT.",
-      "Forgetting to supply { upsert: true } in the third argument when using $setOnInsert."
+      "Allowing an embedded array to grow unbounded (e.g. logging IoT events inside a single device document).",
+      "Over-normalizing into dozens of tiny collections requiring expensive application-level joins."
     ]
   },
   {
     id: "note-aggregation",
-    topic: "Aggregation",
-    title: "Aggregation Pipeline ($match, $group, $project, $unwind, $sort)",
-    summary: "Multi-stage pipeline for transforming, grouping, calculating statistics, and reshaping documents.",
+    topic: "Aggregation Pipelines",
+    level: 5,
+    title: "Aggregation Pipelines & Multi-Stage Data Transformations",
+    summary: "Harness $match, $group, $lookup, $unwind, $facet, $setWindowFields, and accumulators for high-performance analytics.",
     keyOperators: [
       {
-        name: "$match",
-        description: "Filters documents passing through the pipeline. Should ideally be placed as early as possible to utilize indexes.",
-        example: '{ $match: { Section: "A", GPA: { $gte: 3.5 } } }'
+        name: "$lookup (Left Outer Join)",
+        description: "Joins documents from another collection into an array field.",
+        example: '{ $lookup: { from: "products", localField: "productId", foreignField: "_id", as: "items" } }'
       },
       {
         name: "$group & Accumulators",
-        description: "Groups documents by an identifier (_id) and calculates aggregates using $sum, $avg, $min, $max.",
-        example: '{ $group: { _id: "$Section", TotalMarks: { $sum: "$Marks" }, Average: { $avg: "$Marks" } } }'
+        description: "Groups documents by an expression and computes aggregates ($sum, $avg, $push, $addToSet, $min, $max).",
+        example: '{ $group: { _id: "$department", avgSalary: { $avg: "$salary" }, count: { $sum: 1 } } }'
       },
       {
-        name: "$project",
-        description: "Reshapes documents, computes derived fields, or excludes fields.",
-        example: '{ $project: { Name: 1, Passed: { $gte: ["$Marks", 60] } } }'
-      },
-      {
-        name: "$unwind",
-        description: "Deconstructs an array field from the input documents to output a document for each element.",
-        example: '{ $unwind: "$Courses" }'
+        name: "$setWindowFields (Windowing)",
+        description: "Computes running totals, moving averages, and ranks across document partitions.",
+        example: '{ $setWindowFields: { partitionBy: "$state", sortBy: { date: 1 }, output: { cumulative: { $sum: "$amount", window: { documents: ["unbounded", "current"] } } } } }'
       }
     ],
     importantRules: [
-      "In $group, the grouping key MUST be specified as _id (e.g. _id: '$Section'). To group all documents together, use _id: null.",
-      "Field references inside pipeline stages must be prefixed with a dollar sign: '$Marks', '$Section'.",
-      "Place $match before $group to minimize the number of documents processed in memory."
+      "Place $match and $sort stages at the very beginning of the pipeline so MongoDB can leverage database indexes.",
+      "Field references in accumulators and expressions MUST be prefixed with a dollar sign: '$salary'."
     ],
     commonMistakes: [
-      "Forgetting the dollar sign in field references inside $group: { $sum: 'Marks' } sums strings rather than numeric field values.",
-      "Using find query syntax inside $group instead of accumulator expressions."
+      "Forgetting the '$' prefix in field references ({ $sum: 'salary' } sums literal string 'salary' = 0).",
+      "Placing $match after an expensive $group or $unwind stage."
+    ]
+  },
+  {
+    id: "note-indexes-esr",
+    topic: "Indexes & ESR Rule",
+    level: 6,
+    title: "Indexes, Compound Indexing & The ESR Rule",
+    summary: "Design compound, multikey, TTL, partial, and text indexes. Master the Equality, Sort, Range (ESR) rule.",
+    keyOperators: [
+      {
+        name: "The ESR Rule",
+        description: "Order compound index fields: 1. Equality fields (=), 2. Sort fields (order), 3. Range fields (>, <, in).",
+        example: 'db.orders.createIndex({ status: 1, customerId: 1, createdAt: 1 })'
+      },
+      {
+        name: "Partial Index",
+        description: "Indexes only documents that satisfy a specified filter expression, saving disk and RAM.",
+        example: 'db.users.createIndex({ email: 1 }, { unique: true, partialFilterExpression: { email: { $exists: true } } })'
+      }
+    ],
+    importantRules: [
+      "Covered Query: When all fields requested in the query filter and projection are satisfied entirely by index keys (totalDocsExamined = 0).",
+      "Compound indexes support left-prefix matching: an index on { a: 1, b: 1, c: 1 } supports queries on (a), (a, b), and (a, b, c), but NOT on (b) or (c) alone."
+    ],
+    commonMistakes: [
+      "Creating an index on every single field, which severely slows down insert and update performance.",
+      "Placing Range filter fields before Sort fields in compound indexes, triggering in-memory blocking sorts."
+    ]
+  },
+  {
+    id: "note-performance",
+    topic: "Performance & explain()",
+    level: 6,
+    title: "Query Optimization & explain('executionStats')",
+    summary: "Analyze query execution plans, identify COLLSCAN bottlenecks, and balance read/write performance.",
+    keyOperators: [
+      {
+        name: "explain('executionStats')",
+        description: "Returns statistics on query execution: totalKeysExamined, totalDocsExamined, nReturned, and executionStages.",
+        example: 'db.orders.find({ status: "pending" }).explain("executionStats")'
+      }
+    ],
+    importantRules: [
+      "Target ratio: totalDocsExamined should ideally match nReturned. A high ratio (e.g. 100,000 docs examined to return 5) flags a missing or inefficient index.",
+      "IXSCAN is an index scan stage; FETCH retrieves documents from disk based on index pointers; COLLSCAN is a full table scan."
+    ],
+    commonMistakes: [
+      "Accepting in-memory sorts for large collections (MongoDB caps in-memory sort to 100MB unless allowDiskUse is enabled or an index is used)."
+    ]
+  },
+  {
+    id: "note-security-admin",
+    topic: "Security & RBAC",
+    level: 7,
+    title: "Authentication, RBAC & High Availability",
+    summary: "Configure replica set elections, oplog replication, failover, SCRAM authentication, and role-based access control.",
+    keyOperators: [
+      {
+        name: "Replica Set Status",
+        description: "Inspect replica set health, primary node, secondary replication lag, and election state.",
+        example: 'rs.status() and rs.stepDown()'
+      },
+      {
+        name: "Create User with Roles",
+        description: "Grant fine-grained permissions following the Principle of Least Privilege.",
+        example: 'db.createUser({ user: "reportingApp", pwd: passwordPrompt(), roles: [{ role: "read", db: "analytics" }] })'
+      }
+    ],
+    importantRules: [
+      "Replica sets require an odd number of voting members (e.g. 3 or 5) to ensure a clear majority in elections during network partitions.",
+      "Secondary reads with readPreference: 'secondary' can return stale data if replication lag exists."
+    ],
+    commonMistakes: [
+      "Giving administrative or 'root' roles to application microservices instead of isolated readWrite access.",
+      "Forgetting to configure TLS/SSL in transit between application drivers and Atlas clusters."
+    ]
+  },
+  {
+    id: "note-transactions-advanced",
+    topic: "Transactions & Consistency",
+    level: 8,
+    title: "Multi-Document ACID Transactions & Advanced Architectures",
+    summary: "Execute distributed transactions, tune writeConcern and readConcern, deploy sharded clusters, and listen to Change Streams.",
+    keyOperators: [
+      {
+        name: "Client Session Transactions",
+        description: "Atomic multi-document updates across multiple collections with ACID guarantees.",
+        example: 'const session = client.startSession(); session.startTransaction(); ... await session.commitTransaction();'
+      },
+      {
+        name: "Change Streams (watch())",
+        description: "Listen to real-time database modifications using the replica set oplog without polling.",
+        example: 'const changeStream = db.orders.watch([{ $match: { "operationType": "insert" } }]);'
+      }
+    ],
+    importantRules: [
+      "Transactions incur overhead; design schemas with embedded documents so most single-document operations are naturally atomic without multi-document transactions.",
+      "Write Concern 'w: majority' ensures durability across a majority of voting replica set nodes."
+    ],
+    commonMistakes: [
+      "Keeping transactions open for long periods (default transaction lifetime limit is 60 seconds in MongoDB).",
+      "Selecting a monotonically increasing shard key (e.g. timestamp) which creates severe write bottlenecks on a single shard."
     ]
   }
 ];

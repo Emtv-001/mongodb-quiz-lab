@@ -5,23 +5,36 @@ export type QuestionType =
   | 'write-command'       // Type D
   | 'match-operator'      // Type E
   | 'scenario'            // Type F
-  | 'arrange-command';    // Type G
+  | 'arrange-command'     // Type G
+  | 'multiple-select'     // Type H
+  | 'true-false'          // Type I
+  | 'fix-query';          // Type J
 
 export type DifficultyLevel = 'Easy' | 'Medium' | 'Hard' | 'Expert';
 
+export type CurriculumLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+
 export type MongoTopic =
-  | 'Basic Queries'
-  | 'Comparison Operators'
-  | 'Logical Operators'
+  | 'MongoDB Fundamentals'
+  | 'Connections & Tools'
+  | 'CRUD Operations'
+  | 'Basic & Advanced Querying'
+  | 'Comparison & Logical Operators'
   | 'Regular Expressions'
-  | 'Arrays'
-  | 'Nested Documents'
-  | 'Update Operators'
-  | 'Array Updates'
-  | '$addToSet vs $push'
-  | 'Removing Array Elements'
-  | 'Upsert & $setOnInsert'
-  | 'Aggregation';
+  | 'Arrays & Indexing'
+  | 'Nested Documents & Dot Notation'
+  | 'Update Operators & Modifiers'
+  | 'Data Modeling & Schema Design'
+  | 'Schema Validation'
+  | 'Aggregation Pipelines'
+  | 'JavaScript & mongosh Scripts'
+  | 'Indexes & ESR Rule'
+  | 'Performance & explain()'
+  | 'Replication & High Availability'
+  | 'Transactions & Consistency'
+  | 'Backup & Restore'
+  | 'Security & RBAC'
+  | 'MongoDB Atlas & Advanced Features';
 
 export interface MatchPair {
   id: string;
@@ -37,22 +50,28 @@ export interface ArrangeBlock {
 export interface Question {
   id: string;
   topic: MongoTopic;
+  subtopic?: string;
+  level: CurriculumLevel;
   difficulty: DifficultyLevel;
   type: QuestionType;
   title: string;
   scenario?: string;               // Given context or background
-  codeSnippet?: string;            // Relevant code or faulty command
-  sampleDocument?: Record<string, any>; // For predict-output or reference
-  options?: string[];              // For Type A, B, C, F
+  datasetName?: string;            // 'GptData02' | 'hospital' | 'banking' | 'ecommerce' | 'inventory' | 'library' | 'hotel' | 'social'
+  codeSnippet?: string;            // Faulty command or code to fix/predict
+  sampleDocument?: Record<string, any>; // Document preview
+  options?: string[];              // For Type A, B, C, F, H, I
   correctOptionIndex?: number;     // Index of correct option (0-based)
+  correctOptionIndices?: number[]; // For multiple-select (Type H)
   expectedCommand?: string;        // For Type D (Write the Command)
   acceptableAlternatives?: string[]; // Valid alternative commands for Type D
   matchPairs?: MatchPair[];        // For Type E (Match the Operator)
   arrangeBlocks?: ArrangeBlock[];  // For Type G (Arrange the Command)
   correctArrangeOrder?: string[];  // Array of block IDs in correct sequence
   explanation: string;             // Detailed educational explanation
+  misconception?: string;          // Common misconception or mistake
   conceptFocus: string;            // Short highlight of key MongoDB rule
-  points: number;                  // Maximum marks (default 10 for practical, 5-10 for others)
+  tags?: string[];
+  points: number;                  // Maximum marks (5 - 10)
 }
 
 export interface PartialCreditBreakdown {
@@ -72,6 +91,7 @@ export interface EvaluationResult {
   correctAnswer: any;
   feedback: string;
   concept: string;
+  misconception?: string;
   breakdown?: PartialCreditBreakdown;
   correctedCommand?: string;
 }
@@ -84,13 +104,37 @@ export interface QuestionAttempt {
   studentAnswer: any;
   result: EvaluationResult;
   timestamp: number;
+  flaggedForReview?: boolean;
 }
 
-export type QuizMode = 'practice' | 'quiz' | 'mock-test' | 'topic-practice';
+export type QuizMode =
+  | 'learn'
+  | 'practice'
+  | 'quiz'
+  | 'mock-test'
+  | 'challenge'
+  | 'weak-areas'
+  | 'revision'
+  | 'random'
+  | 'mastery'
+  | 'topic-practice';
+
+export interface MockExamPreset {
+  id: string;
+  title: string;
+  subtitle: string;
+  level: string;
+  questionCount: number;
+  durationMinutes: number;
+  topics: MongoTopic[];
+  targetLevel?: CurriculumLevel;
+  iconName?: string;
+}
 
 export interface QuizSession {
   id: string;
   mode: QuizMode;
+  mockExamId?: string;
   selectedTopic?: MongoTopic;
   totalQuestions: number;
   timeRemainingSeconds?: number;
@@ -98,12 +142,37 @@ export interface QuizSession {
   currentIndex: number;
   questions: Question[];
   attempts: Record<string, QuestionAttempt>;
+  flaggedQuestionIds: string[];
   completed: boolean;
   startTime: number;
   endTime?: number;
 }
 
+export interface DailyActivityRecord {
+  date: string; // YYYY-MM-DD
+  questionsAttempted: number;
+  questionsCorrect: number;
+  earnedPoints: number;
+}
+
+export interface LearnerIdentity {
+  pseudonym: string;          // e.g. "MongoLearner-a8b2"
+  fingerprintHash: string;     // SHA-256 hash
+  createdAt: string;
+  lastActive: string;
+}
+
+export interface SpacedRepetitionItem {
+  questionId: string;
+  intervalDays: number;
+  easeFactor: number;
+  consecutiveCorrect: number;
+  lastReviewedDate: string;
+  nextReviewDate: string;
+}
+
 export interface StudentProgress {
+  learnerId: LearnerIdentity;
   questionsAttempted: number;
   questionsCorrect: number;
   questionsPartial: number;
@@ -111,11 +180,14 @@ export interface StudentProgress {
   totalMaxScore: number;
   bestMockScore: number;
   currentStreak: number;
+  longestStreak: number;
   lastActiveDate: string;
+  activityHistory: Record<string, DailyActivityRecord>; // date string -> record
   topicStats: Record<MongoTopic, { attempted: number; correct: number; totalPoints: number; earnedPoints: number }>;
   completedSessions: {
     sessionId: string;
     mode: QuizMode;
+    mockExamTitle?: string;
     score: number;
     maxScore: number;
     percentage: number;
@@ -124,11 +196,14 @@ export interface StudentProgress {
   }[];
   bookmarkedQuestionIds: string[];
   masteredFlashcardIds: string[];
+  spacedRepetition: Record<string, SpacedRepetitionItem>;
+  checksum?: string; // Integrity signature to prevent browser DevTools tampering
 }
 
 export interface Flashcard {
   id: string;
   topic: MongoTopic;
+  level: CurriculumLevel;
   difficulty: DifficultyLevel;
   front: string;
   back: string;
@@ -140,6 +215,7 @@ export interface Flashcard {
 export interface StudyNoteSection {
   id: string;
   topic: MongoTopic;
+  level: CurriculumLevel;
   title: string;
   summary: string;
   keyOperators: {
@@ -149,8 +225,10 @@ export interface StudyNoteSection {
   }[];
   importantRules: string[];
   commonMistakes: string[];
+  realWorldScenario?: string;
 }
 
+// Student document from GptData02
 export interface StudentDocument {
   _id: number;
   Name: string;

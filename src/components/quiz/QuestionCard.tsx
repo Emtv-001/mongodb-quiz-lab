@@ -7,7 +7,8 @@ import { WriteCommand } from './types/WriteCommand';
 import { MatchOperator } from './types/MatchOperator';
 import { ScenarioQuestion } from './types/ScenarioQuestion';
 import { ArrangeCommand } from './types/ArrangeCommand';
-import { HelpCircle, Check } from 'lucide-react';
+import { MultipleSelect } from './types/MultipleSelect';
+import { HelpCircle, Check, Database } from 'lucide-react';
 
 interface QuestionCardProps {
   question: Question;
@@ -16,6 +17,7 @@ interface QuestionCardProps {
   onSubmit: () => void;
   isSubmitted: boolean;
   canSubmit: boolean;
+  onOpenSeedData?: () => void;
 }
 
 export const QuestionCard: React.FC<QuestionCardProps> = ({
@@ -24,16 +26,28 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   onChangeAnswer,
   onSubmit,
   isSubmitted,
-  canSubmit
+  canSubmit,
+  onOpenSeedData
 }) => {
   const renderQuestionBody = () => {
     switch (question.type) {
       case 'multiple-choice':
+      case 'true-false':
         return (
           <MultipleChoice
             question={question}
             selectedAnswer={studentAnswer !== undefined ? Number(studentAnswer) : null}
             onSelectAnswer={(idx) => onChangeAnswer(idx)}
+            disabled={isSubmitted}
+          />
+        );
+
+      case 'multiple-select':
+        return (
+          <MultipleSelect
+            question={question}
+            selectedAnswers={Array.isArray(studentAnswer) ? studentAnswer : []}
+            onChangeAnswers={(indices) => onChangeAnswer(indices)}
             disabled={isSubmitted}
           />
         );
@@ -59,6 +73,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         );
 
       case 'write-command':
+      case 'fix-query':
         return (
           <WriteCommand
             question={question}
@@ -110,17 +125,37 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     'write-command': 'Type D — Write the Command',
     'match-operator': 'Type E — Match the Operator',
     'scenario': 'Type F — Scenario Question',
-    'arrange-command': 'Type G — Arrange the Command'
+    'arrange-command': 'Type G — Arrange the Command',
+    'multiple-select': 'Type H — Multiple Select',
+    'true-false': 'Type I — True / False',
+    'fix-query': 'Type J — Fix the Query'
   };
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-7 shadow-xl space-y-6">
       {/* Title & Type Header */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 font-mono">
-            {typeLabels[question.type] || question.type}
-          </span>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center space-x-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 font-mono">
+              {typeLabels[question.type] || question.type}
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+              Level {question.level}
+            </span>
+            {question.datasetName && (
+              <button
+                type="button"
+                onClick={onOpenSeedData}
+                className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 flex items-center space-x-1 hover:bg-purple-500/20 transition-colors"
+                title="View target dataset"
+              >
+                <Database className="w-3 h-3" />
+                <span>Dataset: {question.datasetName}</span>
+              </button>
+            )}
+          </div>
+
           <span className="text-xs font-mono font-semibold text-slate-400 bg-slate-800 px-2.5 py-0.5 rounded-md border border-slate-700">
             {question.points} Points
           </span>
@@ -130,7 +165,6 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           {question.title}
         </h3>
 
-        {/* Scenario description if available and not already inside specific renderer */}
         {question.scenario && question.type !== 'predict-output' && question.type !== 'scenario' && (
           <p className="text-sm text-slate-300 leading-relaxed bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/80">
             {question.scenario}
@@ -146,7 +180,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
           <div className="flex items-center space-x-1.5 text-xs text-slate-400">
             <HelpCircle className="w-3.5 h-3.5 text-slate-400" />
-            <span>Submit to calculate score and view explanation</span>
+            <span>Submit to check answer immediately and see concept breakdown</span>
           </div>
 
           <button

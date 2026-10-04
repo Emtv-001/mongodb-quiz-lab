@@ -1,646 +1,592 @@
 import { Question } from '../types';
 
 export const DEFAULT_QUESTIONS: Question[] = [
-  // ==========================================
-  // TYPE D: WRITE THE COMMAND (Practical Core)
-  // ==========================================
+  // =========================================================================
+  // LEVEL 1: BEGINNER & FUNDAMENTALS
+  // =========================================================================
   {
-    id: "q-write-1",
-    topic: "Array Updates",
-    difficulty: "Hard",
-    type: "write-command",
-    title: "Insert Course at Beginning with $position",
-    scenario: "Add 'React' to the beginning (index 0) of the Courses array for student with _id: 1 in collection GptData02.",
-    expectedCommand: 'db.GptData02.updateOne({_id: 1}, {$push: {Courses: {$each: ["React"], $position: 0}}})',
-    acceptableAlternatives: [
-      'db.GptData02.updateOne({_id:1},{$push:{Courses:{$each:["React"],$position:0}}})',
-      'db.GptData02.updateOne({ "_id": 1 }, { "$push": { "Courses": { "$each": ["React"], "$position": 0 } } })'
-    ],
-    explanation: "To insert at a specific array index like the beginning ($position: 0), MongoDB requires combining $push with the $each modifier, even if inserting a single string element.",
-    conceptFocus: "$push with $position requires $each modifier; $position: 0 targets the array start.",
-    points: 10
-  },
-  {
-    id: "q-write-2",
-    topic: "Nested Documents",
-    difficulty: "Medium",
-    type: "write-command",
-    title: "Update Nested Field using Dot Notation",
-    scenario: "Update the State inside the nested Address object to 'Lagos' for the student with _id: 10 in collection GptData02.",
-    expectedCommand: 'db.GptData02.updateOne({_id: 10}, {$set: {"Address.State": "Lagos"}})',
-    acceptableAlternatives: [
-      'db.GptData02.updateOne({_id:10},{$set:{"Address.State":"Lagos"}})',
-      'db.GptData02.updateOne({_id: 10}, {$set: {\'Address.State\': "Lagos"}})'
-    ],
-    explanation: "Dot notation 'Address.State' targets the State key inside the Address embedded document without overriding the other Address properties (Country, City, HouseNumber). Quoting dot notation keys is mandatory in JavaScript.",
-    conceptFocus: "Dot notation ('Address.State') enables granular nested updates.",
-    points: 10
-  },
-  {
-    id: "q-write-3",
-    topic: "Update Operators",
-    difficulty: "Medium",
-    type: "write-command",
-    title: "Conditional Update with $min",
-    scenario: "Ensure the student with _id: 1 in GptData02 has their GPA capped at 3.0 (i.e. keep the smaller value between current GPA and 3.0).",
-    expectedCommand: 'db.GptData02.updateOne({_id: 1}, {$min: {GPA: 3.0}})',
-    acceptableAlternatives: [
-      'db.GptData02.updateOne({_id:1},{$min:{GPA:3.0}})',
-      'db.GptData02.updateOne({_id: 1}, {$min: {GPA: 3}})'
-    ],
-    explanation: "The $min operator updates the field value only if the specified value is LESS than the document's current field value. It effectively enforces an upper bound/ceiling.",
-    conceptFocus: "$min keeps the smaller value; does not replace if current value is already lower.",
-    points: 10
-  },
-  {
-    id: "q-write-4",
-    topic: "Update Operators",
-    difficulty: "Medium",
-    type: "write-command",
-    title: "Increment Nested Address HouseNumber",
-    scenario: "Increment the nested Address.HouseNumber by 10 for student with _id: 1 in GptData02.",
-    expectedCommand: 'db.GptData02.updateOne({_id: 1}, {$inc: {"Address.HouseNumber": 10}})',
-    acceptableAlternatives: [
-      'db.GptData02.updateOne({_id:1},{$inc:{"Address.HouseNumber":10}})',
-      'db.GptData02.updateOne({_id: 1}, {$inc: {\'Address.HouseNumber\': 10}})'
-    ],
-    explanation: "The $inc operator can be applied directly to nested fields using dot notation 'Address.HouseNumber' with an integer operand.",
-    conceptFocus: "$inc with dot notation modifies numeric embedded fields.",
-    points: 10
-  },
-  {
-    id: "q-write-5",
-    topic: "Removing Array Elements",
-    difficulty: "Medium",
-    type: "write-command",
-    title: "Remove First Element with $pop",
-    scenario: "Remove the very first element from the Skills array for student with _id: 1 in GptData02.",
-    expectedCommand: 'db.GptData02.updateOne({_id: 1}, {$pop: {Skills: -1}})',
-    acceptableAlternatives: [
-      'db.GptData02.updateOne({_id:1},{$pop:{Skills:-1}})'
-    ],
-    explanation: "The $pop operator removes the first element when passed -1, and removes the last element when passed 1.",
-    conceptFocus: "$pop: -1 removes the first element; $pop: 1 removes the last element.",
-    points: 10
-  },
-  {
-    id: "q-write-6",
-    topic: "Removing Array Elements",
-    difficulty: "Hard",
-    type: "write-command",
-    title: "Conditional Array Element Removal with $pull",
-    scenario: "Remove all values greater than 20 from the Misc array for student with _id: 15 in GptData02.",
-    expectedCommand: 'db.GptData02.updateOne({_id: 15}, {$pull: {Misc: {$gt: 20}}})',
-    acceptableAlternatives: [
-      'db.GptData02.updateOne({_id:15},{$pull:{Misc:{$gt:20}}})'
-    ],
-    explanation: "$pull evaluates query conditions on array elements and removes all elements that satisfy the condition (here, elements where value > 20).",
-    conceptFocus: "$pull supports condition operators like {$gt: 20} on primitive array elements.",
-    points: 10
-  },
-  {
-    id: "q-write-7",
-    topic: "Upsert & $setOnInsert",
-    difficulty: "Hard",
-    type: "write-command",
-    title: "Upsert with $setOnInsert",
-    scenario: "In collection Students, update student with _id: 27. If a new document is inserted during upsert, set Name to 'Test Mic' and CreatedBy to 'MongoTest' using $setOnInsert. Ensure upsert is enabled.",
-    expectedCommand: 'db.Students.updateOne({_id: 27}, {$setOnInsert: {Name: "Test Mic", CreatedBy: "MongoTest"}}, {upsert: true})',
-    acceptableAlternatives: [
-      'db.Students.updateOne({_id:27},{$setOnInsert:{Name:"Test Mic",CreatedBy:"MongoTest"}},{upsert:true})',
-      'db.Students.updateOne({_id: 27}, {$setOnInsert: {CreatedBy: "MongoTest", Name: "Test Mic"}}, {upsert: true})'
-    ],
-    explanation: "$setOnInsert assigns values only when an upsert operation creates a new document. If a document with _id: 27 already exists, $setOnInsert makes zero modifications.",
-    conceptFocus: "$setOnInsert triggers solely when a new document is inserted via {upsert: true}.",
-    points: 10
-  },
-  {
-    id: "q-write-8",
-    topic: "Array Updates",
-    difficulty: "Expert",
-    type: "write-command",
-    title: "Complex Push with Multiple Modifiers ($each, $sort, $slice)",
-    scenario: "For student with _id: 2 in GptData02, push 'C++' and 'C#' into the Courses array, sort all courses in ascending alphabetical order, and keep only the first 5 courses.",
-    expectedCommand: 'db.GptData02.updateOne({_id: 2}, {$push: {Courses: {$each: ["C++", "C#"], $sort: 1, $slice: 5}}})',
-    acceptableAlternatives: [
-      'db.GptData02.updateOne({_id:2},{$push:{Courses:{$each:["C++","C#"],$sort:1,$slice:5}}})',
-      'db.GptData02.updateOne({_id: 2}, {$push: {Courses: {$each: ["C++", "C#"], $slice: 5, $sort: 1}}})'
-    ],
-    explanation: "When $sort and $slice are combined in a $push operation with $each, MongoDB inserts the new items, sorts the entire array in ascending order ($sort: 1), and then slices the array to keep only the first 5 elements ($slice: 5).",
-    conceptFocus: "Combined modifiers: $push + $each + $sort: 1 + $slice: 5 executes sort then slice.",
-    points: 10
-  },
-
-  // ==========================================
-  // TYPE A: MULTIPLE CHOICE
-  // ==========================================
-  {
-    id: "q-mcq-1",
-    topic: "Removing Array Elements",
+    id: "fund-001",
+    topic: "MongoDB Fundamentals",
+    level: 1,
     difficulty: "Easy",
     type: "multiple-choice",
-    title: "Removing Array End Elements",
-    scenario: "You need to remove the last element from an array field called Courses.",
+    title: "Nature of MongoDB Architecture",
+    scenario: "An engineering team is evaluating MongoDB to replace a legacy relational table architecture.",
     options: [
-      "{ $pop: { Courses: 1 } }",
-      "{ $pop: { Courses: -1 } }",
-      "{ $pull: { Courses: 1 } }",
-      "{ $slice: { Courses: -1 } }"
+      "A document-oriented NoSQL database that stores data in BSON format",
+      "A relational tabular database utilizing strict fixed column schemas",
+      "A graph database storing entities strictly as nodes and directed edges",
+      "A pure in-memory cache that cannot persist data to permanent disk storage"
     ],
     correctOptionIndex: 0,
-    explanation: "$pop: 1 removes the LAST element from an array. $pop: -1 removes the first element.",
-    conceptFocus: "$pop: 1 removes the end item, $pop: -1 removes the start item.",
+    explanation: "MongoDB is a leading document database classified under NoSQL. It organizes records as flexible, self-describing BSON (Binary JSON) documents rather than rigid relational rows and columns.",
+    misconception: "Thinking MongoDB is purely in-memory (like Redis) or an RDBMS with fixed schemas.",
+    conceptFocus: "MongoDB stores data in flexible BSON documents.",
+    tags: ["fundamentals", "nosql", "bson"],
     points: 5
   },
   {
-    id: "q-mcq-2",
-    topic: "$addToSet vs $push",
+    id: "fund-002",
+    topic: "MongoDB Fundamentals",
+    level: 1,
+    difficulty: "Easy",
+    type: "true-false",
+    title: "JSON vs BSON Data Representation",
+    scenario: "Is the following statement technically correct?",
+    codeSnippet: "BSON is a binary serialization format for JSON that adds support for additional data types such as Date, ObjectId, and Int32/Int64 which standard text JSON does not natively distinguish.",
+    options: [
+      "True",
+      "False"
+    ],
+    correctOptionIndex: 0,
+    explanation: "True. Standard text JSON only supports strings, generic numbers, booleans, arrays, objects, and null. BSON extends JSON with explicit binary encodings for dates, timestamps, 32/64-bit integers, Decimal128, and ObjectId.",
+    misconception: "Believing that MongoDB stores raw JSON text strings on disk.",
+    conceptFocus: "BSON provides high-speed binary serialization and rich types beyond JSON.",
+    tags: ["bson", "json", "types"],
+    points: 5
+  },
+  {
+    id: "fund-003",
+    topic: "MongoDB Fundamentals",
+    level: 1,
+    difficulty: "Medium",
+    type: "multiple-choice",
+    title: "Structure of an ObjectId",
+    scenario: "By default, MongoDB creates an '_id' field containing a 12-byte BSON ObjectId. What components make up this 12-byte identifier?",
+    options: [
+      "4-byte Unix timestamp + 5-byte random value unique to machine/process + 3-byte incrementing counter",
+      "8-byte random UUID + 4-byte client IP address",
+      "12-byte purely random cryptographically generated string",
+      "6-byte millisecond timestamp + 6-byte CPU serial number"
+    ],
+    correctOptionIndex: 0,
+    explanation: "A 12-byte BSON ObjectId is ordered by time: 4-byte timestamp (seconds since Unix epoch) + 5-byte random value (unique per machine/process) + 3-byte incrementing counter initialized to a random value. This makes ObjectIds roughly sortable chronologically.",
+    misconception: "Assuming ObjectId is completely random like a standard UUID v4.",
+    conceptFocus: "ObjectId embeds a 4-byte timestamp making it naturally sortable by creation time.",
+    tags: ["objectid", "bson", "internals"],
+    points: 5
+  },
+  {
+    id: "conn-001",
+    topic: "Connections & Tools",
+    level: 1,
     difficulty: "Easy",
     type: "multiple-choice",
-    title: "Preventing Duplicate Array Items",
-    scenario: "You want to add 'Python' to the Skills array of student _id: 1 only if 'Python' is not already in the array.",
+    title: "Default MongoDB Connection Port",
+    scenario: "When initializing a local mongod daemon or connecting with mongosh, what is the default TCP listening port?",
     options: [
-      "db.GptData02.updateOne({_id: 1}, { $addToSet: { Skills: 'Python' } })",
-      "db.GptData02.updateOne({_id: 1}, { $push: { Skills: 'Python' } })",
-      "db.GptData02.updateOne({_id: 1}, { $set: { 'Skills.$': 'Python' } })",
-      "db.GptData02.updateOne({_id: 1}, { $put: { Skills: 'Python' } })"
+      "27017",
+      "5432",
+      "3306",
+      "8080"
     ],
     correctOptionIndex: 0,
-    explanation: "$addToSet ensures array uniqueness by treating the array as a set. $push would add the element even if it already exists.",
-    conceptFocus: "$addToSet prevents duplicates; $push allows duplicates.",
+    explanation: "MongoDB default listener port is 27017. Port 5432 is PostgreSQL, 3306 is MySQL.",
+    conceptFocus: "Port 27017 is standard for MongoDB instances and clusters.",
+    tags: ["networking", "tools", "mongosh"],
     points: 5
   },
   {
-    id: "q-mcq-3",
-    topic: "Arrays",
+    id: "conn-002",
+    topic: "Connections & Tools",
+    level: 1,
     difficulty: "Medium",
-    type: "multiple-choice",
-    title: "Zero-Based Array Index Query",
-    scenario: "What does the query db.GptData02.find({'Courses.0': 'Java'}) return?",
+    type: "multiple-select",
+    title: "Atlas Network Security Configuration",
+    scenario: "When setting up network security for an Atlas cluster in production, which of the following practices follow security best practices?",
     options: [
-      "Documents where the first element of the Courses array is 'Java'",
-      "Documents where the Courses array has exactly zero elements",
-      "Documents containing 'Java' anywhere in the Courses array",
-      "Documents where the last element of Courses is 'Java'"
+      "Allowing 0.0.0.0/0 (any IP) permanently in production",
+      "Configuring strict IP Access Lists containing only production application server IPs or NAT gateways",
+      "Setting up VPC Peering or AWS/GCP PrivateLink for private network routing without public internet exposure",
+      "Hardcoding database username and password in frontend JavaScript bundle"
     ],
-    correctOptionIndex: 0,
-    explanation: "MongoDB uses zero-based indexing for array queries. 'Courses.0' targets the item at position 0, which is the first element.",
-    conceptFocus: "Array zero-based indexing: .0 refers to the first element.",
-    points: 5
-  },
-  {
-    id: "q-mcq-4",
-    topic: "Array Updates",
-    difficulty: "Medium",
-    type: "multiple-choice",
-    title: "$slice Modifier Behavior in $push",
-    scenario: "If an array currently has 6 elements and you execute $push with {$each: ['Go'], $slice: -4}, what does $slice: -4 do?",
-    options: [
-      "Keeps only the last 4 elements of the resulting array",
-      "Removes 4 elements from the front of the array",
-      "Deletes the 4th element from the end",
-      "Keeps only the first 4 elements"
-    ],
-    correctOptionIndex: 0,
-    explanation: "A negative slice limit ($slice: -n) trims the array so that only the last n elements are preserved. A positive limit ($slice: n) keeps the first n elements.",
-    conceptFocus: "Negative $slice values keep the last N elements.",
-    points: 5
-  },
-  {
-    id: "q-mcq-5",
-    topic: "Comparison Operators",
-    difficulty: "Medium",
-    type: "multiple-choice",
-    title: "BSON Data Type Sensitivity",
-    scenario: "A student record has Age stored as integer 20: { Age: 20 }. What will the query db.GptData02.find({ Age: '20' }) return?",
-    options: [
-      "It will return 0 matching documents because BSON comparison matches both value and data type",
-      "It will return the document because MongoDB automatically converts strings to numbers in queries",
-      "It throws a TypeMismatch exception in the shell",
-      "It converts the stored integer into a string before evaluation"
-    ],
-    correctOptionIndex: 0,
-    explanation: "MongoDB is strongly typed at the BSON level. An integer 20 does NOT match a string '20'. Queries must match both the data type and the value.",
-    conceptFocus: "BSON types are strictly matched (number 20 != string '20').",
-    points: 5
-  },
-  {
-    id: "q-mcq-6",
-    topic: "Upsert & $setOnInsert",
-    difficulty: "Medium",
-    type: "multiple-choice",
-    title: "Behavior of $setOnInsert on Match",
-    scenario: "A document with _id: 10 already exists in collection GptData02. You execute:\ndb.GptData02.updateOne({_id: 10}, {$set: {Active: false}, $setOnInsert: {CreatedBy: 'Admin'}}, {upsert: true})\nWhat happens to CreatedBy?",
-    options: [
-      "CreatedBy is NOT added or modified because the document already exists",
-      "CreatedBy is set to 'Admin' because $setOnInsert always runs on upsert: true",
-      "An error is thrown because $set and $setOnInsert cannot be used together",
-      "CreatedBy is updated only if it was previously undefined"
-    ],
-    correctOptionIndex: 0,
-    explanation: "$setOnInsert only executes when the upsert creates a brand new document. If a match is found, $setOnInsert is ignored completely.",
-    conceptFocus: "$setOnInsert executes only on insert, never on document update.",
-    points: 5
-  },
-
-  // ==========================================
-  // TYPE B: PREDICT THE OUTPUT
-  // ==========================================
-  {
-    id: "q-predict-1",
-    topic: "Update Operators",
-    difficulty: "Medium",
-    type: "predict-output",
-    title: "Predict $min Operator Result",
-    scenario: "Given a student document in GptData02 with:\n{ _id: 1, Name: 'Tunde Adeyemi', GPA: 3.4 }\nYou execute:\ndb.GptData02.updateOne({ _id: 1 }, { $min: { GPA: 3.0 } })\nWhat is the value of GPA after the command runs?",
-    options: [
-      "GPA becomes 3.0",
-      "GPA remains 3.4",
-      "GPA becomes 0.4",
-      "GPA is removed"
-    ],
-    correctOptionIndex: 0,
-    explanation: "$min updates the field only if the specified value (3.0) is smaller than the current value (3.4). Since 3.0 < 3.4, GPA is updated to 3.0.",
-    conceptFocus: "$min updates when specified value is smaller than current value.",
-    points: 5
-  },
-  {
-    id: "q-predict-2",
-    topic: "Update Operators",
-    difficulty: "Medium",
-    type: "predict-output",
-    title: "Predict $max Operator Result on Lower Value",
-    scenario: "Given student document with:\n{ _id: 2, Name: 'Chioma Okonkwo', GPA: 3.85 }\nYou execute:\ndb.GptData02.updateOne({ _id: 2 }, { $max: { GPA: 3.5 } })\nWhat is the value of GPA after the command runs?",
-    options: [
-      "GPA remains 3.85",
-      "GPA becomes 3.5",
-      "GPA becomes 7.35",
-      "An error occurs because 3.5 is less than 3.85"
-    ],
-    correctOptionIndex: 0,
-    explanation: "$max updates only if the specified value is GREATER than current value. Since 3.5 is not greater than 3.85, no change occurs and GPA remains 3.85.",
-    conceptFocus: "$max preserves the existing value if specified value is not greater.",
-    points: 5
-  },
-  {
-    id: "q-predict-3",
-    topic: "Removing Array Elements",
-    difficulty: "Hard",
-    type: "predict-output",
-    title: "Predict Conditional $pull on Numeric Array",
-    scenario: "Document _id: 15 has Misc: [15, 25, 35, 45].\nYou run:\ndb.GptData02.updateOne({ _id: 15 }, { $pull: { Misc: { $gt: 20 } } })\nWhat does the Misc array contain afterwards?",
-    options: [
-      "[15]",
-      "[25, 35, 45]",
-      "[15, 20]",
-      "[] (empty array)"
-    ],
-    correctOptionIndex: 0,
-    explanation: "$pull removes all elements matching the condition {$gt: 20}. Since 25, 35, and 45 are greater than 20, they are all removed, leaving only [15].",
-    conceptFocus: "$pull evaluates {$gt: 20} on every array element.",
-    points: 5
-  },
-  {
-    id: "q-predict-4",
-    topic: "Array Updates",
-    difficulty: "Expert",
-    type: "predict-output",
-    title: "Predict $position: 1 Insertion",
-    scenario: "Courses array initially has: ['Java', 'Python'].\nYou execute:\ndb.GptData02.updateOne({ _id: 1 }, { $push: { Courses: { $each: ['Rust'], $position: 1 } } })\nWhat is the exact order of Courses?",
-    options: [
-      "['Java', 'Rust', 'Python']",
-      "['Rust', 'Java', 'Python']",
-      "['Java', 'Python', 'Rust']",
-      "['Rust']"
-    ],
-    correctOptionIndex: 0,
-    explanation: "Position 0 is the start. Position 1 places the inserted element immediately after the first element (index 0). Therefore, 'Rust' is placed at index 1, between 'Java' and 'Python'.",
-    conceptFocus: "$position: 1 inserts after the first element (at index 1).",
-    points: 5
-  },
-
-  // ==========================================
-  // TYPE C: FIND THE ERROR
-  // ==========================================
-  {
-    id: "q-error-1",
-    topic: "Array Updates",
-    difficulty: "Medium",
-    type: "find-error",
-    title: "Missing $each with $position",
-    codeSnippet: 'db.GptData02.updateOne(\n  { _id: 1 },\n  { $push: { Courses: "React", $position: 0 } }\n)',
-    scenario: "A developer ran the command above to insert 'React' at index 0 of Courses, but MongoDB threw a syntax error. What is wrong?",
-    options: [
-      "The $position modifier cannot be used without the $each modifier in $push",
-      "Index 0 is invalid in MongoDB arrays; indexing starts at 1",
-      "$position is only supported in $addToSet, not $push",
-      "Quotes are missing around Courses"
-    ],
-    correctOptionIndex: 0,
-    explanation: "MongoDB requires that modifiers such as $position, $slice, and $sort MUST be wrapped inside an object with the $each modifier: { $push: { Courses: { $each: ['React'], $position: 0 } } }.",
-    conceptFocus: "$position requires $each even for single-item insertions.",
-    points: 5
-  },
-  {
-    id: "q-error-2",
-    topic: "Basic Queries",
-    difficulty: "Easy",
-    type: "find-error",
-    title: "Invalid Mixed Projection",
-    codeSnippet: 'db.GptData02.find(\n  { Section: "A" },\n  { Name: 1, GPA: 1, Age: 0 }\n)',
-    scenario: "What causes the command above to fail in the MongoDB shell?",
-    options: [
-      "Inclusion (1) and exclusion (0) cannot be mixed in the same projection (except for _id)",
-      "Section must be an integer, not a string",
-      "find() does not accept a second parameter",
-      "GPA is a float and cannot be projected"
-    ],
-    correctOptionIndex: 0,
-    explanation: "In MongoDB projections, you cannot mix field inclusion (1) with field exclusion (0). The only exception to this rule is the _id field (e.g. { Name: 1, _id: 0 } is valid).",
-    conceptFocus: "Never mix 1 and 0 in projection, except for _id.",
-    points: 5
-  },
-  {
-    id: "q-error-3",
-    topic: "Nested Documents",
-    difficulty: "Hard",
-    type: "find-error",
-    title: "Accidental Object Overwrite Instead of Dot Notation",
-    codeSnippet: 'db.GptData02.updateOne(\n  { _id: 10 },\n  { $set: { Address: { State: "Lagos" } } }\n)',
-    scenario: "The developer intended to update only the State field, but all other Address fields (Country, City, HouseNumber) disappeared. Why?",
-    options: [
-      "Passing { Address: { State: 'Lagos' } } replaces the entire Address object; they should have used dot notation { 'Address.State': 'Lagos' }",
-      "The $set operator is deprecated for nested documents",
-      "Address is a reserved keyword in MongoDB",
-      "The _id was not enclosed in quotes"
-    ],
-    correctOptionIndex: 0,
-    explanation: "Assigning directly to the parent field { Address: { State: 'Lagos' } } overwrites the entire sub-document, obliterating Country, City, and HouseNumber. To preserve sibling fields, dot notation must be used: { 'Address.State': 'Lagos' }.",
-    conceptFocus: "Direct assignment overwrites subdocuments; use dot notation to update nested keys.",
-    points: 5
-  },
-  {
-    id: "q-error-4",
-    topic: "Aggregation",
-    difficulty: "Expert",
-    type: "find-error",
-    title: "Missing Dollar Prefix in Accumulator",
-    codeSnippet: 'db.GptData02.aggregate([\n  {\n    $group: {\n      _id: "$Section",\n      TotalMarks: { $sum: "Marks" }\n    }\n  }\n])',
-    scenario: "The aggregation query runs but TotalMarks outputs 0 or NaN for all sections. What is the bug?",
-    options: [
-      "'Marks' is treated as a literal string because it lacks the '$' prefix; it should be '$Marks'",
-      "$sum is not a valid accumulator operator inside $group",
-      "_id cannot be assigned to $Section",
-      "aggregate() only works on collections named 'Aggregate'"
-    ],
-    correctOptionIndex: 0,
-    explanation: "In aggregation expressions, field references must be prefixed with a dollar sign: '$Marks'. Writing 'Marks' without '$' causes MongoDB to treat it as a literal string, resulting in an invalid sum of 0.",
-    conceptFocus: "Field references in aggregation must be prefixed with '$' (e.g. '$Marks').",
-    points: 5
-  },
-
-  // ==========================================
-  // TYPE E: MATCH THE OPERATOR
-  // ==========================================
-  {
-    id: "q-match-1",
-    topic: "Update Operators",
-    difficulty: "Medium",
-    type: "match-operator",
-    title: "Match MongoDB Operators with their Purposes",
-    scenario: "Match each MongoDB operator with its precise functional definition.",
-    matchPairs: [
-      { id: "p1", operator: "$pop: -1", definition: "Removes the very first element from an array" },
-      { id: "p2", operator: "$min", definition: "Updates the field only if the specified value is smaller than current value" },
-      { id: "p3", operator: "$slice: -4", definition: "Retains only the last 4 elements of an array during $push" },
-      { id: "p4", operator: "$setOnInsert", definition: "Assigns fields only when an upsert creates a new document" }
-    ],
-    explanation: "$pop: -1 removes first element; $min keeps smaller value; $slice: -4 keeps last 4 elements; $setOnInsert applies exclusively upon insertion in an upsert.",
-    conceptFocus: "Differentiating exact operator behaviors.",
-    points: 10
-  },
-  {
-    id: "q-match-2",
-    topic: "Removing Array Elements",
-    difficulty: "Hard",
-    type: "match-operator",
-    title: "Match Array Removal Operators",
-    scenario: "Match each array removal operator to its mechanism.",
-    matchPairs: [
-      { id: "p1", operator: "$pop: 1", definition: "Removes the last element of an array" },
-      { id: "p2", operator: "$pull", definition: "Removes all elements that match a specified value or query condition" },
-      { id: "p3", operator: "$pullAll", definition: "Removes all occurrences of listed values specified in a literal array" },
-      { id: "p4", operator: "$unset", definition: "Deletes a field completely from a document" }
-    ],
-    explanation: "$pop: 1 deletes the tail; $pull handles conditions like {$gt: 20}; $pullAll removes explicit list members; $unset removes the entire key.",
-    conceptFocus: "Array removal mechanisms ($pop, $pull, $pullAll, $unset).",
+    correctOptionIndices: [1, 2],
+    explanation: "Security best practices require limiting access via specific IP access lists or private network peering (VPC Peering / PrivateLink). Opening 0.0.0.0/0 in production or embedding credentials in client code is a critical vulnerability.",
+    misconception: "Leaving 0.0.0.0/0 active because it was convenient during local development.",
+    conceptFocus: "Atlas production clusters require strict IP filtering or PrivateLink.",
+    tags: ["security", "atlas", "networking"],
     points: 10
   },
 
-  // ==========================================
-  // TYPE F: SCENARIO QUESTIONS
-  // ==========================================
+  // =========================================================================
+  // LEVEL 2 & 3: CRUD OPERATIONS & QUERYING
+  // =========================================================================
   {
-    id: "q-scenario-1",
-    topic: "Aggregation",
-    difficulty: "Hard",
-    type: "scenario",
-    title: "Optimal Pipeline Stage Ordering",
-    scenario: "You are calculating the average GPA and total marks for students in Section 'A' across 10,000,000 documents using aggregate(). Where should the { $match: { Section: 'A' } } stage be placed for maximum performance?",
+    id: "crud-001",
+    topic: "CRUD Operations",
+    level: 3,
+    difficulty: "Medium",
+    type: "predict-output",
+    title: "Return Value of insertOne()",
+    scenario: "You execute the following command in mongosh:\ndb.patients.insertOne({ patientName: 'Ngozi Obi', age: 34 })\nWhat does MongoDB return upon successful acknowledgement?",
     options: [
-      "As the very first stage in the pipeline, before $group, to filter documents early and utilize indexes",
-      "Immediately after the $group stage, so the calculation finishes first",
-      "At the very end of the pipeline, after $sort and $project",
-      "Stage ordering in MongoDB aggregation does not impact query performance"
+      "{ acknowledged: true, insertedId: ObjectId('...') }",
+      "The entire newly created document including all server metadata",
+      "true (boolean)",
+      "An array containing [1, 'Ngozi Obi']"
     ],
     correctOptionIndex: 0,
-    explanation: "Placing $match as early as possible reduces the working set for downstream stages (like $group) and allows MongoDB to utilize indexes on Section, avoiding a full collection scan.",
-    conceptFocus: "Always place $match at the beginning of pipelines to optimize performance.",
+    explanation: "In modern mongosh and MongoDB drivers, insertOne() returns an acknowledgement object containing '{ acknowledged: true, insertedId: ObjectId(...) }'. It does not return the full inserted document.",
+    misconception: "Expecting insertOne() to return the document itself.",
+    conceptFocus: "insertOne returns { acknowledged: true, insertedId: ... }.",
+    tags: ["crud", "insertOne", "return-values"],
     points: 5
   },
   {
-    id: "q-scenario-2",
-    topic: "Regular Expressions",
+    id: "crud-002",
+    topic: "CRUD Operations",
+    level: 3,
+    difficulty: "Hard",
+    type: "write-command",
+    title: "Atomic findOneAndUpdate with Upsert",
+    scenario: "In collection 'accounts', atomically find the account where accountNumber is '0123456789', increment its balance by 5000, and return the NEW modified document after the update.",
+    expectedCommand: 'db.accounts.findOneAndUpdate({ accountNumber: "0123456789" }, { $inc: { balance: 5000 } }, { returnDocument: "after" })',
+    acceptableAlternatives: [
+      'db.accounts.findOneAndUpdate({accountNumber:"0123456789"},{$inc:{balance:5000}},{returnDocument:"after"})',
+      'db.accounts.findOneAndUpdate({ "accountNumber": "0123456789" }, { "$inc": { "balance": 5000 } }, { returnDocument: "after" })'
+    ],
+    explanation: "findOneAndUpdate() provides atomic fetch-and-modify. Setting '{ returnDocument: \"after\" }' (or '{ returnNewDocument: true }' in older syntax) causes it to return the updated document rather than the original pre-update state.",
+    misconception: "Using updateOne() and then a separate find(), which is not atomic and risks race conditions.",
+    conceptFocus: "findOneAndUpdate with { returnDocument: 'after' } provides atomic update and retrieval.",
+    tags: ["crud", "atomic", "findOneAndUpdate"],
+    points: 10
+  },
+  {
+    id: "query-001",
+    topic: "Basic & Advanced Querying",
+    level: 2,
+    difficulty: "Easy",
+    type: "multiple-choice",
+    title: "Suppression of Default _id in Projection",
+    scenario: "You want to find all students in section 'A' and display ONLY their Name and GPA, without the default _id field.",
+    options: [
+      "db.GptData02.find({ Section: 'A' }, { Name: 1, GPA: 1, _id: 0 })",
+      "db.GptData02.find({ Section: 'A' }, { Name: 1, GPA: 1, _id: 1 })",
+      "db.GptData02.find({ Section: 'A' }).exclude('_id').include(['Name', 'GPA'])",
+      "db.GptData02.find({ Section: 'A' }, { Name: 1, GPA: 1 })"
+    ],
+    correctOptionIndex: 0,
+    explanation: "_id is included by default in find projections. To suppress it, you must explicitly specify {_id: 0}.",
+    conceptFocus: "{_id: 0} is the only field exclusion permitted inside an inclusion projection.",
+    tags: ["querying", "projection", "_id"],
+    points: 5
+  },
+  {
+    id: "query-002",
+    topic: "Comparison & Logical Operators",
+    level: 2,
+    difficulty: "Medium",
+    type: "write-command",
+    title: "Filtering with $in and $gte",
+    scenario: "Query collection 'GptData02' for all students who belong to Section 'A' or 'B' AND have a GPA greater than or equal to 3.5.",
+    expectedCommand: 'db.GptData02.find({ Section: { $in: ["A", "B"] }, GPA: { $gte: 3.5 } })',
+    acceptableAlternatives: [
+      'db.GptData02.find({Section:{$in:["A","B"]},GPA:{$gte:3.5}})',
+      'db.GptData02.find({ GPA: { $gte: 3.5 }, Section: { $in: ["A", "B"] } })',
+      'db.GptData02.find({ $and: [{ Section: { $in: ["A", "B"] } }, { GPA: { $gte: 3.5 } }] })'
+    ],
+    explanation: "Multiple field clauses in a single object act as an implicit $and. $in matches any element in the specified array (Section 'A' or 'B'), and $gte verifies GPA is at least 3.5.",
+    conceptFocus: "Comma-separated query fields evaluate as an implicit logical AND.",
+    tags: ["querying", "comparison", "in"],
+    points: 10
+  },
+  {
+    id: "query-003",
+    topic: "Arrays & Indexing",
+    level: 2,
+    difficulty: "Medium",
+    type: "multiple-choice",
+    title: "Array Zero-Based Index Match",
+    scenario: "What does the query db.GptData02.find({ 'Courses.0': 'Java' }) match?",
+    options: [
+      "Documents where the very first element of Courses array is 'Java'",
+      "Documents where Courses array contains 'Java' at any index",
+      "Documents where the Courses array has length 0",
+      "Documents where 'Java' is the last course"
+    ],
+    correctOptionIndex: 0,
+    explanation: "MongoDB uses zero-based indexing in queries. 'Courses.0' specifically tests whether the element at index 0 (the first element) equals 'Java'.",
+    conceptFocus: "Array index notation .0 refers to the first element.",
+    tags: ["arrays", "indexing", "dot-notation"],
+    points: 5
+  },
+  {
+    id: "query-004",
+    topic: "Arrays & Indexing",
+    level: 2,
+    difficulty: "Hard",
+    type: "multiple-choice",
+    title: "Behavior of $elemMatch on Arrays of Objects",
+    scenario: "Given collection 'hospital' with patients containing prescriptions: [ { medication: 'Aspirin', dosage: '81mg' }, { medication: 'Lisinopril', dosage: '10mg' } ]. Why should you use $elemMatch rather than multiple dot conditions when matching a patient taking Aspirin at 81mg?",
+    options: [
+      "$elemMatch ensures BOTH conditions match within the SAME array sub-document, whereas multiple dot filters can match across different array elements",
+      "$elemMatch is required because MongoDB cannot index arrays without it",
+      "Dot notation does not work on arrays",
+      "$elemMatch converts array elements into temporary strings"
+    ],
+    correctOptionIndex: 0,
+    explanation: "Without $elemMatch, a query like { 'prescriptions.medication': 'Aspirin', 'prescriptions.dosage': '10mg' } would match a document that has Aspirin in one prescription and 10mg in a completely different prescription! $elemMatch guarantees that both criteria are satisfied by the SAME array element.",
+    misconception: "Thinking standard multi-field dot notation enforces matching on the same array element.",
+    conceptFocus: "$elemMatch guarantees all conditions match within the same array sub-document.",
+    tags: ["arrays", "elemMatch", "hospital"],
+    points: 5
+  },
+
+  // =========================================================================
+  // LEVEL 4: DATA MODELING, SCHEMA VALIDATION & JAVASCRIPT
+  // =========================================================================
+  {
+    id: "model-001",
+    topic: "Data Modeling & Schema Design",
+    level: 4,
     difficulty: "Medium",
     type: "scenario",
-    title: "Case-Insensitive Prefix Search",
-    scenario: "You need to find all students whose names start with 'chioma', regardless of whether they are entered as 'Chioma', 'chioma', or 'CHIOMA'. Which query is optimal?",
+    title: "Embedding vs Referencing (1-to-Few vs 1-to-Squillions)",
+    scenario: "You are designing an e-commerce platform where a user has up to 3 shipping addresses, but a product can receive 500,000 user reviews over 5 years. How should addresses and reviews be modeled?",
     options: [
-      "db.GptData02.find({ Name: { $regex: '^chioma', $options: 'i' } })",
-      "db.GptData02.find({ Name: { $regex: 'chioma$', $options: 'i' } })",
-      "db.GptData02.find({ Name: { $in: ['chioma'] } })",
-      "db.GptData02.find({ Name: { $eq: '/chioma/i' } })"
+      "Embed shipping addresses directly in the User document (1-to-few); Reference reviews in a separate Reviews collection with a productId reference (1-to-many unbounded)",
+      "Embed both addresses and all 500,000 reviews directly in the respective documents",
+      "Reference both addresses and reviews in separate tables with foreign keys and SQL joins",
+      "Embed reviews and reference addresses"
     ],
     correctOptionIndex: 0,
-    explanation: "The caret '^' anchors the match to the beginning of the string, and $options: 'i' enables case-insensitivity.",
-    conceptFocus: "^ anchors to start; $options: 'i' grants case-insensitivity.",
+    explanation: "MongoDB has a 16MB document size limit. Unbounded 1-to-many relationships (like reviews) must be referenced in a separate collection. Small, bounded relationships that are read together (like user addresses) should be embedded for single-read performance.",
+    misconception: "Embedding unbounded arrays inside a parent document, which leads to document growth, fragmentation, and eventually the 16MB limit error.",
+    conceptFocus: "Embed bounded 1-to-few; Reference unbounded 1-to-many.",
+    tags: ["data-modeling", "schema-design", "16mb-limit"],
     points: 5
   },
   {
-    id: "q-scenario-3",
-    topic: "Upsert & $setOnInsert",
-    difficulty: "Expert",
-    type: "scenario",
-    title: "Auditing Document Creation without Overwrite",
-    scenario: "A microservice receives student sync events. If the student document does not exist, it should create it with Name: 'New Student' and set CreatedAt to the current timestamp. If the document already exists, it should update Name but NEVER overwrite the original CreatedAt. How should this be implemented?",
-    options: [
-      "Use $set for Name, $setOnInsert for CreatedAt, and specify { upsert: true }",
-      "Use $set for both Name and CreatedAt with { upsert: true }",
-      "Run a find() query first in code, check if null, then call insertOne() or updateOne()",
-      "Use $push with $slice: 1"
-    ],
-    correctOptionIndex: 0,
-    explanation: "Combining $set: { Name: '...' } with $setOnInsert: { CreatedAt: '...' } under { upsert: true } is the atomic MongoDB pattern. Existing records receive only the $set update, preserving CreatedAt.",
-    conceptFocus: "$setOnInsert with {upsert: true} prevents overwriting creation timestamps.",
-    points: 5
-  },
-
-  // ==========================================
-  // TYPE G: ARRANGE THE COMMAND
-  // ==========================================
-  {
-    id: "q-arrange-1",
-    topic: "Array Updates",
+    id: "valid-001",
+    topic: "Schema Validation",
+    level: 4,
     difficulty: "Hard",
-    type: "arrange-command",
-    title: "Assemble Array Push with Modifiers",
-    scenario: "Arrange the clauses into the correct structural order to push 'React' to index 0 of Courses for _id: 1.",
-    arrangeBlocks: [
-      { id: "b1", text: "db.GptData02.updateOne(" },
-      { id: "b2", text: "{ _id: 1 }," },
-      { id: "b3", text: "{ $push: { Courses: {" },
-      { id: "b4", text: "$each: ['React']," },
-      { id: "b5", text: "$position: 0" },
-      { id: "b6", text: "} } }" },
-      { id: "b7", text: ")" }
+    type: "write-command",
+    title: "Creating Collection with JSON Schema Validation",
+    scenario: "Create a collection named 'accounts' with strict JSON Schema validation requiring 'accountNumber' (string) and 'balance' (number/double).",
+    expectedCommand: 'db.createCollection("accounts", { validator: { $jsonSchema: { bsonType: "object", required: ["accountNumber", "balance"], properties: { accountNumber: { bsonType: "string" }, balance: { bsonType: ["double", "int", "number"] } } } } })',
+    acceptableAlternatives: [
+      'db.createCollection("accounts",{validator:{$jsonSchema:{bsonType:"object",required:["accountNumber","balance"],properties:{accountNumber:{bsonType:"string"},balance:{bsonType:["double","int","number"]}}}}})',
+      'db.createCollection("accounts", { validator: { $jsonSchema: { bsonType: "object", required: ["accountNumber", "balance"], properties: { accountNumber: { bsonType: "string" }, balance: { bsonType: "number" } } } } })'
     ],
-    correctArrangeOrder: ["b1", "b2", "b3", "b4", "b5", "b6", "b7"],
-    explanation: "The correct sequence starts with method and filter, opens $push and target field, includes $each modifier, followed by $position modifier, closing braces, and final parenthesis.",
-    conceptFocus: "Structural hierarchy of $push with $each and $position.",
-    points: 10
-  },
-  {
-    id: "q-arrange-2",
-    topic: "Aggregation",
-    difficulty: "Expert",
-    type: "arrange-command",
-    title: "Assemble Section Group Pipeline",
-    scenario: "Arrange the aggregation stages to calculate the sum of Marks and average Marks grouped by Section.",
-    arrangeBlocks: [
-      { id: "a1", text: "db.GptData02.aggregate([" },
-      { id: "a2", text: "{ $group: {" },
-      { id: "a3", text: '_id: "$Section",' },
-      { id: "a4", text: 'TotalMarks: { $sum: "$Marks" },' },
-      { id: "a5", text: 'Average: { $avg: "$Marks" }' },
-      { id: "a6", text: "} }" },
-      { id: "a7", text: "]).sort({ _id: 1 })" }
-    ],
-    correctArrangeOrder: ["a1", "a2", "a3", "a4", "a5", "a6", "a7"],
-    explanation: "The pipeline array begins with $group stage, defines grouping key _id: '$Section', calculates accumulators $sum and $avg with '$' field references, closes the group stage, and chains .sort({_id: 1}).",
-    conceptFocus: "Aggregation stage syntax and accumulator structure.",
+    explanation: "db.createCollection() accepts a validator object utilizing '$jsonSchema'. Fields listed in 'required' must be present, and 'properties' defines acceptable BSON types.",
+    conceptFocus: "MongoDB Schema validation uses $jsonSchema to enforce document integrity.",
+    tags: ["validation", "jsonSchema", "createCollection"],
     points: 10
   },
 
-  // ==========================================
-  // MORE HIGH-VALUE QUESTIONS (All Topics)
-  // ==========================================
+  // =========================================================================
+  // LEVEL 5: AGGREGATION PIPELINES
+  // =========================================================================
   {
-    id: "q-write-9",
-    topic: "Basic Queries",
-    difficulty: "Easy",
-    type: "write-command",
-    title: "Query with Projection Excluding _id",
-    scenario: "Find all students in Section 'A', projecting only Name and GPA, and explicitly excluding the _id field in collection GptData02.",
-    expectedCommand: 'db.GptData02.find({Section: "A"}, {Name: 1, GPA: 1, _id: 0})',
-    acceptableAlternatives: [
-      'db.GptData02.find({Section:"A"},{Name:1,GPA:1,_id:0})',
-      'db.GptData02.find({Section: "A"}, {_id: 0, Name: 1, GPA: 1})'
-    ],
-    explanation: "The second parameter to find() is the projection document. Fields marked with 1 are included; _id is included by default unless explicitly suppressed with _id: 0.",
-    conceptFocus: "Excluding _id in inclusion projection: {_id: 0, Name: 1, GPA: 1}.",
-    points: 10
-  },
-  {
-    id: "q-write-10",
-    topic: "Logical Operators",
+    id: "agg-001",
+    topic: "Aggregation Pipelines",
+    level: 5,
     difficulty: "Medium",
     type: "write-command",
-    title: "Query with $or Operator",
-    scenario: "Find all students in GptData02 who are either in Section 'A' OR have a GPA greater than 3.8.",
-    expectedCommand: 'db.GptData02.find({$or: [{Section: "A"}, {GPA: {$gt: 3.8}}]})',
+    title: "Group by Section with Accumulators",
+    scenario: "In collection GptData02, write an aggregation query that groups students by their 'Section', calculates 'TotalMarks' using $sum on '$Marks', and calculates 'AverageMarks' using $avg on '$Marks'.",
+    expectedCommand: 'db.GptData02.aggregate([{ $group: { _id: "$Section", TotalMarks: { $sum: "$Marks" }, AverageMarks: { $avg: "$Marks" } } }])',
     acceptableAlternatives: [
-      'db.GptData02.find({$or:[{Section:"A"},{GPA:{$gt:3.8}}]})',
-      'db.GptData02.find({$or: [{GPA: {$gt: 3.8}}, {Section: "A"}]})'
+      'db.GptData02.aggregate([{$group:{_id:"$Section",TotalMarks:{$sum:"$Marks"},AverageMarks:{$avg:"$Marks"}}}])',
+      'db.GptData02.aggregate([{ "$group": { "_id": "$Section", "TotalMarks": { "$sum": "$Marks" }, "AverageMarks": { "$avg": "$Marks" } } }])'
     ],
-    explanation: "$or takes an array of condition objects. Documents matching either condition will be returned.",
-    conceptFocus: "$or joins condition objects in an array: {$or: [{cond1}, {cond2}]}.",
+    explanation: "In $group, the grouping expression is assigned to _id: '$Section'. Field names inside accumulator expressions must be prefixed with '$' ('$Marks') to reference document field values.",
+    misconception: "Forgetting the dollar sign prefix in accumulator references (e.g. { $sum: 'Marks' }), which treats 'Marks' as a string literal instead of summing field values.",
+    conceptFocus: "Field references in aggregation accumulators require a '$' prefix.",
+    tags: ["aggregation", "$group", "$sum", "$avg"],
     points: 10
   },
   {
-    id: "q-mcq-7",
-    topic: "Update Operators",
-    difficulty: "Easy",
+    id: "agg-002",
+    topic: "Aggregation Pipelines",
+    level: 5,
+    difficulty: "Hard",
+    type: "write-command",
+    title: "Deconstruct Array with $unwind and Group Count",
+    scenario: "In collection GptData02, deconstruct the 'Courses' array so each course is a separate document, then group by course name and compute 'StudentCount' representing how many students take each course.",
+    expectedCommand: 'db.GptData02.aggregate([{ $unwind: "$Courses" }, { $group: { _id: "$Courses", StudentCount: { $sum: 1 } } }])',
+    acceptableAlternatives: [
+      'db.GptData02.aggregate([{$unwind:"$Courses"},{$group:{_id:"$Courses",StudentCount:{$sum:1}}}])',
+      'db.GptData02.aggregate([{ "$unwind": "$Courses" }, { "$group": { "_id": "$Courses", "StudentCount": { "$sum": 1 } } }])'
+    ],
+    explanation: "$unwind deconstructs an array field from the input documents to output a document for each element. Then $group with _id: '$Courses' and { $sum: 1 } calculates the count of each course.",
+    conceptFocus: "$unwind deconstructs arrays for element-level aggregation.",
+    tags: ["aggregation", "$unwind", "$group"],
+    points: 10
+  },
+  {
+    id: "agg-003",
+    topic: "Aggregation Pipelines",
+    level: 5,
+    difficulty: "Expert",
     type: "multiple-choice",
-    title: "Renaming a Field",
-    scenario: "Which command renames the field 'Address.State' to 'Address.Province' for student _id: 10 in GptData02?",
+    title: "Left Outer Join with $lookup",
+    scenario: "You run the following pipeline on 'orders':\n{\n  $lookup: {\n    from: 'products',\n    localField: 'productId',\n    foreignField: '_id',\n    as: 'productDetails'\n  }\n}\nWhat data type is 'productDetails' in the resulting documents?",
     options: [
-      "db.GptData02.updateOne({_id: 10}, {$rename: {'Address.State': 'Address.Province'}})",
-      "db.GptData02.updateOne({_id: 10}, {$change: {'Address.State': 'Address.Province'}})",
-      "db.GptData02.updateOne({_id: 10}, {$set: {'Address.Province': '$Address.State'}})",
-      "db.GptData02.updateOne({_id: 10}, {$replace: {State: 'Province'}})"
+      "Always an Array of matching product documents (even if 0 or 1 match)",
+      "A single embedded Object if exactly one match was found",
+      "A string containing the product ID",
+      "A cursor reference that must be resolved with another query"
     ],
     correctOptionIndex: 0,
-    explanation: "The $rename operator takes old field name and new field name in key-value pairs: {$rename: {'oldKey': 'newKey'}}.",
-    conceptFocus: "$rename modifies the name of an existing field.",
+    explanation: "$lookup performs an equality match and ALWAYS outputs an array field (e.g. 'productDetails: [...]'), containing zero, one, or many matching documents from the foreign collection.",
+    misconception: "Assuming $lookup automatically flattens single matches into a single document object without needing $unwind.",
+    conceptFocus: "$lookup always returns an array field in the output document.",
+    tags: ["aggregation", "$lookup", "join"],
+    points: 5
+  },
+
+  // =========================================================================
+  // LEVEL 6: INDEXING & PERFORMANCE
+  // =========================================================================
+  {
+    id: "idx-001",
+    topic: "Indexes & ESR Rule",
+    level: 6,
+    difficulty: "Hard",
+    type: "multiple-choice",
+    title: "The ESR (Equality, Sort, Range) Rule",
+    scenario: "You have a query: db.orders.find({ status: 'shipped', createdAt: { $gte: ISODate('2026-01-01') } }).sort({ customerId: 1 }). According to MongoDB's ESR rule, in what order should the compound index keys be defined?",
+    options: [
+      "{ status: 1, customerId: 1, createdAt: 1 }",
+      "{ createdAt: 1, status: 1, customerId: 1 }",
+      "{ customerId: 1, status: 1, createdAt: 1 }",
+      "{ createdAt: 1, customerId: 1, status: 1 }"
+    ],
+    correctOptionIndex: 0,
+    explanation: "The ESR rule dictates: 1) Equality matches first (status), 2) Sort fields second (customerId) to avoid in-memory blocking sorts, 3) Range filter fields last (createdAt). Therefore, { status: 1, customerId: 1, createdAt: 1 } is optimal.",
+    misconception: "Putting the range field before the sort field, which forces an in-memory sort.",
+    conceptFocus: "ESR Rule: Equality fields first, Sort fields second, Range fields last.",
+    tags: ["indexes", "esr-rule", "performance"],
     points: 5
   },
   {
-    id: "q-mcq-8",
-    topic: "Update Operators",
-    difficulty: "Easy",
-    type: "multiple-choice",
-    title: "Removing a Field with $unset",
-    scenario: "Which command completely deletes the 'Address.Country' field from student _id: 10 in GptData02?",
-    options: [
-      "db.GptData02.updateOne({_id: 10}, {$unset: {'Address.Country': ''}})",
-      "db.GptData02.updateOne({_id: 10}, {$delete: {'Address.Country': 1}})",
-      "db.GptData02.updateOne({_id: 10}, {$set: {'Address.Country': null}})",
-      "db.GptData02.updateOne({_id: 10}, {$remove: 'Address.Country'})"
-    ],
-    correctOptionIndex: 0,
-    explanation: "The $unset operator deletes fields. Setting to null retains the key with a null value, whereas $unset removes the key completely.",
-    conceptFocus: "$unset removes a field from document entirely.",
-    points: 5
-  },
-  {
-    id: "q-write-11",
-    topic: "Update Operators",
+    id: "idx-002",
+    topic: "Indexes & ESR Rule",
+    level: 6,
     difficulty: "Medium",
     type: "write-command",
-    title: "Multiply Field Value with $mul",
-    scenario: "Double the GPA (multiply by 2) for student with _id: 1 in GptData02 using the $mul operator.",
-    expectedCommand: 'db.GptData02.updateOne({_id: 1}, {$mul: {GPA: 2}})',
+    title: "Creating a TTL (Time-To-Live) Index",
+    scenario: "Create a TTL index on collection 'sessions' on the 'createdAt' field so that sessions automatically expire and are deleted 3600 seconds (1 hour) after creation.",
+    expectedCommand: 'db.sessions.createIndex({ createdAt: 1 }, { expireAfterSeconds: 3600 })',
     acceptableAlternatives: [
-      'db.GptData02.updateOne({_id:1},{$mul:{GPA:2}})'
+      'db.sessions.createIndex({createdAt:1},{expireAfterSeconds:3600})',
+      'db.sessions.createIndex({ "createdAt": 1 }, { expireAfterSeconds: 3600 })'
     ],
-    explanation: "The $mul operator multiplies the numeric value of a field by the specified multiplier.",
-    conceptFocus: "$mul multiplies numeric field values.",
+    explanation: "A TTL index requires a single-field index on a Date field with the option '{ expireAfterSeconds: n }'. A background thread in MongoDB sweeps and purges expired documents automatically.",
+    conceptFocus: "TTL indexes use expireAfterSeconds on Date fields to auto-delete documents.",
+    tags: ["indexes", "ttl", "createIndex"],
     points: 10
   },
   {
-    id: "q-write-12",
-    topic: "Update Operators",
-    difficulty: "Easy",
-    type: "write-command",
-    title: "Set Current Date with $currentDate",
-    scenario: "Update student with _id: 1 in GptData02 to set the field LastUpdated to the current date using $currentDate.",
-    expectedCommand: 'db.GptData02.updateOne({_id: 1}, {$currentDate: {LastUpdated: true}})',
-    acceptableAlternatives: [
-      'db.GptData02.updateOne({_id:1},{$currentDate:{LastUpdated:true}})',
-      'db.GptData02.updateOne({_id: 1}, {$currentDate: {LastUpdated: {$type: "date"}}})'
+    id: "perf-001",
+    topic: "Performance & explain()",
+    level: 6,
+    difficulty: "Expert",
+    type: "find-error",
+    title: "Diagnosing explain('executionStats') Output",
+    codeSnippet: '{\n  "winningPlan": {\n    "stage": "COLLSCAN",\n    "filter": { "age": { "$gte": 21 } }\n  },\n  "totalKeysExamined": 0,\n  "totalDocsExamined": 5000000,\n  "nReturned": 120\n}',
+    scenario: "Review the explain executionStats output above. Why is this query causing high CPU and memory latency on production?",
+    options: [
+      "The query executed a full collection scan (COLLSCAN) examining 5,000,000 documents to return only 120, because no index exists on 'age'",
+      "totalKeysExamined is 0 because the index was corrupted",
+      "nReturned is too low for MongoDB to operate efficiently",
+      "COLLSCAN is the fastest possible index stage in MongoDB"
     ],
-    explanation: "The $currentDate operator sets the value of a field to current date/timestamp using true or {$type: 'date'}.",
-    conceptFocus: "$currentDate sets timestamp on modified document.",
+    correctOptionIndex: 0,
+    explanation: "COLLSCAN means a collection scan: MongoDB had to read every single one of the 5 million documents from disk into RAM (totalDocsExamined: 5,000,000) just to find 120 matching records. Creating an index on { age: 1 } would change the stage to IXSCAN and reduce totalDocsExamined to 120.",
+    misconception: "Assuming MongoDB automatically creates indexes for all query filters.",
+    conceptFocus: "COLLSCAN with totalDocsExamined >> nReturned indicates a missing index.",
+    tags: ["performance", "explain", "executionStats"],
+    points: 5
+  },
+
+  // =========================================================================
+  // LEVEL 7: ADMINISTRATION, REPLICATION, BACKUP & SECURITY
+  // =========================================================================
+  {
+    id: "repl-001",
+    topic: "Replication & High Availability",
+    level: 7,
+    difficulty: "Medium",
+    type: "multiple-choice",
+    title: "Role of the Oplog in Replica Sets",
+    scenario: "What is the primary role of the 'oplog.rs' (operations log) capped collection in a MongoDB replica set?",
+    options: [
+      "Secondary members continuously read the primary's oplog and apply recorded changes to keep their data in sync",
+      "It stores client authentication tokens and passwords",
+      "It acts as a temporary trash bin for deleted collections",
+      "It is an audit log used only for debugging failed network requests"
+    ],
+    correctOptionIndex: 0,
+    explanation: "The oplog (operations log) is a capped collection in the local database that records all write operations applied to the primary. Secondary nodes tail the oplog asynchronously to replicate state.",
+    conceptFocus: "Secondary members tail the primary's oplog for data synchronization.",
+    tags: ["replication", "replica-set", "oplog"],
+    points: 5
+  },
+  {
+    id: "sec-001",
+    topic: "Security & RBAC",
+    level: 7,
+    difficulty: "Medium",
+    type: "multiple-choice",
+    title: "Principle of Least Privilege with Built-in Roles",
+    scenario: "A microservice only needs to read documents from the 'catalog' database and must never modify documents or view other databases. Which built-in role should be assigned?",
+    options: [
+      "{ role: 'read', db: 'catalog' }",
+      "{ role: 'readWrite', db: 'catalog' }",
+      "{ role: 'dbAdmin', db: 'catalog' }",
+      "{ role: 'root', db: 'admin' }"
+    ],
+    correctOptionIndex: 0,
+    explanation: "Under the Principle of Least Privilege, granting '{ role: \"read\", db: \"catalog\" }' grants read-only access strictly to the catalog database without privileges to alter schemas or modify data.",
+    conceptFocus: "Assign the minimal built-in role required for application duties.",
+    tags: ["security", "rbac", "roles"],
+    points: 5
+  },
+  {
+    id: "backup-001",
+    topic: "Backup & Restore",
+    level: 7,
+    difficulty: "Medium",
+    type: "multiple-choice",
+    title: "mongodump vs mongoexport",
+    scenario: "When taking a full binary backup of a production database to ensure exact BSON data types, indexes, and metadata are preserved, which tool must be used?",
+    options: [
+      "mongodump (produces binary BSON files)",
+      "mongoexport (produces text JSON/CSV files)",
+      "mongosh .save()",
+      "robomongo"
+    ],
+    correctOptionIndex: 0,
+    explanation: "mongodump captures data in native binary BSON format along with index metadata. mongoexport exports to text JSON or CSV, which loses specific BSON type fidelity (e.g. Int32 vs Double vs Decimal128) and does not backup index definitions.",
+    misconception: "Using mongoexport for database backups instead of mongodump.",
+    conceptFocus: "mongodump creates binary BSON backups preserving all data types and indexes.",
+    tags: ["backup", "mongodump", "tools"],
+    points: 5
+  },
+
+  // =========================================================================
+  // LEVEL 8: TRANSACTIONS & ADVANCED ARCHITECTURES
+  // =========================================================================
+  {
+    id: "trans-001",
+    topic: "Transactions & Consistency",
+    level: 8,
+    difficulty: "Hard",
+    type: "multiple-choice",
+    title: "Multi-Document ACID Transactions",
+    scenario: "When executing a financial transfer debiting Account A and crediting Account B in MongoDB using a multi-document transaction, what session method must be called to guarantee both updates persist or both roll back?",
+    options: [
+      "session.commitTransaction() after both operations inside a try block, with session.abortTransaction() in catch",
+      "db.accounts.sync()",
+      "db.accounts.lockTables()",
+      "Transactions are purely automatic without sessions"
+    ],
+    correctOptionIndex: 0,
+    explanation: "Multi-document transactions in MongoDB require starting a client session (client.startSession()), beginning the transaction (session.startTransaction()), passing { session } to all CRUD operations, and calling session.commitTransaction() or session.abortTransaction().",
+    conceptFocus: "Multi-document transactions require sessions with commitTransaction/abortTransaction.",
+    tags: ["transactions", "acid", "banking"],
+    points: 5
+  },
+  {
+    id: "shard-001",
+    topic: "MongoDB Atlas & Advanced Features",
+    level: 8,
+    difficulty: "Expert",
+    type: "multiple-choice",
+    title: "Choosing a Shard Key with High Cardinality",
+    scenario: "You are designing a horizontally scaled sharded cluster for an international banking system handling 50,000 writes/sec. Which of the following makes the WORST shard key?",
+    options: [
+      "A monotonically increasing timestamp / auto-incrementing ID (causes all writes to funnel into the single max-range chunk / hotspot shard)",
+      "A compound hashed shard key with high cardinality like { accountId: 'hashed' }",
+      "A compound key combining tenant ID with a unique account UUID",
+      "A key with high cardinality and even write distribution"
+    ],
+    correctOptionIndex: 0,
+    explanation: "Monotonically increasing values (like timestamps or auto-incrementing integers) cause write hotspotting: every new document is routed to the single chunk holding the upper boundary on one shard, nullifying the benefits of horizontal scaling.",
+    misconception: "Thinking timestamps make good shard keys because queries frequently sort by time.",
+    conceptFocus: "Monotonically increasing shard keys cause write hotspots.",
+    tags: ["sharding", "shard-key", "scalability"],
+    points: 5
+  },
+
+  // =========================================================================
+  // LEVEL 9: REAL-WORLD PROJECTS (Hospital, Banking, E-Commerce, School)
+  // =========================================================================
+  {
+    id: "proj-hosp-001",
+    topic: "Data Modeling & Schema Design",
+    level: 9,
+    difficulty: "Hard",
+    type: "scenario",
+    title: "Hospital Bed & Ward Real-Time Availability",
+    scenario: "In a Hospital Management System, patients are admitted to wards. Nurses must allocate an empty bed without double-booking, even under simultaneous requests. What MongoDB pattern ensures an atomic bed reservation?",
+    options: [
+      "Use findOneAndUpdate({ _id: wardId, 'beds.number': 14, 'beds.occupied': false }, { $set: { 'beds.$.occupied': true, 'beds.$.patientId': patientId } })",
+      "Run a find() to check if bed is empty in JavaScript, then wait 500ms and run updateOne()",
+      "Create a separate collection for every single bed in the hospital",
+      "Store bed numbers as an unindexed text string"
+    ],
+    correctOptionIndex: 0,
+    explanation: "Using an atomic findOneAndUpdate with the condition '{ 'beds.occupied': false }' leverages document-level atomicity. If two nurses attempt to reserve the bed simultaneously, only one write will match and succeed, preventing race conditions.",
+    conceptFocus: "Document-level atomic updates on conditional filters eliminate race conditions.",
+    tags: ["hospital", "concurrency", "atomicity"],
+    points: 10
+  },
+  {
+    id: "proj-bank-001",
+    topic: "Transactions & Consistency",
+    level: 9,
+    difficulty: "Expert",
+    type: "write-command",
+    title: "Banking Ledger Balance Check with w:majority",
+    scenario: "In collection 'accounts', decrement balance by 25000 for account '0123456789' only if current balance is greater than or equal to 25000, using writeConcern majority.",
+    expectedCommand: 'db.accounts.updateOne({ accountNumber: "0123456789", balance: { $gte: 25000 } }, { $inc: { balance: -25000 } }, { writeConcern: { w: "majority" } })',
+    acceptableAlternatives: [
+      'db.accounts.updateOne({accountNumber:"0123456789",balance:{$gte:25000}},{$inc:{balance:-25000}},{writeConcern:{w:"majority"}})',
+      'db.accounts.updateOne({ "accountNumber": "0123456789", "balance": { "$gte": 25000 } }, { "$inc": { "balance": -25000 } }, { "writeConcern": { "w": "majority" } })'
+    ],
+    explanation: "Combining query condition '{ balance: { $gte: 25000 } }' with '{ $inc: { balance: -25000 } }' ensures non-negative balance protection, and '{ writeConcern: { w: \"majority\" } }' guarantees the write is durably committed to a majority of replica set nodes before acknowledging.",
+    conceptFocus: "Conditional decrement prevents overdraft; writeConcern majority guarantees durability.",
+    tags: ["banking", "writeConcern", "update"],
+    points: 10
+  },
+  {
+    id: "proj-ecom-001",
+    topic: "Aggregation Pipelines",
+    level: 9,
+    difficulty: "Hard",
+    type: "write-command",
+    title: "E-Commerce Category Revenue Analysis with $match & $group",
+    scenario: "In collection 'products', calculate the total inventory valuation per category (multiply price by stock for each product and sum by category), filtering only products with stock greater than 0.",
+    expectedCommand: 'db.products.aggregate([{ $match: { stock: { $gt: 0 } } }, { $group: { _id: "$category", totalValuation: { $sum: { $multiply: ["$price", "$stock"] } } } }])',
+    acceptableAlternatives: [
+      'db.products.aggregate([{$match:{stock:{$gt:0}}},{$group:{_id:"$category",totalValuation:{$sum:{$multiply:["$price","$stock"]}}}}])',
+      'db.products.aggregate([{ "$match": { "stock": { "$gt": 0 } } }, { "$group": { "_id": "$category", "totalValuation": { "$sum": { "$multiply": ["$price", "$stock"] } } } }])'
+    ],
+    explanation: "Filter early with $match to only process in-stock products. Then group by '$category' and compute the sum of '$multiply: [\"$price\", \"$stock\"]'.",
+    conceptFocus: "Combining $match with expression accumulators ($sum with $multiply).",
+    tags: ["ecommerce", "aggregation", "multiply"],
+    points: 10
+  },
+  {
+    id: "proj-hotel-001",
+    topic: "Basic & Advanced Querying",
+    level: 9,
+    difficulty: "Medium",
+    type: "write-command",
+    title: "Hotel Room Availability Date Conflict Search",
+    scenario: "In collection 'reservations', find all reservations where checkIn date is less than or equal to '2026-10-14' AND checkOut date is greater than '2026-10-12'.",
+    expectedCommand: 'db.reservations.find({ checkIn: { $lte: "2026-10-14" }, checkOut: { $gt: "2026-10-12" } })',
+    acceptableAlternatives: [
+      'db.reservations.find({checkIn:{$lte:"2026-10-14"},checkOut:{$gt:"2026-10-12"}})',
+      'db.reservations.find({ $and: [{ checkIn: { $lte: "2026-10-14" } }, { checkOut: { $gt: "2026-10-12" } }] })'
+    ],
+    explanation: "A standard interval overlap query tests if existing reservation starts before prospective checkout AND ends after prospective checkin.",
+    conceptFocus: "Interval overlap queries with $lte and $gt.",
+    tags: ["hotel", "querying", "date-range"],
     points: 10
   }
 ];

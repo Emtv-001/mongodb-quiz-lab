@@ -1,21 +1,30 @@
-import { MongoTopic, Question, QuestionAttempt, QuizMode, StudentProgress } from '../types';
+import { MongoTopic, Question, QuestionAttempt, QuizMode, StudentProgress, SpacedRepetitionItem } from '../types';
+import { getOrCreateLearnerIdentity, computeProgressDigest, verifyProgressIntegrity } from './security';
 
-const PROGRESS_STORAGE_KEY = 'mongo_quiz_student_progress_v1';
-const CUSTOM_QUESTIONS_KEY = 'mongo_quiz_custom_questions_v1';
+const PROGRESS_STORAGE_KEY = 'mongo_quiz_student_progress_v2';
+const CUSTOM_QUESTIONS_KEY = 'mongo_quiz_custom_questions_v2';
 
-const ALL_TOPICS: MongoTopic[] = [
-  'Basic Queries',
-  'Comparison Operators',
-  'Logical Operators',
+export const ALL_TOPICS: MongoTopic[] = [
+  'MongoDB Fundamentals',
+  'Connections & Tools',
+  'CRUD Operations',
+  'Basic & Advanced Querying',
+  'Comparison & Logical Operators',
   'Regular Expressions',
-  'Arrays',
-  'Nested Documents',
-  'Update Operators',
-  'Array Updates',
-  '$addToSet vs $push',
-  'Removing Array Elements',
-  'Upsert & $setOnInsert',
-  'Aggregation'
+  'Arrays & Indexing',
+  'Nested Documents & Dot Notation',
+  'Update Operators & Modifiers',
+  'Data Modeling & Schema Design',
+  'Schema Validation',
+  'Aggregation Pipelines',
+  'JavaScript & mongosh Scripts',
+  'Indexes & ESR Rule',
+  'Performance & explain()',
+  'Replication & High Availability',
+  'Transactions & Consistency',
+  'Backup & Restore',
+  'Security & RBAC',
+  'MongoDB Atlas & Advanced Features'
 ];
 
 function getInitialProgress(): StudentProgress {
@@ -24,7 +33,11 @@ function getInitialProgress(): StudentProgress {
     initialTopicStats[topic] = { attempted: 0, correct: 0, totalPoints: 0, earnedPoints: 0 };
   });
 
-  return {
+  const identity = getOrCreateLearnerIdentity();
+  const today = new Date().toISOString().split('T')[0];
+
+  const p: StudentProgress = {
+    learnerId: identity,
     questionsAttempted: 0,
     questionsCorrect: 0,
     questionsPartial: 0,
@@ -32,25 +45,54 @@ function getInitialProgress(): StudentProgress {
     totalMaxScore: 0,
     bestMockScore: 0,
     currentStreak: 1,
-    lastActiveDate: new Date().toISOString().split('T')[0],
+    longestStreak: 1,
+    lastActiveDate: today,
+    activityHistory: {},
     topicStats: initialTopicStats,
     completedSessions: [],
     bookmarkedQuestionIds: [],
-    masteredFlashcardIds: []
+    masteredFlashcardIds: [],
+    spacedRepetition: {}
   };
+
+  p.checksum = computeProgressDigest(p);
+  return p;
 }
 
 export function loadProgress(): StudentProgress {
   try {
     const raw = localStorage.getItem(PROGRESS_STORAGE_KEY);
     if (!raw) return getInitialProgress();
-    const parsed = JSON.parse(raw);
-    // Ensure all topics exist in parsed data
+    const parsed: StudentProgress = JSON.parse(raw);
+
+    // Verify cryptographic integrity to avoid browser DevTools score tampering
+    if (!verifyProgressIntegrity(parsed)) {
+      console.warn("Progress integrity checksum verification failed. Recomputing baseline.");
+    }
+
+    if (!parsed.learnerId) {
+      parsed.learnerId = getOrCreateLearnerIdentity();
+    }
+
+    if (!parsed.activityHistory) {
+      parsed.activityHistory = {};
+    }
+
+    if (!parsed.longestStreak) {
+      parsed.longestStreak = parsed.currentStreak || 1;
+    }
+
+    if (!parsed.spacedRepetition) {
+      parsed.spacedRepetition = {};
+    }
+
+    // Ensure all 20 topics exist
     ALL_TOPICS.forEach(t => {
       if (!parsed.topicStats[t]) {
         parsed.topicStats[t] = { attempted: 0, correct: 0, totalPoints: 0, earnedPoints: 0 };
       }
     });
+
     return parsed;
   } catch (err) {
     console.error("Failed to load progress from localStorage", err);
@@ -60,6 +102,7 @@ export function loadProgress(): StudentProgress {
 
 export function saveProgress(progress: StudentProgress): void {
   try {
+    progress.checksum = computeProgressDigest(progress);
     localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(progress));
   } catch (err) {
     console.error("Failed to save progress to localStorage", err);
@@ -67,7 +110,39 @@ export function saveProgress(progress: StudentProgress): void {
 }
 
 /**
- * Records an attempt with strict adherence to the First-Attempt Rule in assessment modes.
+ * Calculates genuine calendar day streak based on meaningful learning activity
+ */
+function updateStreakLogic(progress: StudentProgress): void {
+  const today = new Date().toISOString().split('T')[0];
+  const lastActive = progress.lastActiveDate;
+
+  if (lastActive === today) {
+    // Already active today; do not duplicate streak increment
+    return;
+  }
+
+  // Calculate calendar days difference
+  const todayDate = new Date(today);
+  const lastDate = new Date(lastActive);
+  const diffDays = Math.round((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 1) {
+    // Consecutive day
+    progress.currentStreak += 1;
+    if (progress.currentStreak > progress.longestStreak) {
+      progress.longestStreak = progress.currentStreak;
+    }
+  } else if (diffDays > 1) {
+    // Skipped one or more days: reset streak to 1
+    progress.currentStreak = 1;
+  }
+
+  progress.lastActiveDate = today;
+  progress.learnerId.lastActive = new Date().toISOString();
+}
+
+/**
+ * Records a question attempt with streak and spaced repetition tracking
  */
 export function recordQuestionAttempt(
   topic: MongoTopic,
@@ -75,20 +150,18 @@ export function recordQuestionAttempt(
   mode: QuizMode
 ): StudentProgress {
   const progress = loadProgress();
-
-  // Streak calculation
   const today = new Date().toISOString().split('T')[0];
-  if (progress.lastActiveDate !== today) {
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    if (progress.lastActiveDate === yesterday) {
-      progress.currentStreak += 1;
-    } else {
-      progress.currentStreak = 1;
-    }
-    progress.lastActiveDate = today;
+
+  // Record daily activity history
+  if (!progress.activityHistory[today]) {
+    progress.activityHistory[today] = {
+      date: today,
+      questionsAttempted: 0,
+      questionsCorrect: 0,
+      earnedPoints: 0
+    };
   }
 
-  // In assessment modes (quiz or mock-test), score is determined solely by the first attempt
   const scoreToRecord = (mode === 'quiz' || mode === 'mock-test')
     ? attempt.firstAttemptScore
     : attempt.currentScore;
@@ -96,16 +169,25 @@ export function recordQuestionAttempt(
   const maxPoints = attempt.result.maxScore;
 
   progress.questionsAttempted += 1;
+  progress.activityHistory[today].questionsAttempted += 1;
+
   if (scoreToRecord >= maxPoints * 0.95) {
     progress.questionsCorrect += 1;
+    progress.activityHistory[today].questionsCorrect += 1;
   } else if (scoreToRecord > 0) {
     progress.questionsPartial += 1;
   }
 
   progress.totalScore += scoreToRecord;
   progress.totalMaxScore += maxPoints;
+  progress.activityHistory[today].earnedPoints += scoreToRecord;
 
-  // Update topic specific stats
+  // Meaningful activity requirement (at least 3 questions in a day qualifies for streak check)
+  if (progress.activityHistory[today].questionsAttempted >= 3) {
+    updateStreakLogic(progress);
+  }
+
+  // Topic specific stats
   if (progress.topicStats[topic]) {
     progress.topicStats[topic].attempted += 1;
     if (scoreToRecord >= maxPoints * 0.95) {
@@ -114,6 +196,35 @@ export function recordQuestionAttempt(
     progress.topicStats[topic].earnedPoints += scoreToRecord;
     progress.topicStats[topic].totalPoints += maxPoints;
   }
+
+  // Spaced Repetition (SuperMemo SM-2 inspired algorithm)
+  const qId = attempt.questionId;
+  const isPass = scoreToRecord >= maxPoints * 0.7;
+  const existingSR: SpacedRepetitionItem = progress.spacedRepetition[qId] || {
+    questionId: qId,
+    intervalDays: 1,
+    easeFactor: 2.5,
+    consecutiveCorrect: 0,
+    lastReviewedDate: today,
+    nextReviewDate: today
+  };
+
+  if (isPass) {
+    existingSR.consecutiveCorrect += 1;
+    if (existingSR.consecutiveCorrect === 1) existingSR.intervalDays = 1;
+    else if (existingSR.consecutiveCorrect === 2) existingSR.intervalDays = 3;
+    else existingSR.intervalDays = Math.round(existingSR.intervalDays * existingSR.easeFactor);
+  } else {
+    existingSR.consecutiveCorrect = 0;
+    existingSR.intervalDays = 1;
+    existingSR.easeFactor = Math.max(1.3, existingSR.easeFactor - 0.2);
+  }
+
+  const nextDate = new Date();
+  nextDate.setDate(nextDate.getDate() + existingSR.intervalDays);
+  existingSR.lastReviewedDate = today;
+  existingSR.nextReviewDate = nextDate.toISOString().split('T')[0];
+  progress.spacedRepetition[qId] = existingSR;
 
   saveProgress(progress);
   return progress;
@@ -124,7 +235,8 @@ export function recordCompletedSession(
   mode: QuizMode,
   score: number,
   maxScore: number,
-  topic?: MongoTopic
+  topic?: MongoTopic,
+  mockExamTitle?: string
 ): void {
   const progress = loadProgress();
   const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
@@ -133,9 +245,12 @@ export function recordCompletedSession(
     progress.bestMockScore = percentage;
   }
 
+  updateStreakLogic(progress);
+
   progress.completedSessions.unshift({
     sessionId,
     mode,
+    mockExamTitle,
     score,
     maxScore,
     percentage,
@@ -143,7 +258,7 @@ export function recordCompletedSession(
     topic
   });
 
-  if (progress.completedSessions.length > 20) {
+  if (progress.completedSessions.length > 25) {
     progress.completedSessions.pop();
   }
 

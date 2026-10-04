@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
 import { QuizSession } from '../../types';
 import confetti from 'canvas-confetti';
-import { Trophy, Award, RotateCcw, CheckSquare, Home, Sparkles, AlertCircle } from 'lucide-react';
+import { Trophy, Award, RotateCcw, CheckSquare, Home, AlertCircle, Compass, ArrowRight } from 'lucide-react';
+import { MOCK_EXAM_PRESETS } from '../../data/mockExams';
 
 interface ResultsViewProps {
   session: QuizSession;
@@ -16,8 +17,8 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
   onRestartQuiz,
   onGoHome
 }) => {
-  // Calculate total score based on the First-Attempt Rule for assessments
   const isAssessment = session.mode === 'quiz' || session.mode === 'mock-test';
+  const preset = MOCK_EXAM_PRESETS.find(p => p.id === session.mockExamId);
 
   let totalScore = 0;
   let totalMax = 0;
@@ -25,14 +26,27 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
   let partialCount = 0;
   let incorrectCount = 0;
 
+  // Topic breakdown calculation
+  const topicBreakdown: Record<string, { earned: number; max: number; count: number; correct: number }> = {};
+
   session.questions.forEach((q) => {
     const attempt = session.attempts[q.id];
     totalMax += q.points;
+
+    if (!topicBreakdown[q.topic]) {
+      topicBreakdown[q.topic] = { earned: 0, max: 0, count: 0, correct: 0 };
+    }
+    topicBreakdown[q.topic].count += 1;
+    topicBreakdown[q.topic].max += q.points;
+
     if (attempt) {
       const score = isAssessment ? attempt.firstAttemptScore : attempt.currentScore;
       totalScore += score;
+      topicBreakdown[q.topic].earned += score;
+
       if (score >= q.points * 0.95) {
         correctCount++;
+        topicBreakdown[q.topic].correct += 1;
       } else if (score > 0) {
         partialCount++;
       } else {
@@ -64,14 +78,24 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
     badgeTitle = 'Satisfactory';
   }
 
-  // Trigger confetti on good performance
+  // Find lowest scoring topic for specific action recommendation
+  const lowestScoringTopicEntry = Object.entries(topicBreakdown)
+    .sort((a, b) => (a[1].earned / a[1].max) - (b[1].earned / b[1].max))[0];
+
+  const lowestTopicName = lowestScoringTopicEntry ? lowestScoringTopicEntry[0] : null;
+  const lowestTopicPercent = lowestScoringTopicEntry
+    ? Math.round((lowestScoringTopicEntry[1].earned / lowestScoringTopicEntry[1].max) * 100)
+    : 100;
+
   useEffect(() => {
     if (percentage >= 70) {
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
+      try {
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+      } catch {}
     }
   }, [percentage]);
 
@@ -79,7 +103,6 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
     <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn py-6">
       {/* Primary Score Card */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-10 text-center shadow-2xl space-y-6 relative overflow-hidden">
-        {/* Glow effect */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-32 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none" />
 
         <div className="relative space-y-3">
@@ -92,14 +115,12 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
           </div>
 
           <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
-            {session.mode === 'mock-test'
-              ? 'Mock Practical Assessment Results'
-              : 'Quiz Assessment Completed!'}
+            {preset ? preset.title : session.mode === 'mock-test' ? 'Mock Practical Assessment Results' : 'Assessment Completed!'}
           </h2>
 
           <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto">
             {isAssessment
-              ? 'Scores are calculated using the First-Attempt Assessment Rule. Retries are available in Review for learning.'
+              ? 'Scores are calculated using the First-Attempt Assessment Rule. Retries are available in Review for mastery.'
               : 'Practice mode completed! Review your answers and try again anytime.'}
           </p>
         </div>
@@ -111,7 +132,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
               {percentage}%
             </span>
             <span className="block text-xs font-semibold text-slate-400 mt-1">
-              Total Score: {totalScore} / {totalMax} pts
+              Score: {totalScore} / {totalMax} pts
             </span>
           </div>
 
@@ -144,13 +165,16 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
           </div>
         </div>
 
-        {/* First-Attempt Rule Advisory */}
-        {isAssessment && (
-          <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-xs text-slate-400 flex items-center justify-center space-x-2 max-w-lg mx-auto">
-            <AlertCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-            <span>
-              Recorded under <strong>First-Attempt Rule</strong>: Initial responses determine assessment grades.
-            </span>
+        {/* Specific Weak Topic Recommendation */}
+        {lowestTopicName && lowestTopicPercent < 80 && (
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-left space-y-2 max-w-lg mx-auto">
+            <div className="flex items-center space-x-2 text-xs font-bold text-amber-400 uppercase tracking-wider">
+              <Compass className="w-4 h-4" />
+              <span>Targeted Improvement Recommendation</span>
+            </div>
+            <p className="text-xs text-slate-200 leading-relaxed">
+              Your mastery in <strong>{lowestTopicName}</strong> was {lowestTopicPercent}%. Practice this topic to prepare for your next exam.
+            </p>
           </div>
         )}
 
@@ -169,7 +193,7 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
             className="flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
           >
             <RotateCcw className="w-4 h-4" />
-            <span>Take Another Test</span>
+            <span>Retake Exam</span>
           </button>
 
           <button
