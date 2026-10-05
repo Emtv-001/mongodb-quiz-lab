@@ -13,6 +13,7 @@ import { FlashcardsView } from './components/study/FlashcardsView';
 import { StudyNotesView } from './components/study/StudyNotesView';
 import { AdminView } from './components/admin/AdminView';
 import { ReviewView } from './components/review/ReviewView';
+import { LearnerGamificationView } from './components/learner/LearnerGamificationView';
 import { DEFAULT_QUESTIONS } from './data/questions';
 
 import { QuizConfigModal } from './components/quiz/QuizConfigModal';
@@ -154,6 +155,15 @@ export function App() {
           />
         );
 
+      case 'learner-hub':
+        return (
+          <LearnerGamificationView
+            progress={progress}
+            onGoToPractice={() => handleStartQuiz('practice')}
+            onGoToMockExams={() => handleSelectTab('mock-exam-selector')}
+          />
+        );
+
       case 'admin':
         return <AdminView />;
 
@@ -178,6 +188,7 @@ export function App() {
         bestScore={progress.bestMockScore}
         onOpenSeedData={() => setIsSeedDataOpen(true)}
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        onNavigateTab={(tab) => handleSelectTab(tab)}
       />
 
       {/* Main Layout Container */}

@@ -19,8 +19,12 @@ import {
   Zap,
   Shield,
   UserCheck,
-  Sliders
+  Sliders,
+  Trophy,
+  Coins,
+  Crown
 } from 'lucide-react';
+import { getLearnerGamificationStats } from '../../services/learnerService';
 
 interface DashboardProps {
   progress: StudentProgress;
@@ -37,6 +41,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onNavigateTab,
   onOpenSeedData
 }) => {
+  const gamification = getLearnerGamificationStats(progress);
+
   const accuracy =
     progress.questionsAttempted > 0
       ? Math.round((progress.questionsCorrect / progress.questionsAttempted) * 100)
@@ -139,6 +145,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </button>
 
             <button
+              onClick={() => onNavigateTab('learner-hub')}
+              className="flex items-center space-x-1.5 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition-all shadow-sm"
+            >
+              <Trophy className="w-4 h-4 text-amber-400" />
+              <span>Rankings & Coins ({gamification.coins} 🪙)</span>
+            </button>
+
+            <button
               onClick={() => onOpenConfig ? onOpenConfig('practice') : onStartQuiz('practice')}
               className="flex items-center space-x-1.5 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 transition-all shadow-sm"
             >
@@ -238,6 +252,59 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="text-[11px] text-slate-400 truncate">
             Across 20 MongoDB Topics
           </div>
+        </div>
+      </div>
+
+      {/* Gamification, MongoCoins & Rankings Quick Banner */}
+      <div className="bg-gradient-to-r from-slate-900 via-amber-950/20 to-slate-900 border border-amber-500/30 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center space-x-4 min-w-0">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center flex-shrink-0 text-amber-400">
+            <Trophy className="w-6 h-6" />
+          </div>
+          <div className="space-y-1 min-w-0">
+            <div className="flex items-center space-x-2 flex-wrap">
+              <span className="text-xs font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center space-x-1">
+                <Crown className="w-3 h-3 text-amber-400" />
+                <span>Tier: {gamification.tier}</span>
+              </span>
+              <span className="text-xs text-slate-400 font-mono">
+                Cohort Rank: <strong className="text-emerald-400">#{gamification.rank}</strong> of {gamification.leaderboard.length}
+              </span>
+              {!gamification.account && (
+                <span className="text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full font-bold">
+                  Guest Mode (Opt-In Available)
+                </span>
+              )}
+            </div>
+            <div className="flex items-center space-x-3 text-sm">
+              <span className="font-extrabold text-white flex items-center space-x-1">
+                <Coins className="w-4 h-4 text-amber-400" />
+                <span className="text-amber-400 font-mono">{gamification.coins}</span>
+                <span className="text-xs text-slate-400 font-normal">Coins</span>
+              </span>
+              <span className="text-slate-600">•</span>
+              <span className="font-extrabold text-white flex items-center space-x-1">
+                <Zap className="w-4 h-4 text-purple-400" />
+                <span className="text-purple-300 font-mono">{gamification.xp}</span>
+                <span className="text-xs text-slate-400 font-normal">XP</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2 flex-shrink-0">
+          <button
+            onClick={() => onNavigateTab('learner-hub')}
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center space-x-2 transition-all ${
+              gamification.account
+                ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/20'
+                : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 animate-pulse'
+            }`}
+          >
+            <Trophy className="w-4 h-4" />
+            <span>{gamification.account ? 'View Leaderboard & Badges' : 'Opt-In for Profile (Get +100 🪙)'}</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
 

@@ -13,11 +13,13 @@ import {
   Repeat,
   Database,
   Lock,
+  Trophy,
   X
 } from 'lucide-react';
 
 export type NavTab =
   | 'dashboard'
+  | 'learner-hub'
   | 'practice'
   | 'quiz'
   | 'mock-exam-selector'
@@ -61,6 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const rawNavItems: { id: NavTab; defaultLabel: string; icon: React.FC<{ className?: string }>; badge?: string; category: string }[] = [
     { id: 'dashboard', defaultLabel: 'Dashboard', icon: LayoutDashboard, category: 'Main' },
+    { id: 'learner-hub', defaultLabel: 'Rankings & Rewards', icon: Trophy, badge: 'Coins & XP', category: 'Main' },
 
     { id: 'practice', defaultLabel: 'Practice Mode', icon: PlayCircle, badge: 'Instant', category: 'Assessments' },
     { id: 'mock-exam-selector', defaultLabel: 'Mock Exam Suite', icon: GraduationCap, badge: '10 Exams', category: 'Assessments' },

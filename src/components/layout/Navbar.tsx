@@ -1,22 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { getSiteCustomization } from '../../services/adminService';
 import { SiteCustomization } from '../../types/admin';
-import { Database, Flame, Menu, Award, Server, Terminal, Sparkles } from 'lucide-react';
+import { Database, Flame, Menu, Award, Server, Terminal, Sparkles, Coins, Trophy, UserCheck } from 'lucide-react';
+import { getRegisteredLearnerAccount } from '../../services/learnerService';
+import { RegisteredLearnerAccount } from '../../types';
 
 interface NavbarProps {
   currentStreak: number;
   bestScore: number;
   onOpenSeedData: () => void;
   onToggleSidebar: () => void;
+  onNavigateTab?: (tab: any) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   currentStreak,
   bestScore,
   onOpenSeedData,
-  onToggleSidebar
+  onToggleSidebar,
+  onNavigateTab
 }) => {
   const [siteConfig, setSiteConfig] = useState<SiteCustomization>(() => getSiteCustomization());
+  const [learnerAccount, setLearnerAccount] = useState<RegisteredLearnerAccount | null>(() => getRegisteredLearnerAccount());
 
   useEffect(() => {
     const handleUpdate = (e: any) => {
@@ -26,8 +31,17 @@ export const Navbar: React.FC<NavbarProps> = ({
         setSiteConfig(getSiteCustomization());
       }
     };
+
+    const handleLearnerUpdate = (e: any) => {
+      setLearnerAccount(e.detail || getRegisteredLearnerAccount());
+    };
+
     window.addEventListener('site_branding_updated', handleUpdate);
-    return () => window.removeEventListener('site_branding_updated', handleUpdate);
+    window.addEventListener('learner_account_updated', handleLearnerUpdate);
+    return () => {
+      window.removeEventListener('site_branding_updated', handleUpdate);
+      window.removeEventListener('learner_account_updated', handleLearnerUpdate);
+    };
   }, []);
 
   const renderLogo = () => {
@@ -72,7 +86,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Menu className="w-5 h-5" />
             </button>
 
-            <div className="flex items-center space-x-2.5 cursor-pointer flex-shrink-0">
+            <div
+              onClick={() => onNavigateTab && onNavigateTab('dashboard')}
+              className="flex items-center space-x-2.5 cursor-pointer flex-shrink-0"
+            >
               {/* Dynamic Logo Icon */}
               <div className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${activeGradient} flex items-center justify-center shadow-lg shadow-emerald-500/20 flex-shrink-0`}>
                 {renderLogo()}
@@ -95,6 +112,16 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Items */}
           <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
+            {/* Gamification / MongoCoins CTA */}
+            <button
+              onClick={() => onNavigateTab && onNavigateTab('learner-hub')}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/15 to-purple-500/15 hover:from-amber-500/25 hover:to-purple-500/25 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all shadow-sm flex-shrink-0 whitespace-nowrap"
+              title="View Leaderboard, Earned Points & MongoCoins"
+            >
+              <Trophy className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+              <span>{learnerAccount ? `${learnerAccount.coins || 100} 🪙` : 'Leaderboard & 🪙'}</span>
+            </button>
+
             {/* Seed Data Explorer Button */}
             <button
               onClick={onOpenSeedData}

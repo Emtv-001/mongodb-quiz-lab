@@ -251,3 +251,57 @@ export interface StudentDocument {
   Active: boolean;
   Misc: number[];
 }
+
+export type LearnerTier = 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'Diamond' | 'MongoDB Master';
+
+export interface RegisteredLearnerAccount {
+  id: string;
+  email: string;
+  username: string;
+  displayName: string;
+  passwordHash: string;
+  recoveryPhrase: string; // Auto-generated e.g. "REC-4829-1940-7763"
+  createdAt: string;
+  verified: boolean;
+  coins: number;          // MongoCoins (🪙)
+  xp: number;             // Total Earned Experience Points
+  tier: LearnerTier;
+  rankNumber: number;
+  unlockedBadges: string[];
+}
+
+export interface LearnerAchievement {
+  id: string;
+  title: string;
+  description: string;
+  iconName: string;
+  category: 'Milestone' | 'Mastery' | 'Streak' | 'Excellence';
+  coinReward: number;
+  xpReward: number;
+  requirementText: string;
+  isUnlocked: boolean;
+  unlockedAt?: string;
+  progressPercent: number;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  displayName: string;
+  username: string;
+  tier: LearnerTier;
+  xp: number;
+  coins: number;
+  streak: number;
+  accuracy: number;
+  isCurrentUser?: boolean;
+}
+
+export interface LearnerOtpSession {
+  email: string;
+  username: string;
+  displayName: string;
+  passwordPlain: string;
+  otpCode: string;
+  recoveryPhrase: string;
+  expiresAt: number;
+}
