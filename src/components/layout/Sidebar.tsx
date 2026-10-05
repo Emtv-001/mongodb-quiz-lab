@@ -1,14 +1,14 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { getSiteCustomization } from '../../services/adminService';
+import { SiteCustomization } from '../../types/admin';
 import {
   LayoutDashboard,
   PlayCircle,
-  Clock,
   GraduationCap,
   Layers,
   Sparkles,
   BookOpen,
   CheckSquare,
-  ShieldCheck,
   Zap,
   Repeat,
   Database,
@@ -45,24 +45,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   onClose
 }) => {
-  const navItems: { id: NavTab; label: string; icon: React.FC<{ className?: string }>; badge?: string; category: string }[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, category: 'Main' },
+  const [siteConfig, setSiteConfig] = useState<SiteCustomization>(() => getSiteCustomization());
 
-    { id: 'practice', label: 'Practice Mode', icon: PlayCircle, badge: 'Instant Feedback', category: 'Assessments' },
-    { id: 'mock-exam-selector', label: 'Mock Exam Suite', icon: GraduationCap, badge: '10 Exams', category: 'Assessments' },
-    { id: 'challenge', label: 'Challenge Mode', icon: Zap, badge: 'Hard/Expert', category: 'Assessments' },
-    { id: 'mastery', label: 'Level 9 Projects', icon: Sparkles, badge: 'Real-World', category: 'Assessments' },
-    { id: 'topic-practice', label: 'Practice by Topic', icon: Layers, category: 'Assessments' },
+  useEffect(() => {
+    const handleUpdate = (e: any) => {
+      if (e.detail) {
+        setSiteConfig(e.detail);
+      } else {
+        setSiteConfig(getSiteCustomization());
+      }
+    };
+    window.addEventListener('site_branding_updated', handleUpdate);
+    return () => window.removeEventListener('site_branding_updated', handleUpdate);
+  }, []);
 
-    { id: 'weak-areas', label: 'Target Weak Areas', icon: Zap, badge: 'Smart', category: 'Smart Study' },
-    { id: 'revision', label: 'Spaced Repetition', icon: Repeat, category: 'Smart Study' },
-    { id: 'flashcards', label: 'Study Flashcards', icon: Sparkles, badge: '3D Deck', category: 'Smart Study' },
-    { id: 'study-notes', label: 'Notes & Cheatsheet', icon: BookOpen, category: 'Smart Study' },
-    { id: 'datasets', label: 'Live Datasets Explorer', icon: Database, badge: '5 Sets', category: 'Smart Study' },
+  const rawNavItems: { id: NavTab; defaultLabel: string; icon: React.FC<{ className?: string }>; badge?: string; category: string }[] = [
+    { id: 'dashboard', defaultLabel: 'Dashboard', icon: LayoutDashboard, category: 'Main' },
 
-    { id: 'review', label: 'Question Review', icon: CheckSquare, category: 'Analysis' },
-    { id: 'admin', label: 'Instructor Portal', icon: Lock, badge: 'Secured', category: 'Admin' }
+    { id: 'practice', defaultLabel: 'Practice Mode', icon: PlayCircle, badge: 'Instant', category: 'Assessments' },
+    { id: 'mock-exam-selector', defaultLabel: 'Mock Exam Suite', icon: GraduationCap, badge: '10 Exams', category: 'Assessments' },
+    { id: 'challenge', defaultLabel: 'Challenge Mode', icon: Zap, badge: 'Hard', category: 'Assessments' },
+    { id: 'mastery', defaultLabel: 'Level 9 Projects', icon: Sparkles, badge: 'Real-World', category: 'Assessments' },
+    { id: 'topic-practice', defaultLabel: 'Practice by Topic', icon: Layers, category: 'Assessments' },
+
+    { id: 'weak-areas', defaultLabel: 'Target Weak Areas', icon: Zap, badge: 'Smart', category: 'Smart Study' },
+    { id: 'revision', defaultLabel: 'Spaced Repetition', icon: Repeat, category: 'Smart Study' },
+    { id: 'flashcards', defaultLabel: 'Study Flashcards', icon: Sparkles, badge: '3D Deck', category: 'Smart Study' },
+    { id: 'study-notes', defaultLabel: 'Notes & Cheatsheet', icon: BookOpen, category: 'Smart Study' },
+    { id: 'datasets', defaultLabel: 'Live Datasets Explorer', icon: Database, badge: '5 Sets', category: 'Smart Study' },
+
+    { id: 'review', defaultLabel: 'Question Review', icon: CheckSquare, category: 'Analysis' },
+    { id: 'admin', defaultLabel: 'Instructor Portal', icon: Lock, badge: 'Secured', category: 'Admin' }
   ];
+
+  // Filter based on admin enabled tabs configuration
+  const navItems = rawNavItems.filter(item => {
+    if (item.id === 'admin' || item.id === 'dashboard') return true; // always show admin and dashboard
+    return siteConfig.enabledTabs[item.id] !== false;
+  });
 
   const handleSelect = (tab: NavTab) => {
     onSelectTab(tab);
@@ -112,6 +132,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {items.map(item => {
                   const Icon = item.icon;
                   const isActive = currentTab === item.id;
+                  const customLabel = siteConfig.customTabLabels[item.id] || item.defaultLabel;
+
                   return (
                     <button
                       key={item.id}
@@ -128,7 +150,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             isActive ? 'text-emerald-400' : 'text-slate-400'
                           }`}
                         />
-                        <span>{item.label}</span>
+                        <span>{customLabel}</span>
                       </div>
                       {item.badge && (
                         <span
@@ -155,11 +177,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span>Platform Status</span>
             <span className="inline-flex items-center text-emerald-400">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse" />
-              Verified
+              Live Online
             </span>
           </div>
-          <p className="text-slate-500 text-[10px]">
-            Integrity Check: SHA-256 Active
+          <p className="text-slate-500 text-[10px] truncate">
+            {siteConfig.footerText}
           </p>
         </div>
       </aside>
