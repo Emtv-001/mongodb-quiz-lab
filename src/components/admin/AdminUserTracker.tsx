@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { LearnerProfile } from '../../types/admin';
-import { getLearnerProfiles } from '../../services/adminService';
+import { getRealtimeLearnerProfiles } from '../../services/adminService';
+import { loadProgress } from '../../services/storage';
 import {
   Users,
   Search,
@@ -8,17 +9,16 @@ import {
   Award,
   CheckCircle,
   Eye,
-  AlertTriangle,
-  Sparkles,
   Download,
-  Calendar,
   X
 } from 'lucide-react';
 
 export const AdminUserTracker: React.FC = () => {
-  const [learners, setLearners] = useState<LearnerProfile[]>(() => getLearnerProfiles());
+  const [learners, setLearners] = useState<LearnerProfile[]>(() => getRealtimeLearnerProfiles());
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLearner, setSelectedLearner] = useState<LearnerProfile | null>(null);
+
+  const progress = loadProgress();
 
   const filtered = learners.filter(l => {
     const term = searchTerm.toLowerCase();
@@ -45,6 +45,10 @@ export const AdminUserTracker: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  const avgAccuracy = learners.length > 0
+    ? Math.round(learners.reduce((acc, l) => acc + l.accuracy, 0) / learners.length)
+    : 0;
+
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Header */}
@@ -52,13 +56,13 @@ export const AdminUserTracker: React.FC = () => {
         <div>
           <div className="flex items-center space-x-2 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-1">
             <Users className="w-4 h-4" />
-            <span>Learner Cohort Intelligence</span>
+            <span>Learner Cohort Telemetry</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-white">
             Student & Learner Activity Tracker
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Monitor student streaks, accuracy rates, identified misconceptions, and mock examination rankings.
+            Real-time tracking of student streaks, accuracy rates, and identified misconceptions.
           </p>
         </div>
 
@@ -73,28 +77,28 @@ export const AdminUserTracker: React.FC = () => {
         </div>
       </div>
 
-      {/* Cohort Summary Metrics */}
+      {/* Cohort Real-time Summary Metrics */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <span className="text-slate-400 font-semibold block">Total Enrolled Cohort</span>
-          <span className="text-xl font-bold font-mono text-white mt-1 block">{learners.length} Students</span>
+          <span className="text-slate-400 font-semibold block">Total Active Learners</span>
+          <span className="text-xl font-bold font-mono text-white mt-1 block">{learners.length} Student</span>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <span className="text-slate-400 font-semibold block">Active Daily Streaks</span>
+          <span className="text-slate-400 font-semibold block">Live Daily Streak</span>
           <span className="text-xl font-bold font-mono text-amber-400 mt-1 block">
-            {learners.filter(l => l.currentStreak > 0).length} Streaks Active
+            {progress.currentStreak} Days
           </span>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
           <span className="text-slate-400 font-semibold block">Average Pass Rate</span>
           <span className="text-xl font-bold font-mono text-emerald-400 mt-1 block">
-            {Math.round(learners.reduce((acc, l) => acc + l.accuracy, 0) / learners.length)}%
+            {avgAccuracy}%
           </span>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <span className="text-slate-400 font-semibold block">Top Mock Performance</span>
+          <span className="text-slate-400 font-semibold block">Best Mock Performance</span>
           <span className="text-xl font-bold font-mono text-purple-400 mt-1 block">
-            {Math.max(...learners.map(l => l.bestMockScore))}% Distinction
+            {progress.bestMockScore}%
           </span>
         </div>
       </div>
@@ -136,7 +140,7 @@ export const AdminUserTracker: React.FC = () => {
                 <tr key={learner.id} className="hover:bg-slate-800/30 transition-colors">
                   <td className="py-3">
                     <div className="font-mono font-bold text-white flex items-center space-x-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse" />
                       <span>{learner.pseudonym}</span>
                     </div>
                     <span className="text-[10px] text-slate-500 font-mono block">

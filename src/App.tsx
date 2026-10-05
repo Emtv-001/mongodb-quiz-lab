@@ -15,10 +15,16 @@ import { AdminView } from './components/admin/AdminView';
 import { ReviewView } from './components/review/ReviewView';
 import { DEFAULT_QUESTIONS } from './data/questions';
 
+import { QuizConfigModal } from './components/quiz/QuizConfigModal';
+import { QuizSetupOptions } from './services/quizEngine';
+
 export function App() {
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSeedDataOpen, setIsSeedDataOpen] = useState(false);
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [configModalMode, setConfigModalMode] = useState<QuizMode>('practice');
+  const [configModalTopic, setConfigModalTopic] = useState<MongoTopic | undefined>(undefined);
   const [activeSession, setActiveSession] = useState<QuizSession | null>(null);
   const [progress, setProgress] = useState(loadProgress());
 
@@ -27,9 +33,20 @@ export function App() {
     setProgress(loadProgress());
   }, [currentTab, activeSession]);
 
-  const handleStartQuiz = (mode: QuizMode, topic?: MongoTopic, mockExamId?: string) => {
-    const session = createSession(mode, topic, mockExamId);
+  const handleStartQuiz = (mode: QuizMode, topic?: MongoTopic, mockExamId?: string, extraOptions?: Partial<QuizSetupOptions>) => {
+    const session = createSession({
+      mode,
+      selectedTopic: topic,
+      mockExamId,
+      ...extraOptions
+    });
     setActiveSession(session);
+  };
+
+  const handleOpenConfigModal = (mode: QuizMode = 'practice', topic?: MongoTopic) => {
+    setConfigModalMode(mode);
+    setConfigModalTopic(topic);
+    setIsConfigModalOpen(true);
   };
 
   const handleSelectTab = (tab: NavTab) => {
@@ -56,7 +73,12 @@ export function App() {
 
   const handleRestartQuiz = () => {
     if (!activeSession) return;
-    const newSession = createSession(activeSession.mode, activeSession.selectedTopic, activeSession.mockExamId);
+    const newSession = createSession({
+      mode: activeSession.mode,
+      selectedTopic: activeSession.selectedTopic,
+      mockExamId: activeSession.mockExamId,
+      questionCount: activeSession.totalQuestions
+    });
     setActiveSession(newSession);
   };
 
@@ -86,6 +108,7 @@ export function App() {
             onStartQuiz={(mode, topic, mockExamId) => {
               handleStartQuiz(mode, topic, mockExamId);
             }}
+            onOpenConfig={(mode, topic) => handleOpenConfigModal(mode, topic)}
             onNavigateTab={(tab) => handleSelectTab(tab)}
             onOpenSeedData={() => setIsSeedDataOpen(true)}
           />
@@ -139,6 +162,7 @@ export function App() {
           <Dashboard
             progress={progress}
             onStartQuiz={(mode, topic, mockExamId) => handleStartQuiz(mode, topic, mockExamId)}
+            onOpenConfig={(mode, topic) => handleOpenConfigModal(mode, topic)}
             onNavigateTab={(tab) => handleSelectTab(tab)}
             onOpenSeedData={() => setIsSeedDataOpen(true)}
           />
@@ -176,6 +200,22 @@ export function App() {
       <SeedDataModal
         isOpen={isSeedDataOpen}
         onClose={() => setIsSeedDataOpen(false)}
+      />
+
+      {/* Custom Quiz Setup Modal */}
+      <QuizConfigModal
+        isOpen={isConfigModalOpen}
+        onClose={() => setIsConfigModalOpen(false)}
+        mode={configModalMode}
+        initialTopic={configModalTopic}
+        onStartConfiguredQuiz={(config) => {
+          handleStartQuiz(config.mode, config.selectedTopic, undefined, {
+            questionCount: config.questionCount,
+            difficulty: config.difficulty,
+            level: config.level,
+            useAiGeneration: config.useAiGeneration
+          });
+        }}
       />
     </div>
   );

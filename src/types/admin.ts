@@ -15,14 +15,26 @@ export interface AdminUser {
   id: string;
   username: string;
   displayName: string;
+  email: string;
   phone?: string;
-  email?: string;
   role: AdminRole;
   permissions: AdminPermissions;
   passwordHash: string;
   status: 'active' | 'suspended';
   createdAt: string;
   lastActive?: string;
+  createdBy: string;
+}
+
+export interface AdminInvitation {
+  id: string;
+  email: string;
+  role: AdminRole;
+  permissions: AdminPermissions;
+  invitationCode: string; // e.g. "INV-98214"
+  status: 'pending' | 'accepted' | 'expired';
+  expiresAt: number;
+  createdAt: string;
   createdBy: string;
 }
 
@@ -71,7 +83,6 @@ export interface LearnerProfile {
   id: string;
   pseudonym: string;
   fingerprintHash: string;
-  phone?: string;
   firstJoined: string;
   lastActive: string;
   currentStreak: number;
@@ -85,8 +96,8 @@ export interface LearnerProfile {
   status: 'active' | 'inactive';
 }
 
-export interface PhoneResetSession {
-  phone: string;
+export interface EmailResetSession {
+  emailOrPhone: string;
   otpCode: string;
   expiresAt: number;
   verified: boolean;

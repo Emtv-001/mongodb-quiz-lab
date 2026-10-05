@@ -3,7 +3,11 @@ import { AdminUser } from '../../types/admin';
 import {
   authenticateAdminUser,
   getAdminUsers,
-  getSiteCustomization
+  getSiteCustomization,
+  requestPasswordResetOtp,
+  verifyPasswordResetOtp,
+  completePasswordReset,
+  acceptAdminInvitation
 } from '../../services/adminService';
 import { AdminDashboardOverview } from './AdminDashboardOverview';
 import { AdminBrandingConfig } from './AdminBrandingConfig';
@@ -15,7 +19,7 @@ import { AdminSecuritySettings } from './AdminSecuritySettings';
 import { DEFAULT_QUESTIONS } from '../../data/questions';
 import { ALL_TOPICS } from '../../services/storage';
 import { DifficultyLevel, MongoTopic, Question, QuestionType, CurriculumLevel } from '../../types';
-import { loadCustomQuestions, saveCustomQuestions, resetAllData } from '../../services/storage';
+import { loadCustomQuestions, saveCustomQuestions } from '../../services/storage';
 
 import {
   LayoutDashboard,
@@ -32,10 +36,12 @@ import {
   Trash2,
   Download,
   Upload,
-  RotateCcw,
   Search,
   Check,
-  AlertCircle
+  AlertCircle,
+  Mail,
+  Smartphone,
+  X
 } from 'lucide-react';
 
 type AdminTab =
@@ -54,12 +60,29 @@ export const AdminView: React.FC = () => {
     return raw ? JSON.parse(raw) : null;
   });
 
-  const [usernameOrPhone, setUsernameOrPhone] = useState('');
+  const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
   const [currentAdminTab, setCurrentAdminTab] = useState<AdminTab>('overview');
 
-  // Existing Question Management state
+  // Login Page OTP Password Reset Modal State
+  const [showLoginResetModal, setShowLoginResetModal] = useState(false);
+  const [resetIdentifier, setResetIdentifier] = useState('');
+  const [resetOtpCode, setResetOtpCode] = useState('');
+  const [newPasswordValue, setNewPasswordValue] = useState('');
+  const [resetStep, setResetStep] = useState<1 | 2>(1);
+  const [resetMsg, setResetMsg] = useState<{ text: string; isError: boolean } | null>(null);
+  const [simulatedResetOtp, setSimulatedResetOtp] = useState<string | null>(null);
+
+  // Login Page Invitation Activation Modal State
+  const [showLoginInviteModal, setShowLoginInviteModal] = useState(false);
+  const [inviteCodeInput, setInviteCodeInput] = useState('');
+  const [inviteUsername, setInviteUsername] = useState('');
+  const [inviteDisplayName, setInviteDisplayName] = useState('');
+  const [invitePassword, setInvitePassword] = useState('');
+  const [inviteMsg, setInviteMsg] = useState<{ text: string; isError: boolean } | null>(null);
+
+  // Question Management state
   const [customQuestions, setCustomQuestions] = useState<Question[]>(() => loadCustomQuestions());
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTopic, setSelectedTopic] = useState<string>('All');
@@ -87,14 +110,14 @@ export const AdminView: React.FC = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    const res = authenticateAdminUser(usernameOrPhone, passwordInput);
+    const res = authenticateAdminUser(usernameOrEmail, passwordInput);
     if (res.success && res.user) {
       setCurrentUser(res.user);
       sessionStorage.setItem('mongo_quiz_logged_admin_user', JSON.stringify(res.user));
       setAuthError(null);
       setPasswordInput('');
     } else {
-      setAuthError(res.error || 'Authentication failed.');
+      setAuthError(res.error || 'Invalid credentials. Please verify and try again.');
     }
   };
 
@@ -103,69 +126,369 @@ export const AdminView: React.FC = () => {
     sessionStorage.removeItem('mongo_quiz_logged_admin_user');
   };
 
-  // --- PASSWORD PROTECTION BARRIER ---
+  const handleRequestLoginOtp = (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = requestPasswordResetOtp(resetIdentifier);
+    if (res.success) {
+      setResetMsg({ text: res.message, isError: false });
+      setSimulatedResetOtp(res.simulatedOtp || null);
+      setResetStep(2);
+    } else {
+      setResetMsg({ text: res.message, isError: true });
+    }
+  };
+
+  const handleCompleteLoginReset = (e: React.FormEvent) => {
+    e.preventDefault();
+    const vRes = verifyPasswordResetOtp(resetIdentifier, resetOtpCode);
+    if (!vRes.success) {
+      setResetMsg({ text: vRes.message, isError: true });
+      return;
+    }
+
+    const cRes = completePasswordReset(resetIdentifier, newPasswordValue);
+    if (cRes.success) {
+      setResetMsg({ text: cRes.message, isError: false });
+      setTimeout(() => {
+        setShowLoginResetModal(false);
+        setResetStep(1);
+        setResetIdentifier('');
+        setResetOtpCode('');
+        setNewPasswordValue('');
+        setSimulatedResetOtp(null);
+        setResetMsg(null);
+      }, 2500);
+    } else {
+      setResetMsg({ text: cRes.message, isError: true });
+    }
+  };
+
+  const handleAcceptLoginInvite = (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = acceptAdminInvitation(inviteCodeInput, {
+      username: inviteUsername,
+      displayName: inviteDisplayName,
+      passwordPlain: invitePassword
+    });
+
+    if (res.success && res.user) {
+      setInviteMsg({ text: res.message, isError: false });
+      setTimeout(() => {
+        setShowLoginInviteModal(false);
+        setCurrentUser(res.user!);
+        sessionStorage.setItem('mongo_quiz_logged_admin_user', JSON.stringify(res.user));
+      }, 1800);
+    } else {
+      setInviteMsg({ text: res.message, isError: true });
+    }
+  };
+
+  // --- PASSWORD PROTECTION LOGIN BARRIER ---
   if (!currentUser) {
     return (
-      <div className="max-w-md mx-auto my-12 animate-fadeIn p-6 sm:p-8 bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl space-y-6">
-        <div className="text-center space-y-2">
-          <div className="w-14 h-14 bg-emerald-500/10 text-emerald-400 rounded-2xl flex items-center justify-center mx-auto border border-emerald-500/20 shadow-inner">
-            <Lock className="w-7 h-7" />
+      <div className="max-w-md mx-auto my-12 px-4 animate-fadeIn">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+          <div className="text-center space-y-2">
+            <div className="w-14 h-14 bg-emerald-500/10 text-emerald-400 rounded-2xl flex items-center justify-center mx-auto border border-emerald-500/20 shadow-inner">
+              <Lock className="w-7 h-7" />
+            </div>
+            <h2 className="text-xl font-extrabold text-white">
+              Instructor & Admin Portal
+            </h2>
+            <p className="text-xs text-slate-400">
+              Enter your authorized administrator credentials to access governance and curriculum controls.
+            </p>
           </div>
-          <h2 className="text-xl font-extrabold text-white">
-            Instructor Portal Locked
-          </h2>
-          <p className="text-xs text-slate-400">
-            Enter administrator username/phone and password to access the governance hub.
-          </p>
+
+          {authError && (
+            <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-400 text-xs rounded-xl flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{authError}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-3.5 text-xs">
+            <div>
+              <label className="block font-semibold text-slate-300 mb-1">
+                Username or Registered Email
+              </label>
+              <input
+                type="text"
+                value={usernameOrEmail}
+                onChange={(e) => setUsernameOrEmail(e.target.value)}
+                placeholder="Enter username or email..."
+                required
+                className="w-full bg-slate-950 border border-slate-700 text-sm text-white px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-semibold text-slate-300">
+                  Password
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowLoginResetModal(true);
+                    setResetMsg(null);
+                    setSimulatedResetOtp(null);
+                  }}
+                  className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold transition-colors"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                placeholder="Enter password..."
+                required
+                className="w-full bg-slate-950 border border-slate-700 text-sm text-white px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-2.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm rounded-xl shadow-lg shadow-emerald-500/20 transition-all"
+            >
+              Sign In to Admin Hub
+            </button>
+          </form>
+
+          {/* Accept Invite Link */}
+          <div className="pt-3 border-t border-slate-800 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setShowLoginInviteModal(true);
+                setInviteMsg(null);
+              }}
+              className="text-xs text-slate-400 hover:text-purple-300 flex items-center justify-center space-x-1.5 mx-auto transition-colors"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-purple-400" />
+              <span>Have an invitation code? Complete registration</span>
+            </button>
+          </div>
         </div>
 
-        {authError && (
-          <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-400 text-xs rounded-xl flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{authError}</span>
+        {/* Modal: Login Page OTP Password Reset */}
+        {showLoginResetModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn">
+            <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <h3 className="text-base font-bold text-white flex items-center space-x-2">
+                  <Smartphone className="w-5 h-5 text-emerald-400" />
+                  <span>Reset Password via One-Time Code</span>
+                </h3>
+                <button
+                  onClick={() => setShowLoginResetModal(false)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {resetMsg && (
+                <div className={`p-3 rounded-xl border text-xs flex items-center space-x-2 ${
+                  resetMsg.isError ? 'bg-red-500/10 border-red-500/30 text-red-300' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                }`}>
+                  {resetMsg.isError ? <AlertCircle className="w-4 h-4 flex-shrink-0" /> : <Check className="w-4 h-4 flex-shrink-0" />}
+                  <span>{resetMsg.text}</span>
+                </div>
+              )}
+
+              {simulatedResetOtp && (
+                <div className="p-3.5 bg-purple-950/40 border border-purple-500/40 rounded-xl text-xs space-y-1">
+                  <span className="font-bold text-purple-300 flex items-center space-x-1.5">
+                    <Mail className="w-4 h-4" />
+                    <span>Simulated Dispatch (SMS / Email)</span>
+                  </span>
+                  <p className="text-[11px] text-slate-300">
+                    Your 6-digit verification code is <strong className="font-mono text-white bg-purple-900 px-1.5 py-0.5 rounded">{simulatedResetOtp}</strong>.
+                  </p>
+                </div>
+              )}
+
+              {resetStep === 1 ? (
+                <form onSubmit={handleRequestLoginOtp} className="space-y-3.5 text-xs">
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">
+                      Registered Email or Phone Number
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. admin@emtvtech.com or 09018537763"
+                      value={resetIdentifier}
+                      onChange={(e) => setResetIdentifier(e.target.value)}
+                      required
+                      className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
+                    />
+                  </div>
+
+                  <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginResetModal(false)}
+                      className="px-4 py-2 rounded-xl text-slate-400 hover:text-white bg-slate-800"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
+                    >
+                      Dispatch OTP Code
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handleCompleteLoginReset} className="space-y-3.5 text-xs">
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">
+                      Enter 6-Digit Code
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      placeholder="e.g. 748291"
+                      value={resetOtpCode}
+                      onChange={(e) => setResetOtpCode(e.target.value)}
+                      required
+                      className="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono text-center text-lg font-black tracking-widest rounded-xl py-2"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">
+                      Set New Password
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="Min 6 characters..."
+                      value={newPasswordValue}
+                      onChange={(e) => setNewPasswordValue(e.target.value)}
+                      required
+                      className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
+                    />
+                  </div>
+
+                  <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setResetStep(1)}
+                      className="px-4 py-2 rounded-xl text-slate-400 hover:text-white bg-slate-800"
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
+                    >
+                      Update Password
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-3.5 text-xs">
-          <div>
-            <label className="block font-semibold text-slate-300 mb-1">
-              Admin Username or Phone
-            </label>
-            <input
-              type="text"
-              value={usernameOrPhone}
-              onChange={(e) => setUsernameOrPhone(e.target.value)}
-              placeholder="e.g. admin or 09018537763"
-              required
-              className="w-full bg-slate-950 border border-slate-700 text-sm text-white px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-emerald-500"
-            />
+        {/* Modal: Login Page Accept Invitation */}
+        {showLoginInviteModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn">
+            <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <h3 className="text-base font-bold text-white flex items-center space-x-2">
+                  <KeyRound className="w-5 h-5 text-purple-400" />
+                  <span>Accept Admin Invitation</span>
+                </h3>
+                <button
+                  onClick={() => setShowLoginInviteModal(false)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {inviteMsg && (
+                <div className={`p-3 rounded-xl border text-xs flex items-center space-x-2 ${
+                  inviteMsg.isError ? 'bg-red-500/10 border-red-500/30 text-red-300' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                }`}>
+                  {inviteMsg.isError ? <AlertCircle className="w-4 h-4 flex-shrink-0" /> : <Check className="w-4 h-4 flex-shrink-0" />}
+                  <span>{inviteMsg.text}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleAcceptLoginInvite} className="space-y-3 text-xs">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Invitation Code *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. INV-98214"
+                    value={inviteCodeInput}
+                    onChange={(e) => setInviteCodeInput(e.target.value)}
+                    required
+                    className="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono font-bold text-center rounded-xl p-2.5"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Full Display Name *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Dr. Jane Smith"
+                    value={inviteDisplayName}
+                    onChange={(e) => setInviteDisplayName(e.target.value)}
+                    required
+                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Desired Username *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. janesmith"
+                    value={inviteUsername}
+                    onChange={(e) => setInviteUsername(e.target.value)}
+                    required
+                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Set Password *</label>
+                  <input
+                    type="password"
+                    placeholder="Min 6 characters..."
+                    value={invitePassword}
+                    onChange={(e) => setInvitePassword(e.target.value)}
+                    required
+                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginInviteModal(false)}
+                    className="px-4 py-2 rounded-xl text-slate-400 hover:text-white bg-slate-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
+                  >
+                    Activate Account
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-
-          <div>
-            <label className="block font-semibold text-slate-300 mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              value={passwordInput}
-              onChange={(e) => setPasswordInput(e.target.value)}
-              placeholder="Enter password..."
-              required
-              className="w-full bg-slate-950 border border-slate-700 text-sm text-white px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-emerald-500"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="w-full py-2.5 px-4 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm rounded-xl shadow-lg shadow-emerald-500/20 transition-all"
-          >
-            Unlock Portal
-          </button>
-        </form>
-
-        <div className="pt-2 text-center border-t border-slate-800 text-[11px] text-slate-400">
-          Default Master: <span className="text-emerald-400 font-mono">admin</span> / <span className="text-emerald-400 font-mono">AdminEMTV</span>
-        </div>
+        )}
       </div>
     );
   }
@@ -173,17 +496,16 @@ export const AdminView: React.FC = () => {
   // --- UNLOCKED INSTRUCTOR PORTAL NAVIGATION ---
 
   const adminNavTabs: { id: AdminTab; label: string; icon: React.FC<{ className?: string }>; badge?: string }[] = [
-    { id: 'overview', label: 'Overview & Metrics', icon: LayoutDashboard },
+    { id: 'overview', label: 'Overview & Telemetry', icon: LayoutDashboard },
     { id: 'branding', label: 'Branding & Tabs', icon: Palette },
     { id: 'databases', label: 'Multi-Database Manager', icon: Database },
     { id: 'questions', label: 'Question Bank', icon: FileCode, badge: `${allQuestions.length}` },
     { id: 'users', label: 'Learner Cohort', icon: Users },
     { id: 'admins', label: 'Admin Governance (RBAC)', icon: ShieldCheck },
     { id: 'share', label: 'Share & Export Hub', icon: Share2 },
-    { id: 'security', label: 'Phone OTP Reset & Security', icon: Lock }
+    { id: 'security', label: 'Security & Audit Logs', icon: Lock }
   ];
 
-  // Question bank handlers
   const handleCreateQuestion = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newExplanation.trim()) return;
@@ -274,9 +596,9 @@ export const AdminView: React.FC = () => {
   });
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 py-4 animate-fadeIn">
+    <div className="max-w-6xl mx-auto space-y-6 py-4 px-2 sm:px-4 animate-fadeIn">
       {/* Top Admin Identity Bar */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 flex items-center justify-center font-black text-slate-950 shadow-md">
             AD
@@ -288,7 +610,7 @@ export const AdminView: React.FC = () => {
                 {currentUser.role}
               </span>
             </div>
-            <span className="text-xs text-slate-400 font-mono">@{currentUser.username} • {siteConfig.siteName}</span>
+            <span className="text-xs text-slate-400 font-mono">{currentUser.email} • {siteConfig.siteName}</span>
           </div>
         </div>
 
@@ -357,7 +679,7 @@ export const AdminView: React.FC = () => {
         <AdminSecuritySettings />
       )}
 
-      {/* Question Bank Tab (Integrated with authoring and JSON import/export) */}
+      {/* Question Bank Directory */}
       {currentAdminTab === 'questions' && (
         <div className="space-y-6 animate-fadeIn">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -404,7 +726,6 @@ export const AdminView: React.FC = () => {
             </div>
           )}
 
-          {/* Question Authoring Form */}
           {showAddForm && (
             <form onSubmit={handleCreateQuestion} className="bg-slate-900 border border-emerald-500/40 rounded-2xl p-6 shadow-2xl space-y-4 animate-fadeIn">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">

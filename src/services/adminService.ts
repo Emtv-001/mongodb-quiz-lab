@@ -1,11 +1,12 @@
 import {
   AdminUser,
   AdminPermissions,
+  AdminInvitation,
   SiteCustomization,
   GenericDatabaseCollection,
   AdminAuditLog,
   LearnerProfile,
-  PhoneResetSession,
+  EmailResetSession,
   DatabaseEngineType
 } from '../types/admin';
 import { sha256Sync } from './security';
@@ -13,14 +14,16 @@ import { ALL_DATASETS } from '../data/seedData';
 import { loadProgress } from './storage';
 
 export const MASTER_RECOVERY_PHRASE = '09018537763';
+export const MASTER_ADMIN_EMAIL = 'admin@emtvtech.com';
 export const MASTER_ADMIN_PHONE = '09018537763';
+
 const ADMIN_USERS_KEY = 'mongo_quiz_admin_users_v3';
+const ADMIN_INVITES_KEY = 'mongo_quiz_admin_invites_v3';
 const SITE_CONFIG_KEY = 'mongo_quiz_site_customization_v3';
 const GENERIC_DATABASES_KEY = 'mongo_quiz_generic_databases_v3';
 const AUDIT_LOGS_KEY = 'mongo_quiz_admin_audit_logs_v3';
-const OTP_SESSION_KEY = 'mongo_quiz_otp_session_v3';
+const RESET_OTP_KEY = 'mongo_quiz_reset_otp_session_v3';
 
-// Default permissions for Master Admin
 export const FULL_PERMISSIONS: AdminPermissions = {
   canEditBranding: true,
   canManageTabs: true,
@@ -99,7 +102,7 @@ export function addAuditLog(
     timestamp: new Date().toISOString()
   };
   logs.unshift(entry);
-  if (logs.length > 100) logs.pop();
+  if (logs.length > 150) logs.pop();
   try {
     localStorage.setItem(AUDIT_LOGS_KEY, JSON.stringify(logs));
   } catch {}
@@ -114,13 +117,12 @@ export function getAdminUsers(): AdminUser[] {
     if (raw) return JSON.parse(raw);
   } catch {}
 
-  // Initial Master Super Admin
   const masterAdmin: AdminUser = {
     id: 'admin_master_1',
     username: 'admin',
     displayName: 'Chief Administrator (EMTV)',
+    email: MASTER_ADMIN_EMAIL,
     phone: MASTER_ADMIN_PHONE,
-    email: 'admin@emtvtech.com',
     role: 'super-admin',
     permissions: FULL_PERMISSIONS,
     passwordHash: sha256Sync('AdminEMTV'),
@@ -144,28 +146,24 @@ export function saveAdminUsers(users: AdminUser[]): void {
   }
 }
 
-/**
- * Authenticates admin (master or sub-admin)
- */
-export function authenticateAdminUser(usernameOrPhone: string, passwordCandidate: string): { success: boolean; user?: AdminUser; error?: string } {
+export function authenticateAdminUser(usernameOrEmail: string, passwordCandidate: string): { success: boolean; user?: AdminUser; error?: string } {
   const users = getAdminUsers();
-  const cleanInput = usernameOrPhone.trim();
+  const cleanInput = usernameOrEmail.trim().toLowerCase();
   const passHash = sha256Sync(passwordCandidate.trim());
 
   const user = users.find(u =>
-    (u.username.toLowerCase() === cleanInput.toLowerCase() || u.phone === cleanInput) &&
+    (u.username.toLowerCase() === cleanInput || u.email.toLowerCase() === cleanInput || (u.phone && u.phone === cleanInput)) &&
     u.passwordHash === passHash
   );
 
   if (!user) {
-    return { success: false, error: "Invalid username, phone number, or password." };
+    return { success: false, error: "Invalid username/email or password." };
   }
 
   if (user.status === 'suspended') {
     return { success: false, error: "This administrator account is currently suspended. Contact Master Admin." };
   }
 
-  // Update last active
   user.lastActive = new Date().toISOString();
   saveAdminUsers(users);
   addAuditLog(user.username, 'Admin Login', 'auth', `Successful authentication from web portal`);
@@ -174,67 +172,153 @@ export function authenticateAdminUser(usernameOrPhone: string, passwordCandidate
 }
 
 /**
- * Create Sub-Admin (EXCLUSIVELY requires the master recovery phrase)
+ * EMAIL-BASED ADMIN INVITATIONS WORKFLOW
  */
-export function createSubAdminWithRecovery(
+export function getAdminInvitations(): AdminInvitation[] {
+  try {
+    const raw = localStorage.getItem(ADMIN_INVITES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveAdminInvitations(invites: AdminInvitation[]): void {
+  try {
+    localStorage.setItem(ADMIN_INVITES_KEY, JSON.stringify(invites));
+  } catch {}
+}
+
+export function createAdminEmailInvitation(
   recoveryPhraseInput: string,
-  newAdmin: {
-    username: string;
-    displayName: string;
-    passwordPlain: string;
-    phone?: string;
-    email?: string;
-    role: AdminUser['role'];
-    permissions: AdminPermissions;
-  },
+  email: string,
+  role: AdminUser['role'],
+  permissions: AdminPermissions,
   creatorUsername: string = 'admin'
-): { success: boolean; message: string; user?: AdminUser } {
+): { success: boolean; message: string; invitation?: AdminInvitation; simulatedEmail?: string } {
   if (recoveryPhraseInput.trim() !== MASTER_RECOVERY_PHRASE) {
     return {
       success: false,
-      message: "Security Authorization Failed: Invalid master recovery phrase. Only verified master authority can provision administrators."
+      message: "Security Authorization Failed: Invalid master recovery phrase. Only verified master authority can provision admin roles."
     };
   }
 
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+    return { success: false, message: "Please provide a valid email address." };
+  }
+
   const users = getAdminUsers();
-  const cleanUsername = newAdmin.username.trim().toLowerCase();
-
-  if (users.some(u => u.username.toLowerCase() === cleanUsername)) {
-    return { success: false, message: `Username "${newAdmin.username}" is already assigned to another administrator.` };
+  if (users.some(u => u.email.toLowerCase() === cleanEmail)) {
+    return { success: false, message: `An administrator account already exists with email "${cleanEmail}".` };
   }
 
-  if (newAdmin.passwordPlain.length < 6) {
-    return { success: false, message: "Password must be at least 6 characters long." };
-  }
+  const invites = getAdminInvitations();
+  const codeNumber = Math.floor(10000 + Math.random() * 90000);
+  const inviteCode = `INV-${codeNumber}`;
 
-  const createdUser: AdminUser = {
-    id: 'admin_' + Date.now(),
-    username: newAdmin.username.trim(),
-    displayName: newAdmin.displayName.trim() || newAdmin.username.trim(),
-    phone: newAdmin.phone?.trim(),
-    email: newAdmin.email?.trim(),
-    role: newAdmin.role,
-    permissions: newAdmin.role === 'super-admin' ? FULL_PERMISSIONS : newAdmin.permissions,
-    passwordHash: sha256Sync(newAdmin.passwordPlain.trim()),
-    status: 'active',
+  const invitation: AdminInvitation = {
+    id: 'invite_' + Date.now(),
+    email: cleanEmail,
+    role,
+    permissions: role === 'super-admin' ? FULL_PERMISSIONS : permissions,
+    invitationCode: inviteCode,
+    status: 'pending',
+    expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days
     createdAt: new Date().toISOString(),
     createdBy: creatorUsername
   };
 
-  users.push(createdUser);
-  saveAdminUsers(users);
-  addAuditLog(creatorUsername, 'Create Administrator', 'security', `Created new admin ${createdUser.username} (${createdUser.role}) with verified recovery phrase`);
+  invites.unshift(invitation);
+  saveAdminInvitations(invites);
+
+  addAuditLog(
+    creatorUsername,
+    'Dispatch Admin Email Invite',
+    'security',
+    `Sent ${role} invitation to ${cleanEmail} with code ${inviteCode}`
+  );
+
+  const simulatedEmail = `To: ${cleanEmail}\nSubject: You have been invited as an Administrator (${role.toUpperCase()}) on MongoDB Quiz Lab\n\nHello,\n\nYou have been authorized by the Chief Administrator to join the MongoDB Quiz Lab governance portal as a ${role.toUpperCase()}.\n\nYour Activation Invitation Code is: ${inviteCode}\n\nPlease visit the Admin Portal, select "Accept Admin Invitation", and enter your code to complete your administrator registration.`;
 
   return {
     success: true,
-    message: `Administrator "${createdUser.username}" successfully provisioned with designated rights.`,
-    user: createdUser
+    message: `Invitation successfully dispatched to ${cleanEmail}!`,
+    invitation,
+    simulatedEmail
   };
 }
 
-/**
- * Update sub-admin permissions & status
- */
+export function acceptAdminInvitation(
+  invitationCodeInput: string,
+  details: { username: string; displayName: string; passwordPlain: string }
+): { success: boolean; message: string; user?: AdminUser } {
+  const cleanCode = invitationCodeInput.trim().toUpperCase();
+  const invites = getAdminInvitations();
+  const invite = invites.find(i => i.invitationCode === cleanCode && i.status === 'pending');
+
+  if (!invite) {
+    return { success: false, message: "Invalid or expired invitation code." };
+  }
+
+  if (Date.now() > invite.expiresAt) {
+    invite.status = 'expired';
+    saveAdminInvitations(invites);
+    return { success: false, message: "This invitation code has expired. Please request a new invitation." };
+  }
+
+  const users = getAdminUsers();
+  const cleanUsername = details.username.trim().toLowerCase();
+
+  if (users.some(u => u.username.toLowerCase() === cleanUsername)) {
+    return { success: false, message: `Username "${details.username}" is already taken.` };
+  }
+
+  if (details.passwordPlain.length < 6) {
+    return { success: false, message: "Password must be at least 6 characters long." };
+  }
+
+  const newUser: AdminUser = {
+    id: 'admin_' + Date.now(),
+    username: details.username.trim(),
+    displayName: details.displayName.trim() || details.username.trim(),
+    email: invite.email,
+    role: invite.role,
+    permissions: invite.permissions,
+    passwordHash: sha256Sync(details.passwordPlain.trim()),
+    status: 'active',
+    createdAt: new Date().toISOString(),
+    createdBy: invite.createdBy
+  };
+
+  users.push(newUser);
+  saveAdminUsers(users);
+
+  invite.status = 'accepted';
+  saveAdminInvitations(invites);
+
+  addAuditLog(
+    newUser.username,
+    'Accept Admin Invitation',
+    'security',
+    `Completed registration via invitation ${cleanCode} with assigned role ${invite.role}`
+  );
+
+  return {
+    success: true,
+    message: `Welcome @${newUser.username}! Your administrator account is now active.`,
+    user: newUser
+  };
+}
+
+export function cancelAdminInvitation(id: string, executorUsername: string = 'admin'): { success: boolean; message: string } {
+  let invites = getAdminInvitations();
+  invites = invites.filter(i => i.id !== id);
+  saveAdminInvitations(invites);
+  addAuditLog(executorUsername, 'Cancel Admin Invite', 'security', `Revoked invitation ${id}`);
+  return { success: true, message: "Invitation cancelled." };
+}
+
 export function updateSubAdmin(
   id: string,
   updates: Partial<AdminUser>,
@@ -255,9 +339,6 @@ export function updateSubAdmin(
   return { success: true, message: "Administrator details updated successfully." };
 }
 
-/**
- * Delete sub-admin
- */
 export function deleteSubAdmin(id: string, executorUsername: string = 'admin'): { success: boolean; message: string } {
   if (id === 'admin_master_1') {
     return { success: false, message: "The Master Super Admin cannot be deleted." };
@@ -273,23 +354,27 @@ export function deleteSubAdmin(id: string, executorUsername: string = 'admin'): 
 }
 
 /**
- * Phone Number OTP Password Reset
+ * PASSWORD RESET VIA OTP (EMAIL & PHONE)
  */
-export function requestPhoneResetOtp(phoneInput: string): { success: boolean; message: string; simulatedOtp?: string } {
-  const cleanPhone = phoneInput.replace(/[\s\-\(\)]/g, '');
+export function requestPasswordResetOtp(emailOrPhoneInput: string): { success: boolean; message: string; simulatedOtp?: string } {
+  const clean = emailOrPhoneInput.trim().toLowerCase();
   const users = getAdminUsers();
-  const user = users.find(u => (u.phone && u.phone.replace(/[\s\-\(\)]/g, '') === cleanPhone) || cleanPhone === MASTER_ADMIN_PHONE);
+
+  const user = users.find(u =>
+    u.email.toLowerCase() === clean ||
+    (u.phone && u.phone.replace(/[\s\-\(\)]/g, '') === clean.replace(/[\s\-\(\)]/g, '')) ||
+    u.username.toLowerCase() === clean
+  );
 
   if (!user) {
-    return { success: false, message: "No registered administrator found with this phone number." };
+    return { success: false, message: "No registered administrator found matching this email or phone." };
   }
 
-  // Generate 6-digit random code
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   const expiresAt = Date.now() + (5 * 60 * 1000); // 5 minutes
 
-  const session: PhoneResetSession = {
-    phone: cleanPhone,
+  const session: EmailResetSession = {
+    emailOrPhone: clean,
     otpCode: code,
     expiresAt,
     verified: false,
@@ -297,47 +382,45 @@ export function requestPhoneResetOtp(phoneInput: string): { success: boolean; me
   };
 
   try {
-    sessionStorage.setItem(OTP_SESSION_KEY, JSON.stringify(session));
+    sessionStorage.setItem(RESET_OTP_KEY, JSON.stringify(session));
   } catch {}
 
-  addAuditLog(user.username, 'Request OTP Reset', 'auth', `One-time code requested for phone ${cleanPhone}`);
+  addAuditLog(user.username, 'Request Password Reset OTP', 'auth', `One-time reset code dispatched for ${user.email}`);
 
   return {
     success: true,
-    message: `A 6-digit verification code has been dispatched to ${cleanPhone}. (Valid for 5 minutes)`,
+    message: `A 6-digit verification code has been dispatched to ${user.email}. (Valid for 5 minutes)`,
     simulatedOtp: code
   };
 }
 
-export function verifyPhoneResetOtp(phoneInput: string, otpCodeInput: string): { success: boolean; message: string } {
-  const cleanPhone = phoneInput.replace(/[\s\-\(\)]/g, '');
+export function verifyPasswordResetOtp(emailOrPhoneInput: string, otpCodeInput: string): { success: boolean; message: string } {
+  const clean = emailOrPhoneInput.trim().toLowerCase();
   try {
-    const raw = sessionStorage.getItem(OTP_SESSION_KEY);
-    if (!raw) return { success: false, message: "No active verification session found. Please request a new code." };
+    const raw = sessionStorage.getItem(RESET_OTP_KEY);
+    if (!raw) return { success: false, message: "No active reset session found. Please request a new code." };
 
-    const session: PhoneResetSession = JSON.parse(raw);
-    if (session.phone !== cleanPhone) return { success: false, message: "Phone number mismatch." };
+    const session: EmailResetSession = JSON.parse(raw);
     if (Date.now() > session.expiresAt) return { success: false, message: "Verification code has expired. Please request a new code." };
-    if (session.otpCode !== otpCodeInput.trim()) return { success: false, message: "Incorrect 6-digit code. Please check and try again." };
+    if (session.otpCode !== otpCodeInput.trim()) return { success: false, message: "Incorrect 6-digit verification code." };
 
     session.verified = true;
-    sessionStorage.setItem(OTP_SESSION_KEY, JSON.stringify(session));
+    sessionStorage.setItem(RESET_OTP_KEY, JSON.stringify(session));
 
-    return { success: true, message: "Phone verified successfully! You may now set a new password." };
+    return { success: true, message: "Code verified successfully! You may now set a new password." };
   } catch {
     return { success: false, message: "Failed to verify code." };
   }
 }
 
-export function completePhoneResetPassword(phoneInput: string, newPassword: string): { success: boolean; message: string } {
-  const cleanPhone = phoneInput.replace(/[\s\-\(\)]/g, '');
+export function completePasswordReset(emailOrPhoneInput: string, newPassword: string): { success: boolean; message: string } {
   try {
-    const raw = sessionStorage.getItem(OTP_SESSION_KEY);
+    const raw = sessionStorage.getItem(RESET_OTP_KEY);
     if (!raw) return { success: false, message: "Session expired." };
-    const session: PhoneResetSession = JSON.parse(raw);
+    const session: EmailResetSession = JSON.parse(raw);
 
-    if (session.phone !== cleanPhone || !session.verified) {
-      return { success: false, message: "Phone verification required before changing password." };
+    if (!session.verified) {
+      return { success: false, message: "Verification required before changing password." };
     }
 
     if (newPassword.length < 6) {
@@ -351,17 +434,22 @@ export function completePhoneResetPassword(phoneInput: string, newPassword: stri
     user.passwordHash = sha256Sync(newPassword.trim());
     saveAdminUsers(users);
 
-    sessionStorage.removeItem(OTP_SESSION_KEY);
-    addAuditLog(user.username, 'Password Reset Completed', 'auth', `Password successfully reset via phone OTP verification`);
+    sessionStorage.removeItem(RESET_OTP_KEY);
+    addAuditLog(user.username, 'Password Reset Completed', 'auth', `Password reset successfully via OTP verification`);
 
-    return { success: true, message: "Password updated successfully! You can now log in with your new password." };
+    return { success: true, message: "Password updated successfully! You can now log in with your new credentials." };
   } catch {
-    return { success: false, message: "An error occurred while resetting password." };
+    return { success: false, message: "An error occurred while updating password." };
   }
 }
 
+// Phone OTP aliases for backwards compatibility
+export const requestPhoneResetOtp = requestPasswordResetOtp;
+export const verifyPhoneResetOtp = verifyPasswordResetOtp;
+export const completePhoneResetPassword = completePasswordReset;
+
 /**
- * Site Branding & Navigation Tabs Customization
+ * Site Branding & Navigation Customization
  */
 export function getSiteCustomization(): SiteCustomization {
   try {
@@ -390,7 +478,7 @@ export function saveSiteCustomization(config: SiteCustomization, executorUsernam
 }
 
 /**
- * Generic Multi-Database Collections Manager (Supports MongoDB, PostgreSQL, MySQL, SQLite, JSON)
+ * Universal Multi-Database Collections
  */
 export function getDatabaseCollections(): GenericDatabaseCollection[] {
   try {
@@ -398,7 +486,6 @@ export function getDatabaseCollections(): GenericDatabaseCollection[] {
     if (raw) return JSON.parse(raw);
   } catch {}
 
-  // Initialize with the standard sets + generic relational/document datasets
   const initialCollections: GenericDatabaseCollection[] = [
     {
       id: "col_gptdata02",
@@ -506,15 +593,14 @@ export function saveDatabaseCollections(collections: GenericDatabaseCollection[]
 }
 
 /**
- * Learner Cohort Tracking
+ * REAL-TIME DYNAMIC METRICS & LIVE LEARNER PROFILES (NO HARDCODING)
  */
-export function getLearnerProfiles(): LearnerProfile[] {
+export function getRealtimeLearnerProfiles(): LearnerProfile[] {
   const currentProgress = loadProgress();
   const currentAccuracy = currentProgress.questionsAttempted > 0
     ? Math.round((currentProgress.questionsCorrect / currentProgress.questionsAttempted) * 100)
     : 0;
 
-  // Active student profile from this device
   const activeStudent: LearnerProfile = {
     id: currentProgress.learnerId.fingerprintHash.slice(0, 10),
     pseudonym: currentProgress.learnerId.pseudonym,
@@ -536,75 +622,20 @@ export function getLearnerProfiles(): LearnerProfile[] {
     status: 'active'
   };
 
-  // Cohort sample records for multi-student view
-  const cohortSamples: LearnerProfile[] = [
-    {
-      id: "std_e4f1a2",
-      pseudonym: "MongoLearner-9B41",
-      fingerprintHash: "9b41c0e3a5f8d91a",
-      firstJoined: "2026-09-05",
-      lastActive: "2026-10-03",
-      currentStreak: 4,
-      longestStreak: 7,
-      questionsAttempted: 48,
-      questionsCorrect: 41,
-      accuracy: 85,
-      bestMockScore: 88,
-      weakTopics: ["Performance & explain()"],
-      masteredTopics: ["CRUD Operations", "Aggregation Pipelines", "Basic & Advanced Querying"],
-      status: "active"
-    },
-    {
-      id: "std_3c8e9b",
-      pseudonym: "MongoLearner-3C8E",
-      fingerprintHash: "3c8e77a11f5d2b09",
-      firstJoined: "2026-09-12",
-      lastActive: "2026-09-28",
-      currentStreak: 0,
-      longestStreak: 3,
-      questionsAttempted: 18,
-      questionsCorrect: 9,
-      accuracy: 50,
-      bestMockScore: 55,
-      weakTopics: ["Indexes & ESR Rule", "Aggregation Pipelines"],
-      masteredTopics: ["MongoDB Fundamentals"],
-      status: "inactive"
-    },
-    {
-      id: "std_71a0fd",
-      pseudonym: "MongoLearner-71A0",
-      fingerprintHash: "71a0fd45e2c90a18",
-      firstJoined: "2026-09-18",
-      lastActive: "2026-10-04",
-      currentStreak: 6,
-      longestStreak: 6,
-      questionsAttempted: 62,
-      questionsCorrect: 57,
-      accuracy: 92,
-      bestMockScore: 94,
-      weakTopics: [],
-      masteredTopics: ["Security & RBAC", "Replication & High Availability", "Transactions & Consistency"],
-      status: "active"
-    }
-  ];
-
-  return [activeStudent, ...cohortSamples];
+  return [activeStudent];
 }
 
-/**
- * Data Sharing & Report Generator
- */
 export function generateShareableReport(
-  type: 'cohort-summary' | 'curriculum-mastery' | 'exam-roster' | 'database-dump',
+  type: 'cohort-summary' | 'curriculum-mastery' | 'database-dump',
   dataPayload?: any
 ): { title: string; content: string; filename: string; mimeType: string } {
   const branding = getSiteCustomization();
   const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
   if (type === 'cohort-summary') {
-    const learners = getLearnerProfiles();
+    const learners = getRealtimeLearnerProfiles();
     const totalAttempted = learners.reduce((sum, l) => sum + l.questionsAttempted, 0);
-    const avgAccuracy = Math.round(learners.reduce((sum, l) => sum + l.accuracy, 0) / learners.length);
+    const avgAccuracy = learners.length > 0 ? Math.round(learners.reduce((sum, l) => sum + l.accuracy, 0) / learners.length) : 0;
 
     let content = `# ${branding.siteName} — Cohort Performance Report\n`;
     content += `**Generated**: ${dateStr} | **Brand**: ${branding.brandName}\n\n`;
@@ -646,7 +677,6 @@ export function generateShareableReport(
     };
   }
 
-  // Database Dump
   const collections = getDatabaseCollections();
   const targetCol = dataPayload || collections[0];
   const jsonStr = JSON.stringify(targetCol, null, 2);

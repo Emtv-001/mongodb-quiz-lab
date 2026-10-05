@@ -1,23 +1,28 @@
 import React, { useState } from 'react';
-import { AdminUser, AdminPermissions, AdminRole } from '../../types/admin';
+import { AdminUser, AdminPermissions, AdminRole, AdminInvitation } from '../../types/admin';
 import {
   getAdminUsers,
-  createSubAdminWithRecovery,
+  getAdminInvitations,
+  createAdminEmailInvitation,
+  acceptAdminInvitation,
+  cancelAdminInvitation,
   updateSubAdmin,
-  deleteSubAdmin,
-  FULL_PERMISSIONS
+  deleteSubAdmin
 } from '../../services/adminService';
 import {
   Shield,
   ShieldCheck,
+  Mail,
   UserPlus,
   Lock,
   KeyRound,
   Check,
   Trash2,
-  Sliders,
   AlertCircle,
-  X
+  Clock,
+  Send,
+  X,
+  Copy
 } from 'lucide-react';
 
 interface AdminManagementRBACProps {
@@ -26,17 +31,16 @@ interface AdminManagementRBACProps {
 
 export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ currentAdmin }) => {
   const [adminList, setAdminList] = useState<AdminUser[]>(() => getAdminUsers());
+  const [invitations, setInvitations] = useState<AdminInvitation[]>(() => getAdminInvitations());
   const [statusMsg, setStatusMsg] = useState<{ text: string; isError: boolean } | null>(null);
 
-  // New Sub-Admin Modal state
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newUsername, setNewUsername] = useState('');
-  const [newDisplayName, setNewDisplayName] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [newPhone, setNewPhone] = useState('');
-  const [newRole, setNewRole] = useState<AdminRole>('sub-admin');
+  // Invite Admin Modal state
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<AdminRole>('sub-admin');
   const [recoveryPhraseInput, setRecoveryPhraseInput] = useState('');
-  const [newPerms, setNewPerms] = useState<AdminPermissions>({
+  const [simulatedEmailContent, setSimulatedEmailContent] = useState<string | null>(null);
+  const [invitePerms, setInvitePerms] = useState<AdminPermissions>({
     canEditBranding: false,
     canManageTabs: false,
     canManageDatabases: true,
@@ -47,38 +51,66 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
     canResetSystem: false
   });
 
-  const refreshList = () => {
+  // Accept Invite Modal state (for invitee activation)
+  const [showAcceptModal, setShowAcceptModal] = useState(false);
+  const [acceptCode, setAcceptCode] = useState('');
+  const [acceptUsername, setAcceptUsername] = useState('');
+  const [acceptDisplayName, setAcceptDisplayName] = useState('');
+  const [acceptPassword, setAcceptPassword] = useState('');
+
+  const refreshData = () => {
     setAdminList(getAdminUsers());
+    setInvitations(getAdminInvitations());
   };
 
-  const handleCreateAdmin = (e: React.FormEvent) => {
+  const handleSendInvite = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const res = createSubAdminWithRecovery(
+    const res = createAdminEmailInvitation(
       recoveryPhraseInput,
-      {
-        username: newUsername,
-        displayName: newDisplayName,
-        passwordPlain: newPassword,
-        phone: newPhone,
-        role: newRole,
-        permissions: newPerms
-      },
+      inviteEmail,
+      inviteRole,
+      invitePerms,
       currentAdmin.username
     );
 
     if (res.success) {
       setStatusMsg({ text: res.message, isError: false });
-      setShowAddModal(false);
-      setNewUsername('');
-      setNewDisplayName('');
-      setNewPassword('');
-      setNewPhone('');
+      setSimulatedEmailContent(res.simulatedEmail || null);
+      setInviteEmail('');
       setRecoveryPhraseInput('');
-      refreshList();
-      setTimeout(() => setStatusMsg(null), 4000);
+      refreshData();
     } else {
       setStatusMsg({ text: res.message, isError: true });
+    }
+  };
+
+  const handleAcceptInvite = (e: React.FormEvent) => {
+    e.preventDefault();
+    const res = acceptAdminInvitation(acceptCode, {
+      username: acceptUsername,
+      displayName: acceptDisplayName,
+      passwordPlain: acceptPassword
+    });
+
+    if (res.success) {
+      setStatusMsg({ text: res.message, isError: false });
+      setShowAcceptModal(false);
+      setAcceptCode('');
+      setAcceptUsername('');
+      setAcceptDisplayName('');
+      setAcceptPassword('');
+      refreshData();
+    } else {
+      setStatusMsg({ text: res.message, isError: true });
+    }
+  };
+
+  const handleCancelInvite = (id: string) => {
+    const res = cancelAdminInvitation(id, currentAdmin.username);
+    if (res.success) {
+      setStatusMsg({ text: res.message, isError: false });
+      refreshData();
     }
   };
 
@@ -96,7 +128,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
     };
 
     updateSubAdmin(adminId, { permissions: updatedPermissions }, currentAdmin.username);
-    refreshList();
+    refreshData();
   };
 
   const handleToggleStatus = (adminId: string) => {
@@ -105,7 +137,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
     const newStatus = target.status === 'active' ? 'suspended' : 'active';
     const res = updateSubAdmin(adminId, { status: newStatus }, currentAdmin.username);
     if (res.success) {
-      refreshList();
+      refreshData();
     } else {
       alert(res.message);
     }
@@ -115,9 +147,8 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
     if (!confirm("Are you sure you want to remove this administrator account?")) return;
     const res = deleteSubAdmin(adminId, currentAdmin.username);
     if (res.success) {
-      refreshList();
+      refreshData();
       setStatusMsg({ text: res.message, isError: false });
-      setTimeout(() => setStatusMsg(null), 3000);
     } else {
       alert(res.message);
     }
@@ -138,23 +169,34 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
         <div>
           <div className="flex items-center space-x-2 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-1">
             <ShieldCheck className="w-4 h-4" />
-            <span>Role-Based Access Control (RBAC)</span>
+            <span>Email Invitation & Role Assignment</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-white">
-            Administrator Governance & Rights Management
+            Administrator Governance (RBAC)
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Create and track sub-administrators, restrict feature access, and verify master provisioning authority.
+            Assign admin roles by email address with master recovery verification, and manage rights and active privileges.
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={() => setShowAcceptModal(true)}
+            className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+          >
+            <KeyRound className="w-3.5 h-3.5 text-purple-400" />
+            <span>Accept Invite Code</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setShowInviteModal(true);
+              setSimulatedEmailContent(null);
+            }}
             className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition-all"
           >
-            <UserPlus className="w-4 h-4" />
-            <span>Provision New Administrator</span>
+            <Mail className="w-4 h-4" />
+            <span>Invite Admin via Email</span>
           </button>
         </div>
       </div>
@@ -170,15 +212,66 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
         </div>
       )}
 
-      {/* Admin Users Table */}
+      {/* Pending Email Invitations List */}
+      {invitations.filter(i => i.status === 'pending').length > 0 && (
+        <div className="bg-slate-900 border border-purple-500/30 rounded-2xl p-5 space-y-3 shadow-xl animate-fadeIn">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+            <h3 className="text-xs font-bold text-purple-300 flex items-center space-x-2">
+              <Mail className="w-4 h-4 text-purple-400" />
+              <span>Pending Email Invitations ({invitations.filter(i => i.status === 'pending').length})</span>
+            </h3>
+            <span className="text-[10px] text-slate-400 font-mono">
+              Valid for 7 days
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {invitations.filter(i => i.status === 'pending').map((inv) => (
+              <div key={inv.id} className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
+                <div>
+                  <span className="font-mono text-xs font-bold text-white block">{inv.email}</span>
+                  <div className="flex items-center space-x-2 mt-1 text-[11px] text-slate-400">
+                    <span className="text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono">
+                      {inv.role}
+                    </span>
+                    <span>Code: <code className="text-emerald-400 font-mono font-bold">{inv.invitationCode}</code></span>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(inv.invitationCode);
+                      alert(`Copied invitation code: ${inv.invitationCode}`);
+                    }}
+                    className="p-1 text-slate-400 hover:text-emerald-400 rounded"
+                    title="Copy Code"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleCancelInvite(inv.id)}
+                    className="p-1 text-slate-400 hover:text-red-400 rounded"
+                    title="Revoke Invite"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Active Administrators Table */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
           <h3 className="text-sm font-bold text-white flex items-center space-x-2">
             <Shield className="w-4 h-4 text-emerald-400" />
-            <span>Active Administrator Roster ({adminList.length})</span>
+            <span>Active Administrator Accounts ({adminList.length})</span>
           </h3>
           <span className="text-xs text-slate-400 font-mono">
-            Master Recovery Verification Required for New Admin Creation
+            Provisioned via Verified Email Authority
           </span>
         </div>
 
@@ -208,14 +301,12 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                         </span>
                       </div>
                       <div className="text-[11px] text-slate-400 space-x-3 mt-0.5">
-                        {admin.phone && <span>Phone: {admin.phone}</span>}
+                        <span>Email: {admin.email}</span>
                         <span>Created: {admin.createdAt.split('T')[0]}</span>
-                        {admin.lastActive && <span>Last Active: {admin.lastActive.split('T')[0]}</span>}
                       </div>
                     </div>
                   </div>
 
-                  {/* Status Toggle & Delete (Sub-admins only) */}
                   {!isMaster && (
                     <div className="flex items-center space-x-2 self-end sm:self-center">
                       <button
@@ -272,108 +363,184 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
         </div>
       </div>
 
-      {/* Modal: Create Sub-Admin */}
-      {showAddModal && (
+      {/* Modal: Invite Admin via Email */}
+      {showInviteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <h3 className="text-base font-bold text-white flex items-center space-x-2">
-                <UserPlus className="w-5 h-5 text-emerald-400" />
-                <span>Provision New Administrator</span>
+                <Mail className="w-5 h-5 text-emerald-400" />
+                <span>Invite Administrator via Email</span>
               </h3>
               <button
-                onClick={() => setShowAddModal(false)}
+                onClick={() => setShowInviteModal(false)}
                 className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateAdmin} className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Username *</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. examiner_john"
-                    value={newUsername}
-                    onChange={(e) => setNewUsername(e.target.value)}
-                    required
-                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
-                  />
+            {simulatedEmailContent ? (
+              <div className="space-y-3 text-xs animate-fadeIn">
+                <div className="p-3.5 bg-emerald-950/40 border border-emerald-500/40 rounded-xl space-y-2">
+                  <span className="font-bold text-emerald-400 flex items-center space-x-1.5">
+                    <Check className="w-4 h-4" />
+                    <span>Invitation Successfully Generated & Sent!</span>
+                  </span>
+                  <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 font-mono text-[11px] text-slate-300 whitespace-pre-wrap">
+                    {simulatedEmailContent}
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Display Name</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Prof. John Doe"
-                    value={newDisplayName}
-                    onChange={(e) => setNewDisplayName(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowInviteModal(false)}
+                  className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl"
+                >
+                  Close & Return
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSendInvite} className="space-y-3.5 text-xs">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Password *</label>
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    Assignee Email Address *
+                  </label>
                   <input
-                    type="password"
-                    placeholder="Min 6 chars..."
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
+                    type="email"
+                    placeholder="e.g. professor.john@university.edu"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
                     required
                     className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Phone Number (For OTP)</label>
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    Pre-Assigned Admin Role *
+                  </label>
+                  <select
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value as AdminRole)}
+                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
+                  >
+                    <option value="sub-admin">Sub-Admin (Full Curriculum & Database Access)</option>
+                    <option value="examiner">Examiner (Question Bank & Cohort only)</option>
+                    <option value="moderator">Moderator (Review & Inspection only)</option>
+                  </select>
+                </div>
+
+                {/* Master Recovery Phrase Authorization */}
+                <div className="p-3.5 bg-slate-950 rounded-xl border border-purple-500/30 space-y-1.5">
+                  <div className="flex items-center space-x-1.5 text-purple-300 font-bold text-xs">
+                    <KeyRound className="w-4 h-4 text-purple-400" />
+                    <span>Master Recovery Authorization Required</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 leading-snug">
+                    Enter the master recovery phrase to authorize role dispatch.
+                  </p>
                   <input
                     type="text"
-                    placeholder="e.g. 08012345678"
-                    value={newPhone}
-                    onChange={(e) => setNewPhone(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
+                    placeholder="Enter master recovery phrase..."
+                    value={recoveryPhraseInput}
+                    onChange={(e) => setRecoveryPhraseInput(e.target.value)}
+                    required
+                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-xs font-mono"
                   />
                 </div>
+
+                <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setShowInviteModal(false)}
+                    className="px-4 py-2 rounded-xl text-slate-400 hover:text-white bg-slate-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
+                  >
+                    Dispatch Invitation
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Accept Invite Code & Complete Registration */}
+      {showAcceptModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h3 className="text-base font-bold text-white flex items-center space-x-2">
+                <KeyRound className="w-5 h-5 text-purple-400" />
+                <span>Complete Admin Registration</span>
+              </h3>
+              <button
+                onClick={() => setShowAcceptModal(false)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAcceptInvite} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Invitation Code *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. INV-98214"
+                  value={acceptCode}
+                  onChange={(e) => setAcceptCode(e.target.value)}
+                  required
+                  className="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono font-bold text-center rounded-xl p-2.5"
+                />
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">Role</label>
-                <select
-                  value={newRole}
-                  onChange={(e) => setNewRole(e.target.value as AdminRole)}
-                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
-                >
-                  <option value="sub-admin">Sub-Admin (Standard)</option>
-                  <option value="examiner">Examiner (Questions & Cohort only)</option>
-                  <option value="moderator">Moderator (Review & Inspect only)</option>
-                </select>
-              </div>
-
-              {/* Security Authorization: Master Recovery Phrase Check */}
-              <div className="p-3.5 bg-slate-950 rounded-xl border border-purple-500/30 space-y-1.5">
-                <div className="flex items-center space-x-1.5 text-purple-300 font-bold text-xs">
-                  <KeyRound className="w-4 h-4 text-purple-400" />
-                  <span>Master Recovery Authorization Required</span>
-                </div>
-                <p className="text-[11px] text-slate-400 leading-snug">
-                  To prevent unauthorized sub-admin provisioning, enter the original master recovery phrase.
-                </p>
+                <label className="block text-slate-300 font-semibold mb-1">Your Full Display Name *</label>
                 <input
                   type="text"
-                  placeholder="Enter master recovery phrase..."
-                  value={recoveryPhraseInput}
-                  onChange={(e) => setRecoveryPhraseInput(e.target.value)}
+                  placeholder="e.g. Dr. Jane Smith"
+                  value={acceptDisplayName}
+                  onChange={(e) => setAcceptDisplayName(e.target.value)}
                   required
-                  className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-xs font-mono"
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Desired Username *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. janesmith"
+                  value={acceptUsername}
+                  onChange={(e) => setAcceptUsername(e.target.value)}
+                  required
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Set Your Password *</label>
+                <input
+                  type="password"
+                  placeholder="Min 6 characters..."
+                  value={acceptPassword}
+                  onChange={(e) => setAcceptPassword(e.target.value)}
+                  required
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
                 />
               </div>
 
               <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => setShowAcceptModal(false)}
                   className="px-4 py-2 rounded-xl text-slate-400 hover:text-white bg-slate-800"
                 >
                   Cancel
@@ -382,7 +549,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                   type="submit"
                   className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
                 >
-                  Verify & Create Admin
+                  Activate Account
                 </button>
               </div>
             </form>

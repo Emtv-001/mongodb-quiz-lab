@@ -2,20 +2,20 @@ import React from 'react';
 import {
   Users,
   CheckCircle,
-  TrendingUp,
   Database,
   Shield,
-  Layers,
-  Award,
-  Sparkles,
-  ArrowUpRight,
   Clock,
   Share2,
-  Sliders
+  Sliders,
+  ArrowUpRight,
+  Flame,
+  Award,
+  Sparkles
 } from 'lucide-react';
 import {
-  getLearnerProfiles,
+  getRealtimeLearnerProfiles,
   getAdminUsers,
+  getAdminInvitations,
   getDatabaseCollections,
   getAuditLogs,
   getSiteCustomization
@@ -27,17 +27,26 @@ interface AdminDashboardOverviewProps {
 }
 
 export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({ onNavigateTab }) => {
-  const learners = getLearnerProfiles();
+  const learners = getRealtimeLearnerProfiles();
   const admins = getAdminUsers();
+  const invites = getAdminInvitations();
   const databases = getDatabaseCollections();
   const logs = getAuditLogs().slice(0, 6);
   const progress = loadProgress();
   const siteConfig = getSiteCustomization();
 
-  const totalQuestions = learners.reduce((acc, l) => acc + l.questionsAttempted, 0);
-  const totalCorrect = learners.reduce((acc, l) => acc + l.questionsCorrect, 0);
-  const cohortAccuracy = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
-  const activeLearners = learners.filter(l => l.status === 'active').length;
+  // Real-time calculations directly from live student progress
+  const totalQuestionsSolved = progress.questionsAttempted;
+  const totalCorrect = progress.questionsCorrect;
+  const accuracyPercent = totalQuestionsSolved > 0 ? Math.round((totalCorrect / totalQuestionsSolved) * 100) : 0;
+  const currentStreak = progress.currentStreak;
+  const totalCompletedSessions = progress.completedSessions.length;
+  const bestMock = progress.bestMockScore;
+
+  // Mastered vs Weak topic calculations
+  const topicStats = Object.entries(progress.topicStats);
+  const activeMasteredCount = topicStats.filter(([_, s]) => s.attempted >= 2 && (s.correct / s.attempted) >= 0.75).length;
+  const activeWeakCount = topicStats.filter(([_, s]) => s.attempted >= 1 && (s.correct / s.attempted) < 0.6).length;
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -46,17 +55,17 @@ export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({ 
         <div className="space-y-1.5 max-w-2xl">
           <div className="flex items-center space-x-2">
             <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              Master Admin Control Center
+              Live Real-Time Governance Center
             </span>
             <span className="text-xs text-slate-400 font-mono">
               Live Network Active
             </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-white">
-            {siteConfig.siteName} — Executive Overview
+            {siteConfig.siteName} — Executive Metrics
           </h2>
           <p className="text-xs text-slate-300 leading-relaxed">
-            Monitor real-time cohort statistics, configure site white-labeling, audit sub-administrators, and govern multi-database collections.
+            Live telemetry calculated directly from student sessions, multi-database collections, and administrator audits.
           </p>
         </div>
 
@@ -86,32 +95,31 @@ export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({ 
         </div>
       </div>
 
-      {/* KPI Stats Grid */}
+      {/* Real-time KPI Stats Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-2 shadow-sm">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold">Tracked Learners</span>
-            <Users className="w-4 h-4 text-blue-400" />
+            <span className="text-xs font-semibold">Active Daily Streak</span>
+            <Flame className="w-4 h-4 text-amber-400 animate-pulse" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black font-mono text-white">
-            {learners.length}
+          <div className="text-2xl sm:text-3xl font-black font-mono text-amber-400">
+            {currentStreak} Days
           </div>
-          <div className="text-[11px] text-emerald-400 flex items-center space-x-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
-            <span>{activeLearners} Active recently</span>
+          <div className="text-[11px] text-slate-400">
+            Longest Streak: {progress.longestStreak || currentStreak} Days
           </div>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-2 shadow-sm">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold">Total Queries Solved</span>
+            <span className="text-xs font-semibold">Questions Solved</span>
             <CheckCircle className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="text-2xl sm:text-3xl font-black font-mono text-emerald-400">
-            {totalQuestions}
+            {totalQuestionsSolved}
           </div>
           <div className="text-[11px] text-slate-400">
-            Avg Cohort Score: {cohortAccuracy}%
+            Live Accuracy: {accuracyPercent}% ({totalCorrect} correct)
           </div>
         </div>
 
@@ -124,27 +132,27 @@ export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({ 
             {databases.length}
           </div>
           <div className="text-[11px] text-slate-400">
-            Multi-Engine (Mongo, SQL, JSON)
+            {databases.reduce((acc, d) => acc + d.documents.length, 0)} Total Live Records
           </div>
         </div>
 
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-2 shadow-sm">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold">Administrators (RBAC)</span>
-            <Shield className="w-4 h-4 text-amber-400" />
+            <span className="text-xs font-semibold">Admin Team (RBAC)</span>
+            <Shield className="w-4 h-4 text-blue-400" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black font-mono text-amber-400">
+          <div className="text-2xl sm:text-3xl font-black font-mono text-blue-400">
             {admins.length}
           </div>
           <div className="text-[11px] text-slate-400">
-            {admins.filter(a => a.role === 'super-admin').length} Super, {admins.filter(a => a.role !== 'super-admin').length} Sub-admins
+            {invites.filter(i => i.status === 'pending').length} Pending Email Invites
           </div>
         </div>
       </div>
 
-      {/* Cohort Grade & Topic Health Matrix */}
+      {/* Real-time Learner Table & Live Audit Logs */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Learner Roster Preview */}
+        {/* Real-Time Learner Activity Roster */}
         <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl">
           <div className="flex items-center justify-between pb-3 border-b border-slate-800">
             <div className="flex items-center space-x-2">
@@ -157,7 +165,7 @@ export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({ 
               onClick={() => onNavigateTab('users')}
               className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center space-x-1"
             >
-              <span>View All Learners</span>
+              <span>View Cohort Details</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -168,7 +176,7 @@ export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({ 
                 <tr className="text-slate-400 border-b border-slate-800/80">
                   <th className="pb-2 font-semibold">Pseudonym / ID</th>
                   <th className="pb-2 font-semibold">Streak</th>
-                  <th className="pb-2 font-semibold">Attempted</th>
+                  <th className="pb-2 font-semibold">Solved</th>
                   <th className="pb-2 font-semibold">Accuracy</th>
                   <th className="pb-2 font-semibold">Best Mock</th>
                   <th className="pb-2 font-semibold">Status</th>
@@ -178,7 +186,7 @@ export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({ 
                 {learners.map((learner) => (
                   <tr key={learner.id} className="hover:bg-slate-800/30 transition-colors">
                     <td className="py-2.5 font-mono font-bold text-white flex items-center space-x-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse" />
                       <span>{learner.pseudonym}</span>
                     </td>
                     <td className="py-2.5 font-mono text-amber-400 font-semibold">
@@ -196,7 +204,7 @@ export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({ 
                       {learner.bestMockScore}%
                     </td>
                     <td className="py-2.5">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${learner.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-400'}`}>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                         {learner.status}
                       </span>
                     </td>
@@ -207,7 +215,7 @@ export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({ 
           </div>
         </div>
 
-        {/* Audit Log Stream */}
+        {/* Live Audit Log Stream */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl">
           <div className="flex items-center justify-between pb-3 border-b border-slate-800">
             <div className="flex items-center space-x-2">
@@ -217,7 +225,7 @@ export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({ 
               </h3>
             </div>
             <span className="text-[10px] font-mono text-slate-400">
-              Immutable Records
+              Live Logs
             </span>
           </div>
 

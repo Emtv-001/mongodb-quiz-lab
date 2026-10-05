@@ -7,7 +7,20 @@ import { QuestionCard } from './QuestionCard';
 import { FeedbackPanel } from './FeedbackPanel';
 import { ResultsView } from '../results/ResultsView';
 import { ReviewView } from '../review/ReviewView';
-import { Bookmark, Flag, ChevronLeft, ChevronRight, CheckCircle2, List } from 'lucide-react';
+import {
+  Bookmark,
+  Flag,
+  ChevronLeft,
+  ChevronRight,
+  List,
+  Play,
+  Clock,
+  Target,
+  ShieldAlert,
+  GraduationCap,
+  Sparkles,
+  Award
+} from 'lucide-react';
 import { MOCK_EXAM_PRESETS } from '../../data/mockExams';
 
 interface QuizControllerProps {
@@ -24,6 +37,7 @@ export const QuizController: React.FC<QuizControllerProps> = ({
   onRestartQuiz
 }) => {
   const [session, setSession] = useState<QuizSession>(initialSession);
+  const [hasStarted, setHasStarted] = useState<boolean>(false); // Pre-start briefing screen state
   const [currentAnswer, setCurrentAnswer] = useState<any>(undefined);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [currentAttempt, setCurrentAttempt] = useState<QuestionAttempt | null>(null);
@@ -33,6 +47,7 @@ export const QuizController: React.FC<QuizControllerProps> = ({
 
   const currentQuestion: Question | undefined = session.questions[session.currentIndex];
   const isMock = session.mode === 'mock-test';
+  const preset = MOCK_EXAM_PRESETS.find(p => p.id === session.mockExamId);
 
   // Sync bookmarks from storage
   useEffect(() => {
@@ -42,9 +57,9 @@ export const QuizController: React.FC<QuizControllerProps> = ({
     setBookmarkedMap(map);
   }, []);
 
-  // Timer Tick
+  // Timer Tick - ONLY ticks AFTER user clicks Start
   useEffect(() => {
-    if (session.completed || session.timeRemainingSeconds === undefined) return;
+    if (!hasStarted || session.completed || session.timeRemainingSeconds === undefined) return;
 
     const timer = setInterval(() => {
       setSession((prev) => {
@@ -66,7 +81,7 @@ export const QuizController: React.FC<QuizControllerProps> = ({
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [session.completed, session.timeRemainingSeconds]);
+  }, [hasStarted, session.completed, session.timeRemainingSeconds]);
 
   // Load question state on index change
   useEffect(() => {
@@ -83,6 +98,97 @@ export const QuizController: React.FC<QuizControllerProps> = ({
     }
   }, [session.currentIndex, currentQuestion]);
 
+  // --- PRE-START EXAM BRIEFING SCREEN ---
+  if (!hasStarted) {
+    const durationMins = session.totalDurationSeconds ? Math.ceil(session.totalDurationSeconds / 60) : 15;
+    let totalPoints = 0;
+    session.questions.forEach(q => (totalPoints += q.points));
+
+    return (
+      <div className="max-w-2xl mx-auto py-8 px-4 animate-fadeIn">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-9 shadow-2xl space-y-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none" />
+
+          <div className="space-y-3">
+            <div className="flex items-center space-x-2">
+              <span className="text-[11px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center space-x-1.5">
+                <GraduationCap className="w-3.5 h-3.5" />
+                <span>Ready to Begin Assessment</span>
+              </span>
+              <span className="text-xs text-purple-300 font-mono bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
+                Mode: {session.mode.toUpperCase()}
+              </span>
+            </div>
+
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              {preset ? preset.title : session.selectedTopic ? `${session.selectedTopic} Practice` : 'MongoDB Practical Assessment'}
+            </h2>
+
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Review session parameters below. The timer will <strong>only start counting down after you click the Begin Exam button</strong>.
+            </p>
+          </div>
+
+          {/* Key Parameters Matrix */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 text-center space-y-1">
+              <Target className="w-5 h-5 text-blue-400 mx-auto" />
+              <div className="text-xl font-bold font-mono text-white">{session.totalQuestions}</div>
+              <div className="text-[11px] text-slate-400 font-medium">Questions</div>
+            </div>
+
+            <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 text-center space-y-1">
+              <Clock className="w-5 h-5 text-amber-400 mx-auto" />
+              <div className="text-xl font-bold font-mono text-amber-400">{durationMins}m</div>
+              <div className="text-[11px] text-slate-400 font-medium">Time Limit</div>
+            </div>
+
+            <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 text-center space-y-1">
+              <Award className="w-5 h-5 text-purple-400 mx-auto" />
+              <div className="text-xl font-bold font-mono text-purple-300">{totalPoints}</div>
+              <div className="text-[11px] text-slate-400 font-medium">Max Points</div>
+            </div>
+          </div>
+
+          {/* Exam Rules & Instructions */}
+          <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800/90 space-y-2 text-xs">
+            <div className="font-bold text-slate-200 flex items-center space-x-1.5">
+              <ShieldAlert className="w-4 h-4 text-emerald-400" />
+              <span>Assessment Rules & Guidance:</span>
+            </div>
+            <ul className="text-slate-400 space-y-1.5 pl-4 list-disc text-[11px] leading-relaxed">
+              <li><strong>First-Attempt Rule</strong>: In assessment and mock exam modes, your initial score is recorded for transcript grades.</li>
+              <li>You can navigate between questions using the Question Grid Palette or Previous/Next controls.</li>
+              <li>Toggle <strong>Mark for Review</strong> on challenging questions to revisit them before final submission.</li>
+              <li>Instant feedback with partial credit breakdown and concept rules will be revealed.</li>
+            </ul>
+          </div>
+
+          {/* Action CTAs */}
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={onGoHome}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 transition-colors text-center"
+            >
+              Back to Dashboard
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setHasStarted(true)}
+              className="w-full sm:w-auto flex items-center justify-center space-x-2 px-8 py-3 rounded-xl text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-xl shadow-emerald-500/25 transition-all transform hover:scale-[1.02]"
+            >
+              <Play className="w-4 h-4 fill-current" />
+              <span>Start Assessment Now</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RESULTS & REVIEW VIEWS ---
   if (!currentQuestion || session.completed) {
     if (showReview) {
       return (
@@ -120,8 +226,6 @@ export const QuizController: React.FC<QuizControllerProps> = ({
     const result = evaluateAnswer(currentQuestion, currentAnswer);
     const existingAttempt = session.attempts[currentQuestion.id];
 
-    // FIRST-ATTEMPT RULE:
-    // In assessment modes (mock-test or quiz), initial submission determines the recorded grade
     const firstAttemptScore = existingAttempt
       ? existingAttempt.firstAttemptScore
       : result.score;
@@ -154,7 +258,6 @@ export const QuizController: React.FC<QuizControllerProps> = ({
 
   const handleNext = () => {
     if (session.currentIndex + 1 >= session.totalQuestions) {
-      // Completed all questions
       let totalEarned = 0;
       let totalMax = 0;
       session.questions.forEach((q) => {
@@ -234,7 +337,7 @@ export const QuizController: React.FC<QuizControllerProps> = ({
   const isCurrentFlagged = session.flaggedQuestionIds.includes(currentQuestion.id);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 py-4 animate-fadeIn">
+    <div className="max-w-4xl mx-auto space-y-5 py-4 px-2 sm:px-4 animate-fadeIn">
       {/* Progress & Countdown Header */}
       <ProgressBar
         currentIndex={session.currentIndex}
@@ -250,8 +353,8 @@ export const QuizController: React.FC<QuizControllerProps> = ({
         onOpenSeedData={onOpenSeedData}
       />
 
-      {/* Navigation Tools (Palette toggle & Flag for Review) */}
-      <div className="flex items-center justify-between px-2 text-xs">
+      {/* Navigation Tools Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs">
         <button
           type="button"
           onClick={() => setShowPalette(!showPalette)}
@@ -292,7 +395,7 @@ export const QuizController: React.FC<QuizControllerProps> = ({
 
       {/* Question Grid Palette Drawer */}
       {showPalette && (
-        <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl space-y-3 animate-fadeIn">
+        <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl space-y-3 animate-fadeIn shadow-xl">
           <div className="flex items-center justify-between text-xs text-slate-400">
             <span className="font-bold text-white">Jump to Question</span>
             <div className="flex items-center space-x-3">

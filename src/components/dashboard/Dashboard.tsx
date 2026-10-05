@@ -18,12 +18,14 @@ import {
   Compass,
   Zap,
   Shield,
-  UserCheck
+  UserCheck,
+  Sliders
 } from 'lucide-react';
 
 interface DashboardProps {
   progress: StudentProgress;
   onStartQuiz: (mode: QuizMode, topic?: MongoTopic, mockExamId?: string) => void;
+  onOpenConfig?: (mode: QuizMode, topic?: MongoTopic) => void;
   onNavigateTab: (tab: any) => void;
   onOpenSeedData: () => void;
 }
@@ -31,6 +33,7 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({
   progress,
   onStartQuiz,
+  onOpenConfig,
   onNavigateTab,
   onOpenSeedData
 }) => {
@@ -131,11 +134,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </button>
 
             <button
+              onClick={() => onOpenConfig ? onOpenConfig('practice') : onStartQuiz('practice')}
+              className="flex items-center space-x-1.5 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 transition-all shadow-sm"
+            >
+              <Sliders className="w-4 h-4 text-blue-400" />
+              <span>Custom Setup (Count & Hardness)</span>
+            </button>
+
+            <button
               onClick={() => onStartQuiz('practice')}
               className="flex items-center space-x-1.5 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
             >
               <PlayCircle className="w-4 h-4 text-emerald-400" />
-              <span>Practice Mode</span>
+              <span>Quick Practice</span>
             </button>
 
             <button
