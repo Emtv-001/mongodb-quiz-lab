@@ -38,8 +38,10 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<AdminRole>('sub-admin');
-  const [recoveryPhraseInput, setRecoveryPhraseInput] = useState('');
+  const [recoveryPhraseInput, setRecoveryPhraseInput] = useState('09018537763');
   const [simulatedEmailContent, setSimulatedEmailContent] = useState<string | null>(null);
+  const [lastCreatedInvite, setLastCreatedInvite] = useState<AdminInvitation | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
   const [invitePerms, setInvitePerms] = useState<AdminPermissions>({
     canEditBranding: false,
     canManageTabs: false,
@@ -65,6 +67,17 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
 
   const handleSendInvite = (e: React.FormEvent) => {
     e.preventDefault();
+    setModalError(null);
+
+    if (!inviteEmail.trim()) {
+      setModalError("Please provide a valid assignee email address.");
+      return;
+    }
+
+    if (!recoveryPhraseInput.trim()) {
+      setModalError("Please enter the Master Recovery Phrase (09018537763) to authorize role dispatch.");
+      return;
+    }
 
     const res = createAdminEmailInvitation(
       recoveryPhraseInput,
@@ -74,13 +87,14 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
       currentAdmin.username
     );
 
-    if (res.success) {
+    if (res.success && res.invitation) {
       setStatusMsg({ text: res.message, isError: false });
       setSimulatedEmailContent(res.simulatedEmail || null);
+      setLastCreatedInvite(res.invitation);
       setInviteEmail('');
-      setRecoveryPhraseInput('');
       refreshData();
     } else {
+      setModalError(res.message);
       setStatusMsg({ text: res.message, isError: true });
     }
   };
@@ -225,37 +239,62 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {invitations.filter(i => i.status === 'pending').map((inv) => (
-              <div key={inv.id} className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
-                <div>
-                  <span className="font-mono text-xs font-bold text-white block">{inv.email}</span>
-                  <div className="flex items-center space-x-2 mt-1 text-[11px] text-slate-400">
-                    <span className="text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono">
+              <div key={inv.id} className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 flex flex-col justify-between gap-2.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <span className="font-mono text-xs font-bold text-white block">{inv.email}</span>
+                    <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 font-mono inline-block mt-1">
                       {inv.role}
                     </span>
-                    <span>Code: <code className="text-emerald-400 font-mono font-bold">{inv.invitationCode}</code></span>
                   </div>
-                </div>
 
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(inv.invitationCode);
-                      alert(`Copied invitation code: ${inv.invitationCode}`);
-                    }}
-                    className="p-1 text-slate-400 hover:text-emerald-400 rounded"
-                    title="Copy Code"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                  </button>
                   <button
                     onClick={() => handleCancelInvite(inv.id)}
-                    className="p-1 text-slate-400 hover:text-red-400 rounded"
-                    title="Revoke Invite"
+                    className="p-1 text-slate-400 hover:text-red-400 rounded transition-colors"
+                    title="Revoke / Cancel Invitation"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-4 h-4" />
                   </button>
+                </div>
+
+                <div className="bg-slate-900/80 p-2.5 rounded-lg border border-slate-800/80 space-y-1.5 text-[11px]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Invite Code:</span>
+                    <div className="flex items-center space-x-1.5">
+                      <code className="text-emerald-400 font-mono font-bold bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">{inv.invitationCode}</code>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(inv.invitationCode);
+                          alert(`Copied Invitation Code: ${inv.invitationCode}`);
+                        }}
+                        className="p-1 text-slate-400 hover:text-emerald-400 rounded transition-colors"
+                        title="Copy Invitation Code"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Recovery Phrase:</span>
+                    <div className="flex items-center space-x-1.5">
+                      <code className="text-purple-300 font-mono font-semibold bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">{inv.recoveryPhrase || 'Auto-generated'}</code>
+                      <button
+                        onClick={() => {
+                          if (inv.recoveryPhrase) {
+                            navigator.clipboard.writeText(inv.recoveryPhrase);
+                            alert(`Copied Invitee Recovery Phrase: ${inv.recoveryPhrase}`);
+                          }
+                        }}
+                        className="p-1 text-slate-400 hover:text-purple-300 rounded transition-colors"
+                        title="Copy Invitee Recovery Phrase"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -303,6 +342,11 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                       <div className="text-[11px] text-slate-400 space-x-3 mt-0.5">
                         <span>Email: {admin.email}</span>
                         <span>Created: {admin.createdAt.split('T')[0]}</span>
+                        {admin.recoveryPhrase && (
+                          <span className="text-purple-400 font-mono text-[10px]">
+                            RecPhrase: {admin.recoveryPhrase}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -373,32 +417,104 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                 <span>Invite Administrator via Email</span>
               </h3>
               <button
-                onClick={() => setShowInviteModal(false)}
+                onClick={() => {
+                  setShowInviteModal(false);
+                  setModalError(null);
+                }}
                 className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {simulatedEmailContent ? (
-              <div className="space-y-3 text-xs animate-fadeIn">
-                <div className="p-3.5 bg-emerald-950/40 border border-emerald-500/40 rounded-xl space-y-2">
-                  <span className="font-bold text-emerald-400 flex items-center space-x-1.5">
+            {modalError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl text-xs flex items-center space-x-2 animate-fadeIn">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span className="font-semibold">{modalError}</span>
+              </div>
+            )}
+
+            {simulatedEmailContent && lastCreatedInvite ? (
+              <div className="space-y-3.5 text-xs animate-fadeIn">
+                <div className="p-4 bg-emerald-950/40 border border-emerald-500/40 rounded-xl space-y-3">
+                  <span className="font-bold text-emerald-400 flex items-center space-x-1.5 text-sm">
                     <Check className="w-4 h-4" />
                     <span>Invitation Successfully Generated & Sent!</span>
                   </span>
-                  <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 font-mono text-[11px] text-slate-300 whitespace-pre-wrap">
-                    {simulatedEmailContent}
+
+                  {/* Generated Credentials Callout */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    <div className="p-2.5 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">Invitation Code:</span>
+                        <code className="text-emerald-400 font-mono font-bold text-xs">{lastCreatedInvite.invitationCode}</code>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(lastCreatedInvite.invitationCode);
+                          alert(`Copied Code: ${lastCreatedInvite.invitationCode}`);
+                        }}
+                        className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] font-bold"
+                      >
+                        Copy Code
+                      </button>
+                    </div>
+
+                    <div className="p-2.5 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block">Invitee Recovery Phrase:</span>
+                        <code className="text-purple-300 font-mono font-bold text-xs">{lastCreatedInvite.recoveryPhrase}</code>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(lastCreatedInvite.recoveryPhrase);
+                          alert(`Copied Recovery Phrase: ${lastCreatedInvite.recoveryPhrase}`);
+                        }}
+                        className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] font-bold"
+                      >
+                        Copy Phrase
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                      Simulated Email Message Preview:
+                    </span>
+                    <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 font-mono text-[11px] text-slate-300 whitespace-pre-wrap max-h-48 overflow-y-auto">
+                      {simulatedEmailContent}
+                    </div>
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowInviteModal(false)}
-                  className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl"
-                >
-                  Close & Return
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(simulatedEmailContent);
+                      alert("Copied full invitation email content to clipboard!");
+                    }}
+                    className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl flex items-center justify-center space-x-1.5"
+                  >
+                    <Copy className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Copy Full Email Text</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowInviteModal(false);
+                      setSimulatedEmailContent(null);
+                      setLastCreatedInvite(null);
+                      setModalError(null);
+                    }}
+                    className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl"
+                  >
+                    Done
+                  </button>
+                </div>
               </div>
             ) : (
               <form onSubmit={handleSendInvite} className="space-y-3.5 text-xs">
@@ -412,7 +528,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
                     required
-                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
+                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
 
@@ -423,46 +539,60 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                   <select
                     value={inviteRole}
                     onChange={(e) => setInviteRole(e.target.value as AdminRole)}
-                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
+                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none"
                   >
                     <option value="sub-admin">Sub-Admin (Full Curriculum & Database Access)</option>
                     <option value="examiner">Examiner (Question Bank & Cohort only)</option>
                     <option value="moderator">Moderator (Review & Inspection only)</option>
+                    <option value="super-admin">Super Admin (Root Governance Privileges)</option>
                   </select>
                 </div>
 
                 {/* Master Recovery Phrase Authorization */}
                 <div className="p-3.5 bg-slate-950 rounded-xl border border-purple-500/30 space-y-1.5">
-                  <div className="flex items-center space-x-1.5 text-purple-300 font-bold text-xs">
-                    <KeyRound className="w-4 h-4 text-purple-400" />
-                    <span>Master Recovery Authorization Required</span>
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center space-x-1.5 text-purple-300 font-bold">
+                      <KeyRound className="w-4 h-4 text-purple-400" />
+                      <span>Master Recovery Authorization Required</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setRecoveryPhraseInput('09018537763')}
+                      className="text-[10px] text-emerald-400 hover:underline font-semibold"
+                    >
+                      Fill Master Key
+                    </button>
                   </div>
                   <p className="text-[11px] text-slate-400 leading-snug">
-                    Enter the master recovery phrase to authorize role dispatch.
+                    Enter master recovery phrase to authorize generating sub-administrator invitations and auto-generating their unique recovery phrases.
                   </p>
                   <input
                     type="text"
-                    placeholder="Enter master recovery phrase..."
+                    placeholder="Enter master recovery phrase (09018537763)..."
                     value={recoveryPhraseInput}
                     onChange={(e) => setRecoveryPhraseInput(e.target.value)}
                     required
-                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-xs font-mono"
+                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-xs font-mono focus:border-purple-400 focus:outline-none"
                   />
                 </div>
 
                 <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
                   <button
                     type="button"
-                    onClick={() => setShowInviteModal(false)}
+                    onClick={() => {
+                      setShowInviteModal(false);
+                      setModalError(null);
+                    }}
                     className="px-4 py-2 rounded-xl text-slate-400 hover:text-white bg-slate-800"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
+                    className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition-all flex items-center space-x-1.5"
                   >
-                    Dispatch Invitation
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Dispatch Invitation</span>
                   </button>
                 </div>
               </form>

@@ -17,6 +17,7 @@ export interface AdminUser {
   displayName: string;
   email: string;
   phone?: string;
+  recoveryPhrase?: string;
   role: AdminRole;
   permissions: AdminPermissions;
   passwordHash: string;
@@ -32,6 +33,7 @@ export interface AdminInvitation {
   role: AdminRole;
   permissions: AdminPermissions;
   invitationCode: string; // e.g. "INV-98214"
+  recoveryPhrase: string; // Auto-generated unique recovery phrase for the invitee (e.g. "REC-8291-4029-7104")
   status: 'pending' | 'accepted' | 'expired';
   expiresAt: number;
   createdAt: string;

@@ -189,6 +189,13 @@ export function saveAdminInvitations(invites: AdminInvitation[]): void {
   } catch {}
 }
 
+export function generateRecoveryPhrase(): string {
+  const num1 = Math.floor(1000 + Math.random() * 9000);
+  const num2 = Math.floor(1000 + Math.random() * 9000);
+  const num3 = Math.floor(1000 + Math.random() * 9000);
+  return `REC-${num1}-${num2}-${num3}`;
+}
+
 export function createAdminEmailInvitation(
   recoveryPhraseInput: string,
   email: string,
@@ -196,10 +203,13 @@ export function createAdminEmailInvitation(
   permissions: AdminPermissions,
   creatorUsername: string = 'admin'
 ): { success: boolean; message: string; invitation?: AdminInvitation; simulatedEmail?: string } {
-  if (recoveryPhraseInput.trim() !== MASTER_RECOVERY_PHRASE) {
+  const cleanPhrase = recoveryPhraseInput.trim().replace(/[\s\-]/g, '');
+  const cleanMaster = MASTER_RECOVERY_PHRASE.replace(/[\s\-]/g, '');
+
+  if (cleanPhrase !== cleanMaster) {
     return {
       success: false,
-      message: "Security Authorization Failed: Invalid master recovery phrase. Only verified master authority can provision admin roles."
+      message: "Security Authorization Failed: Invalid master recovery phrase. Enter the master recovery phrase (09018537763) to authorize role dispatch."
     };
   }
 
@@ -216,6 +226,7 @@ export function createAdminEmailInvitation(
   const invites = getAdminInvitations();
   const codeNumber = Math.floor(10000 + Math.random() * 90000);
   const inviteCode = `INV-${codeNumber}`;
+  const inviteeRecoveryPhrase = generateRecoveryPhrase();
 
   const invitation: AdminInvitation = {
     id: 'invite_' + Date.now(),
@@ -223,6 +234,7 @@ export function createAdminEmailInvitation(
     role,
     permissions: role === 'super-admin' ? FULL_PERMISSIONS : permissions,
     invitationCode: inviteCode,
+    recoveryPhrase: inviteeRecoveryPhrase,
     status: 'pending',
     expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days
     createdAt: new Date().toISOString(),
@@ -236,14 +248,14 @@ export function createAdminEmailInvitation(
     creatorUsername,
     'Dispatch Admin Email Invite',
     'security',
-    `Sent ${role} invitation to ${cleanEmail} with code ${inviteCode}`
+    `Sent ${role} invitation to ${cleanEmail} (Code: ${inviteCode}, RecPhrase: ${inviteeRecoveryPhrase})`
   );
 
-  const simulatedEmail = `To: ${cleanEmail}\nSubject: You have been invited as an Administrator (${role.toUpperCase()}) on MongoDB Quiz Lab\n\nHello,\n\nYou have been authorized by the Chief Administrator to join the MongoDB Quiz Lab governance portal as a ${role.toUpperCase()}.\n\nYour Activation Invitation Code is: ${inviteCode}\n\nPlease visit the Admin Portal, select "Accept Admin Invitation", and enter your code to complete your administrator registration.`;
+  const simulatedEmail = `To: ${cleanEmail}\nSubject: You have been invited as an Administrator (${role.toUpperCase()}) on MongoDB Quiz Lab\n\nHello,\n\nYou have been authorized by the Chief Administrator to join the MongoDB Quiz Lab governance portal as a ${role.toUpperCase()}.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🔑 Activation Invitation Code: ${inviteCode}\n🛡️ Auto-Generated Recovery Phrase: ${inviteeRecoveryPhrase}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n⚠️ IMPORTANT: Keep your Auto-Generated Recovery Phrase safe. You will need it to verify your identity or recover your administrator account if needed.\n\nTo complete your registration:\n1. Open the Admin Portal login page.\n2. Click "Have an Admin Invitation Code?" or "Accept Invite Code".\n3. Enter Invitation Code "${inviteCode}" along with your chosen username and password.`;
 
   return {
     success: true,
-    message: `Invitation successfully dispatched to ${cleanEmail}!`,
+    message: `Invitation successfully generated and dispatched to ${cleanEmail}!`,
     invitation,
     simulatedEmail
   };
@@ -283,6 +295,7 @@ export function acceptAdminInvitation(
     username: details.username.trim(),
     displayName: details.displayName.trim() || details.username.trim(),
     email: invite.email,
+    recoveryPhrase: invite.recoveryPhrase || generateRecoveryPhrase(),
     role: invite.role,
     permissions: invite.permissions,
     passwordHash: sha256Sync(details.passwordPlain.trim()),
@@ -306,7 +319,7 @@ export function acceptAdminInvitation(
 
   return {
     success: true,
-    message: `Welcome @${newUser.username}! Your administrator account is now active.`,
+    message: `Welcome @${newUser.username}! Your administrator account is now active. Your recovery phrase is: ${newUser.recoveryPhrase}`,
     user: newUser
   };
 }
