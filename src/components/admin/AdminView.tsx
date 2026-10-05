@@ -7,6 +7,7 @@ import {
   requestPasswordResetOtp,
   verifyPasswordResetOtp,
   completePasswordReset,
+  resetAdminPasswordWithRecoveryPhrase,
   acceptAdminInvitation
 } from '../../services/adminService';
 import { AdminDashboardOverview } from './AdminDashboardOverview';
@@ -41,6 +42,7 @@ import {
   AlertCircle,
   Mail,
   Smartphone,
+  ShieldAlert,
   X
 } from 'lucide-react';
 
@@ -65,14 +67,21 @@ export const AdminView: React.FC = () => {
   const [authError, setAuthError] = useState<string | null>(null);
   const [currentAdminTab, setCurrentAdminTab] = useState<AdminTab>('overview');
 
-  // Login Page OTP Password Reset Modal State
+  // Login Page Password Reset Modal State
   const [showLoginResetModal, setShowLoginResetModal] = useState(false);
+  const [resetMode, setResetMode] = useState<'email_otp' | 'recovery_phrase'>('email_otp');
   const [resetIdentifier, setResetIdentifier] = useState('');
   const [resetOtpCode, setResetOtpCode] = useState('');
   const [newPasswordValue, setNewPasswordValue] = useState('');
   const [resetStep, setResetStep] = useState<1 | 2>(1);
   const [resetMsg, setResetMsg] = useState<{ text: string; isError: boolean } | null>(null);
   const [isSendingLoginOtp, setIsSendingLoginOtp] = useState(false);
+
+  // Recovery phrase reset state
+  const [recoveryPhraseInput, setRecoveryPhraseInput] = useState('');
+  const [recoveryUsernameOrEmail, setRecoveryUsernameOrEmail] = useState('');
+  const [recoveryNewPassword, setRecoveryNewPassword] = useState('');
+  const [recoveryMsg, setRecoveryMsg] = useState<{ text: string; isError: boolean } | null>(null);
 
   // Login Page Invitation Activation Modal State
   const [showLoginInviteModal, setShowLoginInviteModal] = useState(false);
@@ -170,6 +179,31 @@ export const AdminView: React.FC = () => {
     }
   };
 
+  const handleRecoveryPhraseReset = (e: React.FormEvent) => {
+    e.preventDefault();
+    setRecoveryMsg(null);
+    const res = resetAdminPasswordWithRecoveryPhrase(
+      recoveryUsernameOrEmail,
+      recoveryPhraseInput,
+      recoveryNewPassword
+    );
+    if (res.success) {
+      setRecoveryMsg({ text: res.message, isError: false });
+      if (res.username) {
+        setUsernameOrEmail(res.username);
+      }
+      setTimeout(() => {
+        setShowLoginResetModal(false);
+        setRecoveryPhraseInput('');
+        setRecoveryUsernameOrEmail('');
+        setRecoveryNewPassword('');
+        setRecoveryMsg(null);
+      }, 2500);
+    } else {
+      setRecoveryMsg({ text: res.message, isError: true });
+    }
+  };
+
   const handleAcceptLoginInvite = (e: React.FormEvent) => {
     e.preventDefault();
     const res = acceptAdminInvitation(inviteCodeInput, {
@@ -234,16 +268,33 @@ export const AdminView: React.FC = () => {
                 <label className="font-semibold text-slate-300">
                   Password
                 </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowLoginResetModal(true);
-                    setResetMsg(null);
-                  }}
-                  className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold transition-colors"
-                >
-                  Forgot Password?
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetMode('email_otp');
+                      setShowLoginResetModal(true);
+                      setResetMsg(null);
+                      setRecoveryMsg(null);
+                    }}
+                    className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold transition-colors"
+                  >
+                    Forgot Password?
+                  </button>
+                  <span className="text-slate-600 text-[10px]">•</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetMode('recovery_phrase');
+                      setShowLoginResetModal(true);
+                      setResetMsg(null);
+                      setRecoveryMsg(null);
+                    }}
+                    className="text-[11px] text-purple-400 hover:text-purple-300 font-semibold transition-colors"
+                  >
+                    Use Recovery Phrase
+                  </button>
+                </div>
               </div>
               <input
                 type="password"
@@ -279,14 +330,14 @@ export const AdminView: React.FC = () => {
           </div>
         </div>
 
-        {/* Modal: Login Page OTP Password Reset */}
+        {/* Modal: Login Page Password Reset (Email OTP & Recovery Phrase) */}
         {showLoginResetModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fadeIn">
             <div className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <h3 className="text-base font-bold text-white flex items-center space-x-2">
-                  <Smartphone className="w-5 h-5 text-emerald-400" />
-                  <span>Reset Password via One-Time Code</span>
+                  <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                  <span>Admin Password Recovery</span>
                 </h3>
                 <button
                   onClick={() => setShowLoginResetModal(false)}
@@ -296,28 +347,207 @@ export const AdminView: React.FC = () => {
                 </button>
               </div>
 
-              {resetMsg && (
-                <div className={`p-3 rounded-xl border text-xs flex items-center space-x-2 ${
-                  resetMsg.isError ? 'bg-red-500/10 border-red-500/30 text-red-300' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                }`}>
-                  {resetMsg.isError ? <AlertCircle className="w-4 h-4 flex-shrink-0" /> : <Check className="w-4 h-4 flex-shrink-0" />}
-                  <span>{resetMsg.text}</span>
-                </div>
+              {/* Reset Mode Tabs */}
+              <div className="grid grid-cols-2 gap-1.5 bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResetMode('email_otp');
+                    setResetMsg(null);
+                    setRecoveryMsg(null);
+                  }}
+                  className={`py-2 px-2.5 rounded-lg font-bold flex items-center justify-center space-x-1.5 transition-all ${
+                    resetMode === 'email_otp'
+                      ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  <span>Email OTP</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResetMode('recovery_phrase');
+                    setResetMsg(null);
+                    setRecoveryMsg(null);
+                  }}
+                  className={`py-2 px-2.5 rounded-lg font-bold flex items-center justify-center space-x-1.5 transition-all ${
+                    resetMode === 'recovery_phrase'
+                      ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <ShieldAlert className="w-3.5 h-3.5" />
+                  <span>Recovery Phrase</span>
+                </button>
+              </div>
+
+              {/* Mode 1: Email OTP */}
+              {resetMode === 'email_otp' && (
+                <>
+                  {resetMsg && (
+                    <div className={`p-3 rounded-xl border text-xs flex items-center space-x-2 ${
+                      resetMsg.isError ? 'bg-red-500/10 border-red-500/30 text-red-300' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                    }`}>
+                      {resetMsg.isError ? <AlertCircle className="w-4 h-4 flex-shrink-0" /> : <Check className="w-4 h-4 flex-shrink-0" />}
+                      <span>{resetMsg.text}</span>
+                    </div>
+                  )}
+
+                  {resetStep === 1 ? (
+                    <form onSubmit={handleRequestLoginOtp} className="space-y-3.5 text-xs">
+                      <div>
+                        <label className="block text-slate-300 font-semibold mb-1">
+                          Registered Admin Email or Username
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. admin@emtvtech.com or username"
+                          value={resetIdentifier}
+                          onChange={(e) => setResetIdentifier(e.target.value)}
+                          required
+                          className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none"
+                        />
+                        <p className="text-[10px] text-slate-500 mt-1">
+                          A real-time 6-digit OTP will be dispatched immediately to your mailbox.
+                        </p>
+                      </div>
+
+                      <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+                        <button
+                          type="button"
+                          onClick={() => setShowLoginResetModal(false)}
+                          className="px-4 py-2 rounded-xl text-slate-400 hover:text-white bg-slate-800"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={isSendingLoginOtp}
+                          className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 shadow-md shadow-emerald-500/20 flex items-center space-x-1.5"
+                        >
+                          <Mail className="w-3.5 h-3.5" />
+                          <span>{isSendingLoginOtp ? 'Dispatching...' : 'Dispatch Reset OTP'}</span>
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <form onSubmit={handleCompleteLoginReset} className="space-y-3.5 text-xs">
+                      <div className="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-xl text-xs text-emerald-300 flex items-start space-x-2">
+                        <Mail className="w-4 h-4 flex-shrink-0 mt-0.5 text-emerald-400" />
+                        <span>A real-time 6-digit verification code has been dispatched to <strong>{resetIdentifier}</strong>. Please check your inbox and spam folder.</span>
+                      </div>
+                      <div>
+                        <label className="block text-slate-300 font-semibold mb-1">
+                          Enter 6-Digit Code
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={6}
+                          placeholder="e.g. 748291"
+                          value={resetOtpCode}
+                          onChange={(e) => setResetOtpCode(e.target.value)}
+                          required
+                          className="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono text-center text-lg font-black tracking-widest rounded-xl py-2"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-slate-300 font-semibold mb-1">
+                          Set New Password
+                        </label>
+                        <input
+                          type="password"
+                          placeholder="Min 6 characters..."
+                          value={newPasswordValue}
+                          onChange={(e) => setNewPasswordValue(e.target.value)}
+                          required
+                          className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
+                        />
+                      </div>
+
+                      <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+                        <button
+                          type="button"
+                          onClick={() => setResetStep(1)}
+                          className="px-4 py-2 rounded-xl text-slate-400 hover:text-white bg-slate-800"
+                        >
+                          Back
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
+                        >
+                          Update Password
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </>
               )}
 
-              {resetStep === 1 ? (
-                <form onSubmit={handleRequestLoginOtp} className="space-y-3.5 text-xs">
+              {/* Mode 2: Instant Recovery Phrase Reset */}
+              {resetMode === 'recovery_phrase' && (
+                <form onSubmit={handleRecoveryPhraseReset} className="space-y-3.5 text-xs">
+                  <div className="p-3 bg-purple-950/40 border border-purple-500/30 rounded-xl text-xs text-purple-200">
+                    <p className="font-semibold text-purple-300 mb-1 flex items-center space-x-1.5">
+                      <ShieldCheck className="w-4 h-4 text-purple-400" />
+                      <span>Instant Offline Verification</span>
+                    </p>
+                    <p className="text-[11px] text-purple-300/80">
+                      Use the 16-character auto-generated recovery phrase (e.g. <code>REC-XXXX-XXXX-XXXX</code>) issued in your invitation email or your master recovery key to reset your password without email delivery delays.
+                    </p>
+                  </div>
+
+                  {recoveryMsg && (
+                    <div className={`p-3 rounded-xl border text-xs flex items-center space-x-2 ${
+                      recoveryMsg.isError ? 'bg-red-500/10 border-red-500/30 text-red-300' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                    }`}>
+                      {recoveryMsg.isError ? <AlertCircle className="w-4 h-4 flex-shrink-0" /> : <Check className="w-4 h-4 flex-shrink-0" />}
+                      <span>{recoveryMsg.text}</span>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-slate-300 font-semibold mb-1">
-                      Registered Email or Phone Number
+                      Admin Username or Registered Email
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. admin@emtvtech.com or 09018537763"
-                      value={resetIdentifier}
-                      onChange={(e) => setResetIdentifier(e.target.value)}
+                      placeholder="e.g. admin@emtvtech.com or username"
+                      value={recoveryUsernameOrEmail}
+                      onChange={(e) => setRecoveryUsernameOrEmail(e.target.value)}
                       required
-                      className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
+                      className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-purple-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">
+                      Auto-Generated Recovery Phrase
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. REC-9B3A-8F12-4C7D or 09018537763"
+                      value={recoveryPhraseInput}
+                      onChange={(e) => setRecoveryPhraseInput(e.target.value)}
+                      required
+                      className="w-full bg-slate-950 border border-slate-700 text-purple-300 font-mono rounded-xl p-2.5 focus:border-purple-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">
+                      Set New Password
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="Min 6 characters..."
+                      value={recoveryNewPassword}
+                      onChange={(e) => setRecoveryNewPassword(e.target.value)}
+                      required
+                      className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-purple-500 focus:outline-none"
                     />
                   </div>
 
@@ -331,62 +561,10 @@ export const AdminView: React.FC = () => {
                     </button>
                     <button
                       type="submit"
-                      disabled={isSendingLoginOtp}
-                      className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 shadow-md shadow-emerald-500/20 flex items-center space-x-1.5"
+                      className="px-5 py-2 rounded-xl font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-md shadow-purple-600/30 flex items-center space-x-1.5"
                     >
-                      <Mail className="w-3.5 h-3.5" />
-                      <span>{isSendingLoginOtp ? 'Dispatching Email...' : 'Dispatch Reset OTP'}</span>
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <form onSubmit={handleCompleteLoginReset} className="space-y-3.5 text-xs">
-                  <div className="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-xl text-xs text-emerald-300 flex items-start space-x-2">
-                    <Mail className="w-4 h-4 flex-shrink-0 mt-0.5 text-emerald-400" />
-                    <span>A real-time 6-digit verification code has been dispatched to <strong>{resetIdentifier}</strong>. Please check your email inbox and spam folder.</span>
-                  </div>
-                  <div>
-                    <label className="block text-slate-300 font-semibold mb-1">
-                      Enter 6-Digit Code
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={6}
-                      placeholder="e.g. 748291"
-                      value={resetOtpCode}
-                      onChange={(e) => setResetOtpCode(e.target.value)}
-                      required
-                      className="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono text-center text-lg font-black tracking-widest rounded-xl py-2"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-300 font-semibold mb-1">
-                      Set New Password
-                    </label>
-                    <input
-                      type="password"
-                      placeholder="Min 6 characters..."
-                      value={newPasswordValue}
-                      onChange={(e) => setNewPasswordValue(e.target.value)}
-                      required
-                      className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
-                    />
-                  </div>
-
-                  <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
-                    <button
-                      type="button"
-                      onClick={() => setResetStep(1)}
-                      className="px-4 py-2 rounded-xl text-slate-400 hover:text-white bg-slate-800"
-                    >
-                      Back
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
-                    >
-                      Update Password
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>Reset Password Instantly</span>
                     </button>
                   </div>
                 </form>

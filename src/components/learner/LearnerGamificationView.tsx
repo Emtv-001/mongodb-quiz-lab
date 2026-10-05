@@ -182,16 +182,6 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
     }
   };
 
-  // Purchase store reward
-  const handleRedeemReward = (itemTitle: string, cost: number) => {
-    if (stats.coins < cost) {
-      alert(`Insufficient MongoCoins! You need ${cost} 🪙 (Current balance: ${stats.coins} 🪙). Keep solving questions to earn more coins!`);
-      return;
-    }
-    setStoreMessage(`🎉 Successfully redeemed "${itemTitle}"!`);
-    setTimeout(() => setStoreMessage(null), 4000);
-  };
-
   const tierColors: Record<string, { bg: string; text: string; border: string }> = {
     'MongoDB Master': { bg: 'bg-purple-500/15', text: 'text-purple-300', border: 'border-purple-500/40' },
     'Diamond': { bg: 'bg-cyan-500/15', text: 'text-cyan-300', border: 'border-cyan-500/40' },
@@ -348,7 +338,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
             {stats.coins} 🪙
           </div>
           <div className="text-[11px] text-slate-400 truncate">
-            Spendable in Rewards Store
+            Earned via Solved Questions & Streaks
           </div>
         </div>
 
@@ -362,7 +352,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
             Rank #{stats.rank}
           </div>
           <div className="text-[11px] text-slate-400 truncate">
-            Top 15 Active Learners
+            Top Active Learners
           </div>
         </div>
 
@@ -381,26 +371,20 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
         </div>
       </div>
 
-      {storeMessage && (
-        <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs rounded-xl flex items-center space-x-2 animate-fadeIn">
-          <Check className="w-4 h-4 flex-shrink-0" />
-          <span className="font-semibold">{storeMessage}</span>
-        </div>
-      )}
-
-      {/* Cohort Leaderboard & MongoCoins Rewards Store Grid */}
+      {/* Cohort Leaderboard & Tier Progression Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full min-w-0">
-        {/* Left 2 Cols: Cohort Leaderboard */}
+        {/* Left 2 Cols: Real-Time Cohort Leaderboard */}
         <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800 flex-wrap gap-2">
             <div className="flex items-center space-x-2">
               <Trophy className="w-5 h-5 text-amber-400" />
               <h3 className="text-base font-bold text-white">
-                Global & Cohort Leaderboard
+                Global Real-Time Leaderboard
               </h3>
             </div>
-            <span className="text-xs text-slate-400 font-mono">
-              Live Real-Time Rank
+            <span className="text-xs font-bold text-emerald-400 flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 font-mono">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span>Live Updates</span>
             </span>
           </div>
 
@@ -430,7 +414,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                           {entry.displayName}
                         </span>
                         {isUser && (
-                          <span className="text-[9px] uppercase font-extrabold px-1.5 py-0.2 rounded bg-emerald-500 text-slate-950">
+                          <span className="text-[9px] uppercase font-extrabold px-1.5 py-0.5 rounded bg-emerald-500 text-slate-950">
                             YOU
                           </span>
                         )}
@@ -458,70 +442,52 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
           </div>
         </div>
 
-        {/* Right Col: Rewards & Perks Store */}
+        {/* Right Col: Progression & Scoring Rules Breakdown */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-800">
             <div className="flex items-center space-x-2">
-              <Gift className="w-5 h-5 text-emerald-400" />
+              <Zap className="w-5 h-5 text-purple-400" />
               <h3 className="text-base font-bold text-white">
-                MongoCoins Store
+                How XP & Coins Work
               </h3>
             </div>
-            <span className="text-xs font-bold text-amber-400 font-mono">
-              {stats.coins} 🪙 Available
-            </span>
           </div>
 
-          <div className="space-y-3 text-xs">
-            {/* Store Item 1 */}
-            <div className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-white">Full Mock Exam Pass</span>
-                <span className="font-mono font-bold text-amber-400">50 🪙</span>
-              </div>
+          <div className="space-y-3 text-xs text-slate-300">
+            <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+              <span className="text-[11px] font-bold text-emerald-400 block">
+                🎯 Correct Question Solutions
+              </span>
               <p className="text-[11px] text-slate-400">
-                Unlock instant full grading review and NIIT-style certificate badge.
+                +25 XP and +5 MongoCoins on every fully correct solution (+10 XP on partial correct).
               </p>
-              <button
-                onClick={() => handleRedeemReward("Full Mock Exam Pass", 50)}
-                className="w-full py-1.5 rounded-lg font-bold bg-slate-800 hover:bg-emerald-500 hover:text-slate-950 text-slate-200 transition-colors"
-              >
-                Redeem for 50 🪙
-              </button>
             </div>
 
-            {/* Store Item 2 */}
-            <div className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-white">AI Dynamic Booster</span>
-                <span className="font-mono font-bold text-amber-400">75 🪙</span>
-              </div>
+            <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+              <span className="text-[11px] font-bold text-amber-400 block">
+                🔥 Daily Learning Streaks
+              </span>
               <p className="text-[11px] text-slate-400">
-                Generate 20 unlimited real-time AI scenario practice challenges.
+                +35 XP and +15 MongoCoins awarded for every consecutive active practice day.
               </p>
-              <button
-                onClick={() => handleRedeemReward("AI Dynamic Booster", 75)}
-                className="w-full py-1.5 rounded-lg font-bold bg-slate-800 hover:bg-emerald-500 hover:text-slate-950 text-slate-200 transition-colors"
-              >
-                Redeem for 75 🪙
-              </button>
             </div>
 
-            {/* Store Item 3 */}
-            <div className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-white">Architect Badge Flair</span>
-                <span className="font-mono font-bold text-amber-400">150 🪙</span>
-              </div>
+            <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+              <span className="text-[11px] font-bold text-purple-400 block">
+                🎓 Full Mock Exam Completion
+              </span>
               <p className="text-[11px] text-slate-400">
-                Display the exclusive golden Master Architect badge on your public cohort ranking.
+                +60 XP on completion, with +200 XP and +150 Coins distinction bonuses for scoring 85%+.
               </p>
-              <button
-                onClick={() => handleRedeemReward("Architect Badge Flair", 150)}
-                className="w-full py-1.5 rounded-lg font-bold bg-slate-800 hover:bg-emerald-500 hover:text-slate-950 text-slate-200 transition-colors"
-              >
-                Redeem for 150 🪙
-              </button>
+            </div>
+
+            <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+              <span className="text-[11px] font-bold text-blue-400 block">
+                🛡️ Verified Profile & Recovery
+              </span>
+              <p className="text-[11px] text-slate-400">
+                +100 Coins & +250 XP bonus on email OTP verification with auto-generated recovery phrase.
+              </p>
             </div>
           </div>
         </div>

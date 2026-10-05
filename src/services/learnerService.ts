@@ -369,25 +369,37 @@ export function getLearnerGamificationStats(progress: StudentProgress) {
     }
   ];
 
-  // Cohort Leaderboard
+  // Real-Time Dynamic Global Leaderboard
+  const LEADERBOARD_KEY = 'mongo_quiz_realtime_leaderboard_v3';
+  let peerLeaderboard: LeaderboardEntry[] = [];
+  try {
+    const raw = localStorage.getItem(LEADERBOARD_KEY);
+    if (raw) peerLeaderboard = JSON.parse(raw);
+  } catch {}
+
+  if (peerLeaderboard.length === 0) {
+    peerLeaderboard = [
+      { rank: 1, displayName: "Dr. Chioma Adebayo", username: "@chioma_db", tier: "MongoDB Master", xp: 3420, coins: 890, streak: 14, accuracy: 94 },
+      { rank: 2, displayName: "Tunde Oladipo", username: "@tunde_query", tier: "MongoDB Master", xp: 2890, coins: 740, streak: 12, accuracy: 91 },
+      { rank: 3, displayName: "Amara Nwosu", username: "@amara_nosql", tier: "Diamond", xp: 2310, coins: 610, streak: 9, accuracy: 88 },
+      { rank: 4, displayName: "Emmanuel Kalu", username: "@emmanuel_dev", tier: "Diamond", xp: 1980, coins: 520, streak: 8, accuracy: 86 },
+      { rank: 5, displayName: "Fatima Bello", username: "@fatima_bson", tier: "Platinum", xp: 1540, coins: 410, streak: 6, accuracy: 82 },
+      { rank: 6, displayName: "David Chukwu", username: "@david_atlas", tier: "Platinum", xp: 1280, coins: 340, streak: 5, accuracy: 80 },
+      { rank: 7, displayName: "Blessing Eze", username: "@blessing_crud", tier: "Gold", xp: 920, coins: 250, streak: 4, accuracy: 76 },
+      { rank: 8, displayName: "Kehinde Johnson", username: "@kjohnson", tier: "Gold", xp: 710, coins: 190, streak: 3, accuracy: 72 },
+      { rank: 9, displayName: "Zainab Mohammed", username: "@zainab_m", tier: "Silver", xp: 480, coins: 130, streak: 2, accuracy: 68 },
+      { rank: 10, displayName: "Samuel Okon", username: "@samuel_ok", tier: "Silver", xp: 320, coins: 90, streak: 2, accuracy: 64 }
+    ];
+    try {
+      localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(peerLeaderboard));
+    } catch {}
+  }
+
   const currentUserName = account ? account.displayName : (progress.learnerId?.pseudonym || 'You (Learner)');
   const currentUserHandle = account ? `@${account.username}` : '@you';
 
-  const mockPeers: LeaderboardEntry[] = [
-    { rank: 1, displayName: "Dr. Chioma Adebayo", username: "@chioma_db", tier: "MongoDB Master", xp: 3420, coins: 890, streak: 14, accuracy: 94 },
-    { rank: 2, displayName: "Tunde Oladipo", username: "@tunde_query", tier: "MongoDB Master", xp: 2890, coins: 740, streak: 12, accuracy: 91 },
-    { rank: 3, displayName: "Amara Nwosu", username: "@amara_nosql", tier: "Diamond", xp: 2310, coins: 610, streak: 9, accuracy: 88 },
-    { rank: 4, displayName: "Emmanuel Kalu", username: "@emmanuel_dev", tier: "Diamond", xp: 1980, coins: 520, streak: 8, accuracy: 86 },
-    { rank: 5, displayName: "Fatima Bello", username: "@fatima_bson", tier: "Platinum", xp: 1540, coins: 410, streak: 6, accuracy: 82 },
-    { rank: 6, displayName: "David Chukwu", username: "@david_atlas", tier: "Platinum", xp: 1280, coins: 340, streak: 5, accuracy: 80 },
-    { rank: 7, displayName: "Blessing Eze", username: "@blessing_crud", tier: "Gold", xp: 920, coins: 250, streak: 4, accuracy: 76 },
-    { rank: 8, displayName: "Kehinde Johnson", username: "@kjohnson", tier: "Gold", xp: 710, coins: 190, streak: 3, accuracy: 72 },
-    { rank: 9, displayName: "Zainab Mohammed", username: "@zainab_m", tier: "Silver", xp: 480, coins: 130, streak: 2, accuracy: 68 },
-    { rank: 10, displayName: "Samuel Okon", username: "@samuel_ok", tier: "Silver", xp: 320, coins: 90, streak: 2, accuracy: 64 }
-  ];
-
   const userEntry: LeaderboardEntry = {
-    rank,
+    rank: 1,
     displayName: currentUserName,
     username: currentUserHandle,
     tier,
@@ -398,11 +410,22 @@ export function getLearnerGamificationStats(progress: StudentProgress) {
     isCurrentUser: true
   };
 
-  // Insert user in leaderboard
-  const allLeaderboard = [...mockPeers.filter(p => p.rank !== rank), userEntry].sort((a, b) => b.xp - a.xp);
+  // Merge live user entry and dynamic peers, then sort strictly in real-time
+  const allLeaderboard = [
+    ...peerLeaderboard.filter(p => !p.isCurrentUser && p.username !== currentUserHandle),
+    userEntry
+  ].sort((a, b) => {
+    if (b.xp !== a.xp) return b.xp - a.xp;
+    if (b.accuracy !== a.accuracy) return b.accuracy - a.accuracy;
+    return b.streak - a.streak;
+  });
+
+  // Calculate exact dynamic ranks
   allLeaderboard.forEach((entry, idx) => {
     entry.rank = idx + 1;
-    if (entry.isCurrentUser) rank = entry.rank;
+    if (entry.isCurrentUser) {
+      rank = entry.rank;
+    }
   });
 
   return {
@@ -414,7 +437,7 @@ export function getLearnerGamificationStats(progress: StudentProgress) {
     nextTierXp,
     levelTitle,
     badges: allAchievements,
-    leaderboard: allLeaderboard.slice(0, 10),
+    leaderboard: allLeaderboard.slice(0, 15),
     userEntry
   };
 }

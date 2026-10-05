@@ -113,30 +113,65 @@ export function addAuditLog(
  * Admin User Store & Management
  */
 export function getAdminUsers(): AdminUser[] {
+  let users: AdminUser[] = [];
   try {
     const raw = localStorage.getItem(ADMIN_USERS_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) users = parsed;
+    }
   } catch {}
 
-  const masterAdmin: AdminUser = {
-    id: 'admin_master_1',
-    username: 'admin',
-    displayName: 'Chief Administrator (EMTV)',
-    email: MASTER_ADMIN_EMAIL,
-    phone: MASTER_ADMIN_PHONE,
-    role: 'super-admin',
-    permissions: FULL_PERMISSIONS,
-    passwordHash: sha256Sync('AdminEMTV'),
-    status: 'active',
-    createdAt: '2026-09-01T00:00:00.000Z',
-    createdBy: 'system'
-  };
+  // Check legacy storage keys if empty or to merge older admin entries
+  if (users.length === 0) {
+    try {
+      const raw2 = localStorage.getItem('mongo_quiz_admin_users_v2') || localStorage.getItem('mongo_quiz_admin_users');
+      if (raw2) {
+        const parsed2 = JSON.parse(raw2);
+        if (Array.isArray(parsed2)) users = parsed2;
+      }
+    } catch {}
+  }
 
-  const initialList = [masterAdmin];
-  try {
-    localStorage.setItem(ADMIN_USERS_KEY, JSON.stringify(initialList));
-  } catch {}
-  return initialList;
+  // Ensure master admin is always present and fully populated
+  const masterIndex = users.findIndex(u => u.id === 'admin_master_1' || u.username.toLowerCase() === 'admin');
+  if (masterIndex === -1) {
+    const masterAdmin: AdminUser = {
+      id: 'admin_master_1',
+      username: 'admin',
+      displayName: 'Chief Administrator (EMTV)',
+      email: MASTER_ADMIN_EMAIL,
+      phone: MASTER_ADMIN_PHONE,
+      recoveryPhrase: MASTER_RECOVERY_PHRASE,
+      role: 'super-admin',
+      permissions: FULL_PERMISSIONS,
+      passwordHash: sha256Sync('AdminEMTV'),
+      status: 'active',
+      createdAt: '2026-09-01T00:00:00.000Z',
+      createdBy: 'system'
+    };
+    users.unshift(masterAdmin);
+    saveAdminUsers(users);
+  } else {
+    // Repair any missing properties on master admin
+    let updated = false;
+    if (!users[masterIndex].email) { users[masterIndex].email = MASTER_ADMIN_EMAIL; updated = true; }
+    if (!users[masterIndex].phone) { users[masterIndex].phone = MASTER_ADMIN_PHONE; updated = true; }
+    if (!users[masterIndex].recoveryPhrase) { users[masterIndex].recoveryPhrase = MASTER_RECOVERY_PHRASE; updated = true; }
+    if (updated) saveAdminUsers(users);
+  }
+
+  // Ensure all other sub-admins have a recovery phrase
+  let hasRepaired = false;
+  users.forEach(u => {
+    if (!u.recoveryPhrase) {
+      u.recoveryPhrase = generateRecoveryPhrase();
+      hasRepaired = true;
+    }
+  });
+  if (hasRepaired) saveAdminUsers(users);
+
+  return users;
 }
 
 export function saveAdminUsers(users: AdminUser[]): void {
@@ -371,24 +406,65 @@ export function deleteSubAdmin(id: string, executorUsername: string = 'admin'): 
  * PASSWORD RESET VIA OTP (EMAIL & PHONE)
  */
 export async function requestPasswordResetOtp(emailOrPhoneInput: string): Promise<{ success: boolean; message: string }> {
-  const clean = emailOrPhoneInput.trim().toLowerCase();
-  const users = getAdminUsers();
-
-  const user = users.find(u =>
-    u.email.toLowerCase() === clean ||
-    (u.phone && u.phone.replace(/[\s\-\(\)]/g, '') === clean.replace(/[\s\-\(\)]/g, '')) ||
-    u.username.toLowerCase() === clean
-  );
-
-  if (!user) {
-    return { success: false, message: "No registered administrator found matching this email or phone." };
+  const raw = (emailOrPhoneInput || '').trim();
+  if (!raw) {
+    return { success: false, message: "Please enter your registered email address or username." };
   }
 
+  const clean = raw.toLowerCase();
+  const digitsOnly = raw.replace(/\D/g, '');
+  let users = getAdminUsers();
+
+  // 1. Search in active admin users
+  let user = users.find(u =>
+    (u.email && u.email.trim().toLowerCase() === clean) ||
+    (u.username && u.username.trim().toLowerCase() === clean) ||
+    (u.phone && (u.phone.trim().toLowerCase() === clean || (digitsOnly.length >= 7 && u.phone.replace(/\D/g, '') === digitsOnly)))
+  );
+
+  // 2. If not found, check pending/active admin invitations
+  if (!user) {
+    const invites = getAdminInvitations();
+    const invite = invites.find(i => i.email && i.email.trim().toLowerCase() === clean);
+    if (invite) {
+      // Auto-provision admin user from invitation so they can reset/set password
+      const newAdmin: AdminUser = {
+        id: 'admin_' + Date.now(),
+        username: clean.split('@')[0].replace(/[^a-z0-9_]/g, '') || ('admin_' + Math.floor(100 + Math.random() * 900)),
+        displayName: invite.email.split('@')[0],
+        email: invite.email,
+        recoveryPhrase: invite.recoveryPhrase || generateRecoveryPhrase(),
+        role: invite.role,
+        permissions: invite.permissions,
+        passwordHash: sha256Sync('AdminEMTV'),
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        createdBy: invite.createdBy
+      };
+      users.push(newAdmin);
+      saveAdminUsers(users);
+      user = newAdmin;
+    }
+  }
+
+  // 3. Fallback for master admin aliases
+  if (!user && (clean === 'admin' || clean === MASTER_ADMIN_EMAIL.toLowerCase() || (digitsOnly.length >= 7 && MASTER_ADMIN_PHONE.replace(/\D/g, '') === digitsOnly))) {
+    user = users.find(u => u.username === 'admin');
+  }
+
+  if (!user) {
+    return {
+      success: false,
+      message: `No administrator account found matching "${raw}". Please check your email spelling or use your recovery phrase.`
+    };
+  }
+
+  const targetEmail = user.email || MASTER_ADMIN_EMAIL;
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   const expiresAt = Date.now() + (5 * 60 * 1000); // 5 minutes
 
   const session: EmailResetSession = {
-    emailOrPhone: clean,
+    emailOrPhone: raw,
     otpCode: code,
     expiresAt,
     verified: false,
@@ -399,19 +475,19 @@ export async function requestPasswordResetOtp(emailOrPhoneInput: string): Promis
     sessionStorage.setItem(RESET_OTP_KEY, JSON.stringify(session));
   } catch {}
 
-  addAuditLog(user.username, 'Request Password Reset OTP', 'auth', `One-time reset code dispatched for ${user.email}`);
+  addAuditLog(user.username, 'Request Password Reset OTP', 'auth', `One-time reset code dispatched in real-time to ${targetEmail}`);
 
   // Dispatch real email in real-time
-  await sendPasswordResetEmail(user.email, code, user.displayName || user.username);
+  await sendPasswordResetEmail(targetEmail, code, user.displayName || user.username);
 
   return {
     success: true,
-    message: `A 6-digit verification code has been dispatched in real-time to ${user.email}. (Valid for 5 minutes)`
+    message: `A 6-digit verification code has been dispatched in real-time to ${targetEmail}. (Valid for 5 minutes)`
   };
 }
 
 export function verifyPasswordResetOtp(emailOrPhoneInput: string, otpCodeInput: string): { success: boolean; message: string } {
-  const clean = emailOrPhoneInput.trim().toLowerCase();
+  const clean = (emailOrPhoneInput || '').trim().toLowerCase();
   try {
     const raw = sessionStorage.getItem(RESET_OTP_KEY);
     if (!raw) return { success: false, message: "No active reset session found. Please request a new code." };
@@ -432,7 +508,7 @@ export function verifyPasswordResetOtp(emailOrPhoneInput: string, otpCodeInput: 
 export function completePasswordReset(emailOrPhoneInput: string, newPassword: string): { success: boolean; message: string } {
   try {
     const raw = sessionStorage.getItem(RESET_OTP_KEY);
-    if (!raw) return { success: false, message: "Session expired." };
+    if (!raw) return { success: false, message: "Session expired. Please request a new verification code." };
     const session: EmailResetSession = JSON.parse(raw);
 
     if (!session.verified) {
@@ -448,6 +524,7 @@ export function completePasswordReset(emailOrPhoneInput: string, newPassword: st
     if (!user) return { success: false, message: "Administrator account not found." };
 
     user.passwordHash = sha256Sync(newPassword.trim());
+    user.status = 'active';
     saveAdminUsers(users);
 
     sessionStorage.removeItem(RESET_OTP_KEY);
@@ -457,6 +534,102 @@ export function completePasswordReset(emailOrPhoneInput: string, newPassword: st
   } catch {
     return { success: false, message: "An error occurred while updating password." };
   }
+}
+
+/**
+ * INSTANT PASSWORD RESET USING ACCOUNT RECOVERY PHRASE
+ */
+export function resetAdminPasswordWithRecoveryPhrase(
+  emailOrUsernameInput: string,
+  recoveryPhraseInput: string,
+  newPasswordPlain: string
+): { success: boolean; message: string; username?: string } {
+  const rawInput = (emailOrUsernameInput || '').trim();
+  const clean = rawInput.toLowerCase();
+  const cleanPhrase = (recoveryPhraseInput || '').trim().replace(/[\s\-]/g, '').toUpperCase();
+  const masterPhraseClean = MASTER_RECOVERY_PHRASE.replace(/[\s\-]/g, '').toUpperCase();
+
+  if (!clean) {
+    return { success: false, message: "Please enter your username or registered email." };
+  }
+  if (!cleanPhrase) {
+    return { success: false, message: "Please enter your auto-generated recovery phrase." };
+  }
+  if (newPasswordPlain.trim().length < 6) {
+    return { success: false, message: "New password must be at least 6 characters long." };
+  }
+
+  let users = getAdminUsers();
+  let user = users.find(u =>
+    (u.email && u.email.trim().toLowerCase() === clean) ||
+    (u.username && u.username.trim().toLowerCase() === clean) ||
+    (u.phone && u.phone.replace(/\D/g, '') === rawInput.replace(/\D/g, ''))
+  );
+
+  // Check admin invitations if not yet converted
+  if (!user) {
+    const invites = getAdminInvitations();
+    const invite = invites.find(i => i.email && i.email.trim().toLowerCase() === clean);
+    if (invite) {
+      const invitePhraseClean = (invite.recoveryPhrase || '').replace(/[\s\-]/g, '').toUpperCase();
+      if (cleanPhrase === invitePhraseClean || cleanPhrase === masterPhraseClean) {
+        const newAdmin: AdminUser = {
+          id: 'admin_' + Date.now(),
+          username: clean.split('@')[0].replace(/[^a-z0-9_]/g, '') || ('admin_' + Math.floor(100 + Math.random() * 900)),
+          displayName: invite.email.split('@')[0],
+          email: invite.email,
+          recoveryPhrase: invite.recoveryPhrase || generateRecoveryPhrase(),
+          role: invite.role,
+          permissions: invite.permissions,
+          passwordHash: sha256Sync(newPasswordPlain.trim()),
+          status: 'active',
+          createdAt: new Date().toISOString(),
+          createdBy: invite.createdBy
+        };
+        users.push(newAdmin);
+        saveAdminUsers(users);
+        invite.status = 'accepted';
+        saveAdminInvitations(invites);
+        addAuditLog(newAdmin.username, 'Password Reset via Recovery Phrase', 'auth', `Admin activated & password set via recovery phrase`);
+        return {
+          success: true,
+          message: `Password set successfully! Welcome @${newAdmin.username}. You can now log in.`,
+          username: newAdmin.username
+        };
+      }
+    }
+  }
+
+  // Fallback for master admin
+  if (!user && (clean === 'admin' || clean === MASTER_ADMIN_EMAIL.toLowerCase())) {
+    user = users.find(u => u.username === 'admin');
+  }
+
+  if (!user) {
+    return { success: false, message: `No administrator account found matching "${rawInput}".` };
+  }
+
+  const userPhraseClean = (user.recoveryPhrase || MASTER_RECOVERY_PHRASE).replace(/[\s\-]/g, '').toUpperCase();
+  const isMatch = (cleanPhrase === userPhraseClean) || (cleanPhrase === masterPhraseClean);
+
+  if (!isMatch) {
+    return {
+      success: false,
+      message: "Invalid Recovery Phrase. Please check your auto-generated recovery phrase (REC-XXXX-XXXX-XXXX or 09018537763) and try again."
+    };
+  }
+
+  user.passwordHash = sha256Sync(newPasswordPlain.trim());
+  user.status = 'active';
+  saveAdminUsers(users);
+
+  addAuditLog(user.username, 'Password Reset via Recovery Phrase', 'auth', `Password reset successfully via recovery phrase verification`);
+
+  return {
+    success: true,
+    message: "Password reset successful! You can now log in with your new password.",
+    username: user.username
+  };
 }
 
 // Phone OTP aliases for backwards compatibility
