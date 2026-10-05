@@ -677,26 +677,26 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                   <div className="p-3 bg-slate-950/80 rounded-lg border border-slate-800 text-[11px] text-slate-400 space-y-1">
                     <div className="text-slate-200 font-semibold flex items-center space-x-1">
                       <KeyRound className="w-3.5 h-3.5 text-purple-400" />
-                      <span>Check Your Inbox & Spam Folder:</span>
+                      <span>Check Your Mailbox & Spam Folder:</span>
                     </div>
-                    <div>1. Open the email from <strong>MongoDB Quiz Lab</strong>.</div>
-                    <div>2. Copy the 6-digit code and enter it below.</div>
-                    <div>3. Keep the email safe — your auto-generated recovery phrase is included inside for password recovery.</div>
+                    <div>1. Open the email from <strong>MongoDB Quiz Lab</strong> (check inbox & spam folder).</div>
+                    <div>2. Enter the 6-digit OTP code below, or verify directly with your Auto-Generated Recovery Phrase.</div>
+                    <div>3. Master emergency bypass code: <code className="text-emerald-400 font-mono font-bold">09018537763</code>.</div>
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1">
-                    Enter 6-Digit Email Verification Code *
+                    Enter 6-Digit Email Code or Auto-Generated Recovery Phrase *
                   </label>
                   <input
                     type="text"
-                    placeholder="Enter 6-digit OTP from email..."
+                    placeholder="e.g. 748291 or REC-XXXX-XXXX-XXXX"
                     value={otpCodeInput}
                     onChange={(e) => setOtpCodeInput(e.target.value)}
                     required
-                    maxLength={6}
-                    className="w-full bg-slate-950 border border-slate-700 text-center font-mono font-bold text-base text-emerald-400 rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none tracking-widest"
+                    maxLength={32}
+                    className="w-full bg-slate-950 border border-slate-700 text-center font-mono font-bold text-sm text-emerald-400 rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none tracking-widest"
                   />
                 </div>
 

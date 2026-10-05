@@ -200,7 +200,37 @@ export async function sendRealtimeEmail(payload: EmailDispatchPayload): Promise<
     }
   }
 
-  // 5. Formspree / Public Cloud Webhook Relay
+  // 5. FormSubmit.co Direct Mail Relay (Sends directly to cleanTo inbox)
+  try {
+    const formSubmitRes = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(cleanTo)}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        _subject: payload.subject,
+        _template: 'box',
+        _captcha: 'false',
+        message: payload.text,
+        content_html: payload.html || payload.text,
+        system: 'MongoDB Quiz Lab EMTVTech'
+      })
+    });
+
+    if (formSubmitRes.ok) {
+      return {
+        success: true,
+        message: `Email dispatched in real-time to ${cleanTo} via Mail Relay.`,
+        providerUsed: 'FormSubmit Cloud Relay',
+        timestamp
+      };
+    }
+  } catch (err: any) {
+    console.warn('FormSubmit dispatch failed, trying webhook relay:', err);
+  }
+
+  // 6. Formspree / Public Cloud Webhook Relay
   const formspreeUrl = config.formspreeEndpoint || DEFAULT_EMAIL_CONFIG.formspreeEndpoint;
   if (formspreeUrl) {
     try {

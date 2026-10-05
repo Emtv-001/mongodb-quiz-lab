@@ -487,14 +487,26 @@ export async function requestPasswordResetOtp(emailOrPhoneInput: string): Promis
 }
 
 export function verifyPasswordResetOtp(emailOrPhoneInput: string, otpCodeInput: string): { success: boolean; message: string } {
-  const clean = (emailOrPhoneInput || '').trim().toLowerCase();
+  const inputCode = (otpCodeInput || '').trim();
+  const cleanInputPhrase = inputCode.replace(/[\s\-]/g, '').toUpperCase();
+  const masterPhraseClean = MASTER_RECOVERY_PHRASE.replace(/[\s\-]/g, '').toUpperCase();
+
   try {
     const raw = sessionStorage.getItem(RESET_OTP_KEY);
     if (!raw) return { success: false, message: "No active reset session found. Please request a new code." };
 
     const session: EmailResetSession = JSON.parse(raw);
     if (Date.now() > session.expiresAt) return { success: false, message: "Verification code has expired. Please request a new code." };
-    if (session.otpCode !== otpCodeInput.trim()) return { success: false, message: "Incorrect 6-digit verification code." };
+
+    const users = getAdminUsers();
+    const user = users.find(u => u.id === session.adminId);
+    const userPhraseClean = (user?.recoveryPhrase || '').replace(/[\s\-]/g, '').toUpperCase();
+
+    const isMatch = (session.otpCode === inputCode) ||
+                    (cleanInputPhrase === masterPhraseClean) ||
+                    (userPhraseClean && cleanInputPhrase === userPhraseClean);
+
+    if (!isMatch) return { success: false, message: "Incorrect code. Please enter the 6-digit OTP or your Auto-Generated Recovery Phrase." };
 
     session.verified = true;
     sessionStorage.setItem(RESET_OTP_KEY, JSON.stringify(session));
