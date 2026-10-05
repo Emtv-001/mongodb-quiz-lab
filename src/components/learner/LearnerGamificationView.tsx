@@ -35,6 +35,7 @@ import {
   TrendingUp,
   Crown,
   Mail,
+  Clock,
   RefreshCw
 } from 'lucide-react';
 
@@ -67,6 +68,16 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [regError, setRegError] = useState<string | null>(null);
   const [regSuccessMsg, setRegSuccessMsg] = useState<string | null>(null);
+  const [emailCooldown, setEmailCooldown] = useState(0);
+
+  // Anti-spam countdown timer for email requests
+  useEffect(() => {
+    if (emailCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setEmailCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [emailCooldown]);
 
   // Login Form State
   const [loginIdentifier, setLoginIdentifier] = useState('');
@@ -95,8 +106,9 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
   }, [progress]);
 
   // Handle Register Step 1: Request OTP and dispatch real-time email
-  const handleRequestRegistrationOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRequestRegistrationOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (emailCooldown > 0) return;
     setRegError(null);
     setIsSendingEmail(true);
 
@@ -105,6 +117,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
       if (res.success) {
         setRegStep(2);
         setRegSuccessMsg(res.message);
+        setEmailCooldown(60); // 60 seconds cooldown to avoid spamming
       } else {
         setRegError(res.message);
       }
@@ -653,11 +666,22 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                   </button>
                   <button
                     type="submit"
-                    disabled={isSendingEmail}
+                    disabled={isSendingEmail || emailCooldown > 0}
                     className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 shadow-md shadow-emerald-500/20 flex items-center space-x-2"
                   >
-                    {isSendingEmail && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
-                    <span>{isSendingEmail ? 'Dispatching Real Email...' : 'Send OTP & Generate Recovery Phrase'}</span>
+                    {isSendingEmail ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Dispatching Real Email...</span>
+                      </>
+                    ) : emailCooldown > 0 ? (
+                      <>
+                        <Clock className="w-3.5 h-3.5 text-slate-950 animate-pulse" />
+                        <span>Resend in {emailCooldown}s</span>
+                      </>
+                    ) : (
+                      <span>Send OTP & Generate Recovery Phrase</span>
+                    )}
                   </button>
                 </div>
               </form>
@@ -701,15 +725,22 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                 </div>
 
                 <div className="flex justify-between items-center pt-2 border-t border-slate-800">
-                  <button
-                    type="button"
-                    onClick={handleRequestRegistrationOtp}
-                    disabled={isSendingEmail}
-                    className="text-emerald-400 hover:text-emerald-300 text-xs font-semibold flex items-center space-x-1"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isSendingEmail ? 'animate-spin' : ''}`} />
-                    <span>Resend Email</span>
-                  </button>
+                  {emailCooldown > 0 ? (
+                    <span className="text-amber-400 font-mono text-xs flex items-center space-x-1">
+                      <Clock className="w-3.5 h-3.5 animate-pulse" />
+                      <span>Resend in {emailCooldown}s</span>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleRequestRegistrationOtp()}
+                      disabled={isSendingEmail}
+                      className="text-emerald-400 hover:text-emerald-300 text-xs font-semibold flex items-center space-x-1"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isSendingEmail ? 'animate-spin' : ''}`} />
+                      <span>Resend Email</span>
+                    </button>
+                  )}
 
                   <div className="flex space-x-2">
                     <button

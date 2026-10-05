@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AdminUser } from '../../types/admin';
 import {
   authenticateAdminUser,
@@ -43,6 +43,8 @@ import {
   Mail,
   Smartphone,
   ShieldAlert,
+  Clock,
+  RefreshCw,
   X
 } from 'lucide-react';
 
@@ -76,6 +78,16 @@ export const AdminView: React.FC = () => {
   const [resetStep, setResetStep] = useState<1 | 2>(1);
   const [resetMsg, setResetMsg] = useState<{ text: string; isError: boolean } | null>(null);
   const [isSendingLoginOtp, setIsSendingLoginOtp] = useState(false);
+  const [resetCooldown, setResetCooldown] = useState(0);
+
+  // Countdown timer for email request anti-spam cooldown
+  useEffect(() => {
+    if (resetCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResetCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resetCooldown]);
 
   // Recovery phrase reset state
   const [recoveryPhraseInput, setRecoveryPhraseInput] = useState('');
@@ -135,8 +147,9 @@ export const AdminView: React.FC = () => {
     sessionStorage.removeItem('mongo_quiz_logged_admin_user');
   };
 
-  const handleRequestLoginOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRequestLoginOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (resetCooldown > 0) return;
     setIsSendingLoginOtp(true);
     setResetMsg(null);
 
@@ -145,6 +158,7 @@ export const AdminView: React.FC = () => {
       if (res.success) {
         setResetMsg({ text: res.message, isError: false });
         setResetStep(2);
+        setResetCooldown(60); // 60 seconds cooldown to avoid spamming
       } else {
         setResetMsg({ text: res.message, isError: true });
       }
@@ -424,11 +438,20 @@ export const AdminView: React.FC = () => {
                         </button>
                         <button
                           type="submit"
-                          disabled={isSendingLoginOtp}
+                          disabled={isSendingLoginOtp || resetCooldown > 0}
                           className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 shadow-md shadow-emerald-500/20 flex items-center space-x-1.5"
                         >
-                          <Mail className="w-3.5 h-3.5" />
-                          <span>{isSendingLoginOtp ? 'Dispatching...' : 'Dispatch Reset OTP'}</span>
+                          {resetCooldown > 0 ? (
+                            <>
+                              <Clock className="w-3.5 h-3.5 text-slate-950 animate-pulse" />
+                              <span>Resend in {resetCooldown}s</span>
+                            </>
+                          ) : (
+                            <>
+                              <Mail className="w-3.5 h-3.5" />
+                              <span>{isSendingLoginOtp ? 'Dispatching...' : 'Dispatch Reset OTP'}</span>
+                            </>
+                          )}
                         </button>
                       </div>
                     </form>
@@ -470,20 +493,41 @@ export const AdminView: React.FC = () => {
                         />
                       </div>
 
-                      <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
-                        <button
-                          type="button"
-                          onClick={() => setResetStep(1)}
-                          className="px-4 py-2 rounded-xl text-slate-400 hover:text-white bg-slate-800"
-                        >
-                          Back
-                        </button>
-                        <button
-                          type="submit"
-                          className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
-                        >
-                          Update Password
-                        </button>
+                      <div className="flex justify-between items-center pt-2 border-t border-slate-800">
+                        <div className="flex items-center space-x-2">
+                          {resetCooldown > 0 ? (
+                            <span className="text-[11px] text-amber-400 font-mono flex items-center space-x-1">
+                              <Clock className="w-3.5 h-3.5 animate-pulse" />
+                              <span>Resend in {resetCooldown}s</span>
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleRequestLoginOtp()}
+                              disabled={isSendingLoginOtp}
+                              className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold flex items-center space-x-1"
+                            >
+                              <RefreshCw className={`w-3.5 h-3.5 ${isSendingLoginOtp ? 'animate-spin' : ''}`} />
+                              <span>Resend Code</span>
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => setResetStep(1)}
+                            className="px-4 py-2 rounded-xl text-slate-400 hover:text-white bg-slate-800"
+                          >
+                            Back
+                          </button>
+                          <button
+                            type="submit"
+                            className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
+                          >
+                            Update Password
+                          </button>
+                        </div>
                       </div>
                     </form>
                   )}

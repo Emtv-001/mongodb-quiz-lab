@@ -304,4 +304,5 @@ export interface LearnerOtpSession {
   otpCode: string;
   recoveryPhrase: string;
   expiresAt: number;
+  requestedAt?: number;
 }

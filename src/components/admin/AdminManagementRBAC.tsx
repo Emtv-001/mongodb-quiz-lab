@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AdminUser, AdminPermissions, AdminRole, AdminInvitation } from '../../types/admin';
 import {
   getAdminUsers,
@@ -43,6 +43,17 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
   const [isSendingInvite, setIsSendingInvite] = useState(false);
   const [lastCreatedInvite, setLastCreatedInvite] = useState<AdminInvitation | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [inviteCooldown, setInviteCooldown] = useState(0);
+
+  // Cooldown countdown timer
+  useEffect(() => {
+    if (inviteCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setInviteCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [inviteCooldown]);
+
   const [invitePerms, setInvitePerms] = useState<AdminPermissions>({
     canEditBranding: false,
     canManageTabs: false,
@@ -68,6 +79,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (inviteCooldown > 0) return;
     setModalError(null);
     setIsSendingInvite(true);
 
@@ -96,6 +108,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
         setStatusMsg({ text: res.message, isError: false });
         setLastCreatedInvite(res.invitation);
         setInviteEmail('');
+        setInviteCooldown(30); // 30s cooldown on invitation dispatch
         refreshData();
       } else {
         setModalError(res.message);
@@ -585,11 +598,20 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                   </button>
                   <button
                     type="submit"
-                    disabled={isSendingInvite}
+                    disabled={isSendingInvite || inviteCooldown > 0}
                     className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 shadow-md shadow-emerald-500/20 transition-all flex items-center space-x-1.5"
                   >
-                    <Send className={`w-3.5 h-3.5 ${isSendingInvite ? 'animate-pulse' : ''}`} />
-                    <span>{isSendingInvite ? 'Dispatching Real Email...' : 'Dispatch Invitation Email'}</span>
+                    {inviteCooldown > 0 ? (
+                      <>
+                        <Clock className="w-3.5 h-3.5 animate-pulse" />
+                        <span>Wait {inviteCooldown}s</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className={`w-3.5 h-3.5 ${isSendingInvite ? 'animate-pulse' : ''}`} />
+                        <span>{isSendingInvite ? 'Dispatching Real Email...' : 'Dispatch Invitation Email'}</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </form>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   requestPasswordResetOtp,
   verifyPhoneResetOtp,
@@ -37,6 +37,7 @@ export const AdminSecuritySettings: React.FC = () => {
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [otpStep, setOtpStep] = useState<1 | 2>(1);
   const [resetMessage, setResetMessage] = useState<{ text: string; isError: boolean } | null>(null);
+  const [otpCooldown, setOtpCooldown] = useState(0);
 
   // Email Service Configuration state
   const [emailConfig, setEmailConfig] = useState<EmailServiceConfig>(() => getEmailConfig());
@@ -44,11 +45,23 @@ export const AdminSecuritySettings: React.FC = () => {
   const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
   const [testEmailResult, setTestEmailResult] = useState<{ text: string; isError: boolean } | null>(null);
   const [showConfigDetails, setShowConfigDetails] = useState(false);
+  const [testEmailCooldown, setTestEmailCooldown] = useState(0);
+
+  // Cooldown timers
+  useEffect(() => {
+    if (otpCooldown <= 0 && testEmailCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setOtpCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+      setTestEmailCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpCooldown, testEmailCooldown]);
 
   const logs = getAuditLogs();
 
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (otpCooldown > 0) return;
     setIsSendingOtp(true);
     setResetMessage(null);
 
@@ -58,6 +71,7 @@ export const AdminSecuritySettings: React.FC = () => {
         setOtpSent(true);
         setOtpStep(2);
         setResetMessage({ text: res.message, isError: false });
+        setOtpCooldown(60);
       } else {
         setResetMessage({ text: res.message, isError: true });
       }
@@ -90,6 +104,7 @@ export const AdminSecuritySettings: React.FC = () => {
 
   const handleSendTestEmail = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (testEmailCooldown > 0) return;
     setIsSendingTestEmail(true);
     setTestEmailResult(null);
 
@@ -97,6 +112,9 @@ export const AdminSecuritySettings: React.FC = () => {
       const res = await sendLiveTestEmail(testEmailAddress);
       setTestEmailResult({ text: res.message, isError: !res.success });
       setEmailConfig(getEmailConfig());
+      if (res.success) {
+        setTestEmailCooldown(45); // 45s cooldown on test email
+      }
     } catch (err: any) {
       setTestEmailResult({ text: err?.message || "Failed to send test email.", isError: true });
     } finally {
@@ -270,11 +288,20 @@ export const AdminSecuritySettings: React.FC = () => {
               />
               <button
                 type="submit"
-                disabled={isSendingTestEmail}
+                disabled={isSendingTestEmail || testEmailCooldown > 0}
                 className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold rounded-xl flex items-center space-x-1.5 flex-shrink-0"
               >
-                <Mail className={`w-3.5 h-3.5 ${isSendingTestEmail ? 'animate-spin' : ''}`} />
-                <span>{isSendingTestEmail ? 'Sending...' : 'Send Live Test'}</span>
+                {testEmailCooldown > 0 ? (
+                  <>
+                    <Clock className="w-3.5 h-3.5 animate-pulse" />
+                    <span>Wait {testEmailCooldown}s</span>
+                  </>
+                ) : (
+                  <>
+                    <Mail className={`w-3.5 h-3.5 ${isSendingTestEmail ? 'animate-spin' : ''}`} />
+                    <span>{isSendingTestEmail ? 'Sending...' : 'Send Live Test'}</span>
+                  </>
+                )}
               </button>
             </div>
 

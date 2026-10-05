@@ -71,6 +71,25 @@ export async function requestLearnerRegistrationOtp(
     return { success: false, message: "An account is already registered with this email address. Please log in." };
   }
 
+  // Check rate limiting / cooldown (45 seconds) to avoid spamming
+  try {
+    const rawSession = sessionStorage.getItem(LEARNER_OTP_SESSION_KEY);
+    if (rawSession) {
+      const prev: LearnerOtpSession = JSON.parse(rawSession);
+      if (prev.requestedAt && prev.email.toLowerCase() === cleanEmail) {
+        const elapsed = Date.now() - prev.requestedAt;
+        const cooldownMs = 45000;
+        if (elapsed < cooldownMs) {
+          const remaining = Math.ceil((cooldownMs - elapsed) / 1000);
+          return {
+            success: false,
+            message: `Please wait ${remaining}s before requesting another verification email to prevent spam.`
+          };
+        }
+      }
+    }
+  } catch {}
+
   const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
   const recoveryPhrase = generateRecoveryPhrase();
   const expiresAt = Date.now() + (5 * 60 * 1000); // 5 minutes
@@ -82,7 +101,8 @@ export async function requestLearnerRegistrationOtp(
     passwordPlain: passwordPlain.trim(),
     otpCode,
     recoveryPhrase,
-    expiresAt
+    expiresAt,
+    requestedAt: Date.now()
   };
 
   try {

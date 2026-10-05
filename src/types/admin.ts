@@ -104,6 +104,7 @@ export interface EmailResetSession {
   expiresAt: number;
   verified: boolean;
   adminId: string;
+  requestedAt?: number;
 }
 
 export type EmailProviderType = 'formspree' | 'emailjs' | 'resend' | 'brevo' | 'custom-webhook' | 'auto';

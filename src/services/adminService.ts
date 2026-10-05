@@ -459,6 +459,25 @@ export async function requestPasswordResetOtp(emailOrPhoneInput: string): Promis
     };
   }
 
+  // Check rate limiting / cooldown (45 seconds) to avoid spamming
+  try {
+    const rawSession = sessionStorage.getItem(RESET_OTP_KEY);
+    if (rawSession) {
+      const prev: EmailResetSession = JSON.parse(rawSession);
+      if (prev.requestedAt && (prev.emailOrPhone.toLowerCase() === raw.toLowerCase() || prev.adminId === user.id)) {
+        const elapsed = Date.now() - prev.requestedAt;
+        const cooldownMs = 45000;
+        if (elapsed < cooldownMs) {
+          const remaining = Math.ceil((cooldownMs - elapsed) / 1000);
+          return {
+            success: false,
+            message: `Rate limit active: Please wait ${remaining}s before requesting another verification code to avoid email spam.`
+          };
+        }
+      }
+    }
+  } catch {}
+
   const targetEmail = user.email || MASTER_ADMIN_EMAIL;
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   const expiresAt = Date.now() + (5 * 60 * 1000); // 5 minutes
@@ -468,7 +487,8 @@ export async function requestPasswordResetOtp(emailOrPhoneInput: string): Promis
     otpCode: code,
     expiresAt,
     verified: false,
-    adminId: user.id
+    adminId: user.id,
+    requestedAt: Date.now()
   };
 
   try {
