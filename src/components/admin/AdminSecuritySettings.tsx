@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
 import {
-  requestPhoneResetOtp,
+  requestPasswordResetOtp,
   verifyPhoneResetOtp,
   completePhoneResetPassword,
   getAuditLogs,
-  MASTER_ADMIN_PHONE
+  MASTER_ADMIN_PHONE,
+  MASTER_ADMIN_EMAIL
 } from '../../services/adminService';
+import {
+  getEmailConfig,
+  saveEmailConfig,
+  sendLiveTestEmail
+} from '../../services/emailService';
+import { EmailServiceConfig, EmailProviderType } from '../../types/admin';
 import {
   ShieldAlert,
   Phone,
@@ -15,53 +22,93 @@ import {
   Clock,
   Lock,
   Smartphone,
-  RefreshCw
+  RefreshCw,
+  Mail,
+  Send,
+  Sliders
 } from 'lucide-react';
 
 export const AdminSecuritySettings: React.FC = () => {
-  // Phone OTP Reset Flow state
-  const [phoneInput, setPhoneInput] = useState(MASTER_ADMIN_PHONE);
+  // Password Reset Flow state
+  const [identifierInput, setIdentifierInput] = useState(MASTER_ADMIN_EMAIL);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
-  const [simulatedOtpDisplay, setSimulatedOtpDisplay] = useState<string | null>(null);
   const [otpCodeInput, setOtpCodeInput] = useState('');
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [otpStep, setOtpStep] = useState<1 | 2>(1);
   const [resetMessage, setResetMessage] = useState<{ text: string; isError: boolean } | null>(null);
 
+  // Email Service Configuration state
+  const [emailConfig, setEmailConfig] = useState<EmailServiceConfig>(() => getEmailConfig());
+  const [testEmailAddress, setTestEmailAddress] = useState(MASTER_ADMIN_EMAIL);
+  const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
+  const [testEmailResult, setTestEmailResult] = useState<{ text: string; isError: boolean } | null>(null);
+  const [showConfigDetails, setShowConfigDetails] = useState(false);
+
   const logs = getAuditLogs();
 
-  const handleRequestOtp = (e: React.FormEvent) => {
+  const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = requestPhoneResetOtp(phoneInput);
-    if (res.success) {
-      setOtpSent(true);
-      setSimulatedOtpDisplay(res.simulatedOtp || null);
-      setOtpStep(2);
-      setResetMessage({ text: res.message, isError: false });
-    } else {
-      setResetMessage({ text: res.message, isError: true });
+    setIsSendingOtp(true);
+    setResetMessage(null);
+
+    try {
+      const res = await requestPasswordResetOtp(identifierInput);
+      if (res.success) {
+        setOtpSent(true);
+        setOtpStep(2);
+        setResetMessage({ text: res.message, isError: false });
+      } else {
+        setResetMessage({ text: res.message, isError: true });
+      }
+    } catch (err: any) {
+      setResetMessage({ text: err?.message || "Failed to dispatch reset code.", isError: true });
+    } finally {
+      setIsSendingOtp(false);
     }
   };
 
   const handleCompleteReset = (e: React.FormEvent) => {
     e.preventDefault();
-    const verifyRes = verifyPhoneResetOtp(phoneInput, otpCodeInput);
+    const verifyRes = verifyPhoneResetOtp(identifierInput, otpCodeInput);
     if (!verifyRes.success) {
       setResetMessage({ text: verifyRes.message, isError: true });
       return;
     }
 
-    const resetRes = completePhoneResetPassword(phoneInput, newPasswordInput);
+    const resetRes = completePhoneResetPassword(identifierInput, newPasswordInput);
     if (resetRes.success) {
       setResetMessage({ text: resetRes.message, isError: false });
       setOtpStep(1);
       setOtpSent(false);
       setOtpCodeInput('');
       setNewPasswordInput('');
-      setSimulatedOtpDisplay(null);
     } else {
       setResetMessage({ text: resetRes.message, isError: true });
     }
+  };
+
+  const handleSendTestEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSendingTestEmail(true);
+    setTestEmailResult(null);
+
+    try {
+      const res = await sendLiveTestEmail(testEmailAddress);
+      setTestEmailResult({ text: res.message, isError: !res.success });
+      setEmailConfig(getEmailConfig());
+    } catch (err: any) {
+      setTestEmailResult({ text: err?.message || "Failed to send test email.", isError: true });
+    } finally {
+      setIsSendingTestEmail(false);
+    }
+  };
+
+  const handleSaveEmailConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    const saved = saveEmailConfig(emailConfig);
+    setEmailConfig(saved);
+    setTestEmailResult({ text: "Email service gateway settings saved successfully!", isError: false });
   };
 
   return (
@@ -74,26 +121,26 @@ export const AdminSecuritySettings: React.FC = () => {
             <span>Security & Authentication Governance</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-white">
-            Phone OTP Password Reset & Audit Logs
+            Real-Time Email OTP & Notification Gateway
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Reset administrator credentials via SMS one-time verification codes and audit immutable administrative actions.
+            Real-time transactional email dispatch for OTP verifications, role authorizations, and audit tracking.
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Phone OTP Password Reset Card */}
+        {/* Real-Time Email OTP Password Reset Card */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
           <div className="flex items-center space-x-2 pb-3 border-b border-slate-800">
-            <Smartphone className="w-5 h-5 text-emerald-400" />
+            <Mail className="w-5 h-5 text-emerald-400" />
             <h3 className="text-sm font-bold text-white">
-              Phone Number OTP Password Reset
+              Real-Time Password Reset (Email / Phone)
             </h3>
           </div>
 
           <p className="text-xs text-slate-400 leading-relaxed">
-            If you forget your administrator password, dispatch a secure 6-digit one-time code to your registered mobile phone number.
+            Dispatch a secure 6-digit one-time code directly to your registered administrator email address in real-time.
           </p>
 
           {resetMessage && (
@@ -105,48 +152,41 @@ export const AdminSecuritySettings: React.FC = () => {
             </div>
           )}
 
-          {/* Simulated SMS Notification Alert */}
-          {simulatedOtpDisplay && (
-            <div className="p-3.5 bg-purple-950/40 border border-purple-500/40 rounded-xl text-xs space-y-1 animate-fadeIn">
-              <div className="flex items-center space-x-2 font-bold text-purple-300">
-                <Smartphone className="w-4 h-4 text-purple-400" />
-                <span>Simulated SMS Gateway Dispatch</span>
-              </div>
-              <p className="text-[11px] text-slate-300">
-                Incoming SMS to <strong>{phoneInput}</strong>: <em>Your MongoDB Quiz Lab verification code is <strong className="font-mono text-white bg-purple-900 px-1.5 py-0.5 rounded">{simulatedOtpDisplay}</strong>. (Expires in 5 mins)</em>
-              </p>
-            </div>
-          )}
-
           {otpStep === 1 ? (
             <form onSubmit={handleRequestOtp} className="space-y-3 text-xs">
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">
-                  Registered Admin Phone Number
+                  Registered Administrator Email Address
                 </label>
                 <div className="relative">
-                  <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
-                    value={phoneInput}
-                    onChange={(e) => setPhoneInput(e.target.value)}
-                    placeholder="e.g. 09018537763"
+                    value={identifierInput}
+                    onChange={(e) => setIdentifierInput(e.target.value)}
+                    placeholder="e.g. admin@emtvtech.com"
                     required
-                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl pl-9 pr-3 py-2.5 font-mono text-xs"
+                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl pl-9 pr-3 py-2.5 font-mono text-xs focus:border-emerald-400 focus:outline-none"
                   />
                 </div>
               </div>
 
               <button
                 type="submit"
-                className="w-full py-2.5 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center space-x-2"
+                disabled={isSendingOtp}
+                className="w-full py-2.5 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center space-x-2"
               >
-                <Smartphone className="w-4 h-4" />
-                <span>Send 6-Digit OTP Code</span>
+                <Send className={`w-4 h-4 ${isSendingOtp ? 'animate-pulse' : ''}`} />
+                <span>{isSendingOtp ? 'Dispatching Real Email...' : 'Send 6-Digit Verification Code'}</span>
               </button>
             </form>
           ) : (
             <form onSubmit={handleCompleteReset} className="space-y-3 text-xs animate-fadeIn">
+              <div className="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-xl text-xs text-emerald-300 flex items-start space-x-2">
+                <Mail className="w-4 h-4 flex-shrink-0 mt-0.5 text-emerald-400" />
+                <span>A 6-digit code has been sent in real-time to <strong>{identifierInput}</strong>. Please check your inbox or spam folder.</span>
+              </div>
+
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">
                   Enter 6-Digit Verification Code
@@ -193,6 +233,122 @@ export const AdminSecuritySettings: React.FC = () => {
               </div>
             </form>
           )}
+        </div>
+
+        {/* Live Real-Time Email Delivery Gateway & Test Hub */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center space-x-2">
+              <Send className="w-5 h-5 text-emerald-400" />
+              <h3 className="text-sm font-bold text-white">
+                Live Email Dispatch Pipeline
+              </h3>
+            </div>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center space-x-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+              <span>Real-Time Active</span>
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Transactional emails (Learner OTPs, recovery phrases, admin invitations, password resets) are dispatched in real-time to recipient email inboxes.
+          </p>
+
+          {/* Test Live Email Form */}
+          <form onSubmit={handleSendTestEmail} className="space-y-3 text-xs p-3.5 bg-slate-950 rounded-xl border border-slate-800">
+            <label className="block text-slate-300 font-semibold">
+              Test Real-Time Email Delivery
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                value={testEmailAddress}
+                onChange={(e) => setTestEmailAddress(e.target.value)}
+                placeholder="Enter recipient email..."
+                required
+                className="flex-1 bg-slate-900 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs font-mono"
+              />
+              <button
+                type="submit"
+                disabled={isSendingTestEmail}
+                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold rounded-xl flex items-center space-x-1.5 flex-shrink-0"
+              >
+                <Mail className={`w-3.5 h-3.5 ${isSendingTestEmail ? 'animate-spin' : ''}`} />
+                <span>{isSendingTestEmail ? 'Sending...' : 'Send Live Test'}</span>
+              </button>
+            </div>
+
+            {testEmailResult && (
+              <div className={`p-2.5 rounded-lg border text-[11px] flex items-center space-x-1.5 animate-fadeIn ${
+                testEmailResult.isError ? 'bg-red-500/10 border-red-500/30 text-red-300' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+              }`}>
+                {testEmailResult.isError ? <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /> : <Check className="w-3.5 h-3.5 flex-shrink-0" />}
+                <span>{testEmailResult.text}</span>
+              </div>
+            )}
+          </form>
+
+          {/* Gateway Provider Toggle & Settings */}
+          <div className="space-y-2 text-xs">
+            <button
+              type="button"
+              onClick={() => setShowConfigDetails(!showConfigDetails)}
+              className="text-xs text-slate-400 hover:text-white flex items-center space-x-1 font-semibold"
+            >
+              <Sliders className="w-3.5 h-3.5 text-purple-400" />
+              <span>{showConfigDetails ? 'Hide' : 'Configure'} Gateway Credentials (Resend / Brevo / EmailJS / Webhook)</span>
+            </button>
+
+            {showConfigDetails && (
+              <form onSubmit={handleSaveEmailConfig} className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 space-y-2.5 animate-fadeIn text-xs">
+                <div>
+                  <label className="block text-slate-400 mb-1">Provider Strategy</label>
+                  <select
+                    value={emailConfig.provider}
+                    onChange={(e) => setEmailConfig({ ...emailConfig, provider: e.target.value as EmailProviderType })}
+                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-xs"
+                  >
+                    <option value="auto">Auto-Detect / Public Cloud Gateway (Default)</option>
+                    <option value="resend">Resend API</option>
+                    <option value="brevo">Brevo (Sendinblue) API</option>
+                    <option value="emailjs">EmailJS Client REST</option>
+                    <option value="custom-webhook">Custom Webhook / HTTP Endpoint</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1">Resend API Key (Optional)</label>
+                  <input
+                    type="password"
+                    value={emailConfig.resendApiKey || ''}
+                    onChange={(e) => setEmailConfig({ ...emailConfig, resendApiKey: e.target.value })}
+                    placeholder="re_..."
+                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-xs font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1">Custom Webhook URL (Optional)</label>
+                  <input
+                    type="url"
+                    value={emailConfig.customWebhookUrl || ''}
+                    onChange={(e) => setEmailConfig({ ...emailConfig, customWebhookUrl: e.target.value })}
+                    placeholder="https://your-server.com/api/send-email"
+                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-xs font-mono"
+                  />
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="submit"
+                    className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg"
+                  >
+                    Save Settings
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
         </div>
 
         {/* Master Recovery Phrase & Security Policy */}

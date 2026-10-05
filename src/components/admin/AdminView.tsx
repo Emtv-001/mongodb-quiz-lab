@@ -72,7 +72,7 @@ export const AdminView: React.FC = () => {
   const [newPasswordValue, setNewPasswordValue] = useState('');
   const [resetStep, setResetStep] = useState<1 | 2>(1);
   const [resetMsg, setResetMsg] = useState<{ text: string; isError: boolean } | null>(null);
-  const [simulatedResetOtp, setSimulatedResetOtp] = useState<string | null>(null);
+  const [isSendingLoginOtp, setIsSendingLoginOtp] = useState(false);
 
   // Login Page Invitation Activation Modal State
   const [showLoginInviteModal, setShowLoginInviteModal] = useState(false);
@@ -126,15 +126,23 @@ export const AdminView: React.FC = () => {
     sessionStorage.removeItem('mongo_quiz_logged_admin_user');
   };
 
-  const handleRequestLoginOtp = (e: React.FormEvent) => {
+  const handleRequestLoginOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = requestPasswordResetOtp(resetIdentifier);
-    if (res.success) {
-      setResetMsg({ text: res.message, isError: false });
-      setSimulatedResetOtp(res.simulatedOtp || null);
-      setResetStep(2);
-    } else {
-      setResetMsg({ text: res.message, isError: true });
+    setIsSendingLoginOtp(true);
+    setResetMsg(null);
+
+    try {
+      const res = await requestPasswordResetOtp(resetIdentifier);
+      if (res.success) {
+        setResetMsg({ text: res.message, isError: false });
+        setResetStep(2);
+      } else {
+        setResetMsg({ text: res.message, isError: true });
+      }
+    } catch (err: any) {
+      setResetMsg({ text: err?.message || "Failed to dispatch reset OTP.", isError: true });
+    } finally {
+      setIsSendingLoginOtp(false);
     }
   };
 
@@ -155,7 +163,6 @@ export const AdminView: React.FC = () => {
         setResetIdentifier('');
         setResetOtpCode('');
         setNewPasswordValue('');
-        setSimulatedResetOtp(null);
         setResetMsg(null);
       }, 2500);
     } else {
@@ -232,7 +239,6 @@ export const AdminView: React.FC = () => {
                   onClick={() => {
                     setShowLoginResetModal(true);
                     setResetMsg(null);
-                    setSimulatedResetOtp(null);
                   }}
                   className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold transition-colors"
                 >
@@ -299,18 +305,6 @@ export const AdminView: React.FC = () => {
                 </div>
               )}
 
-              {simulatedResetOtp && (
-                <div className="p-3.5 bg-purple-950/40 border border-purple-500/40 rounded-xl text-xs space-y-1">
-                  <span className="font-bold text-purple-300 flex items-center space-x-1.5">
-                    <Mail className="w-4 h-4" />
-                    <span>Simulated Dispatch (SMS / Email)</span>
-                  </span>
-                  <p className="text-[11px] text-slate-300">
-                    Your 6-digit verification code is <strong className="font-mono text-white bg-purple-900 px-1.5 py-0.5 rounded">{simulatedResetOtp}</strong>.
-                  </p>
-                </div>
-              )}
-
               {resetStep === 1 ? (
                 <form onSubmit={handleRequestLoginOtp} className="space-y-3.5 text-xs">
                   <div>
@@ -337,14 +331,20 @@ export const AdminView: React.FC = () => {
                     </button>
                     <button
                       type="submit"
-                      className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
+                      disabled={isSendingLoginOtp}
+                      className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 shadow-md shadow-emerald-500/20 flex items-center space-x-1.5"
                     >
-                      Dispatch OTP Code
+                      <Mail className="w-3.5 h-3.5" />
+                      <span>{isSendingLoginOtp ? 'Dispatching Email...' : 'Dispatch Reset OTP'}</span>
                     </button>
                   </div>
                 </form>
               ) : (
                 <form onSubmit={handleCompleteLoginReset} className="space-y-3.5 text-xs">
+                  <div className="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-xl text-xs text-emerald-300 flex items-start space-x-2">
+                    <Mail className="w-4 h-4 flex-shrink-0 mt-0.5 text-emerald-400" />
+                    <span>A real-time 6-digit verification code has been dispatched to <strong>{resetIdentifier}</strong>. Please check your email inbox and spam folder.</span>
+                  </div>
                   <div>
                     <label className="block text-slate-300 font-semibold mb-1">
                       Enter 6-Digit Code

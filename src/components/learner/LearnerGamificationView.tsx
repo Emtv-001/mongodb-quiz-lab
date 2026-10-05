@@ -33,7 +33,9 @@ import {
   Star,
   ChevronRight,
   TrendingUp,
-  Crown
+  Crown,
+  Mail,
+  RefreshCw
 } from 'lucide-react';
 
 interface LearnerGamificationViewProps {
@@ -62,9 +64,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
   const [regPassword, setRegPassword] = useState('');
   const [otpCodeInput, setOtpCodeInput] = useState('');
   const [regStep, setRegStep] = useState<1 | 2>(1);
-  const [generatedOtp, setGeneratedOtp] = useState<string | null>(null);
-  const [generatedPhrase, setGeneratedPhrase] = useState<string | null>(null);
-  const [simulatedEmail, setSimulatedEmail] = useState<string | null>(null);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [regError, setRegError] = useState<string | null>(null);
   const [regSuccessMsg, setRegSuccessMsg] = useState<string | null>(null);
 
@@ -79,7 +79,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
   const [recoverNewPassword, setRecoverNewPassword] = useState('');
   const [recoverMsg, setRecoverMsg] = useState<{ text: string; isError: boolean } | null>(null);
 
-  // Rewards store purchase simulation
+  // Rewards store purchase
   const [storeMessage, setStoreMessage] = useState<string | null>(null);
 
   const refreshAccountState = () => {
@@ -94,20 +94,24 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
     return () => window.removeEventListener('learner_account_updated', handleUpdate);
   }, [progress]);
 
-  // Handle Register Step 1: Request OTP
-  const handleRequestRegistrationOtp = (e: React.FormEvent) => {
+  // Handle Register Step 1: Request OTP and dispatch real-time email
+  const handleRequestRegistrationOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setRegError(null);
+    setIsSendingEmail(true);
 
-    const res = requestLearnerRegistrationOtp(regEmail, regUsername, regDisplayName, regPassword);
-    if (res.success) {
-      setGeneratedOtp(res.simulatedOtp || null);
-      setGeneratedPhrase(res.recoveryPhrase || null);
-      setSimulatedEmail(res.simulatedEmail || null);
-      setRegStep(2);
-      setRegSuccessMsg(res.message);
-    } else {
-      setRegError(res.message);
+    try {
+      const res = await requestLearnerRegistrationOtp(regEmail, regUsername, regDisplayName, regPassword);
+      if (res.success) {
+        setRegStep(2);
+        setRegSuccessMsg(res.message);
+      } else {
+        setRegError(res.message);
+      }
+    } catch (err: any) {
+      setRegError(err?.message || "Failed to dispatch email verification.");
+    } finally {
+      setIsSendingEmail(false);
     }
   };
 
@@ -128,9 +132,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
       setRegDisplayName('');
       setRegPassword('');
       setOtpCodeInput('');
-      setGeneratedOtp(null);
-      setGeneratedPhrase(null);
-      setSimulatedEmail(null);
+      setRegSuccessMsg(null);
     } else {
       setRegError(res.message);
     }
@@ -685,35 +687,35 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
+                    disabled={isSendingEmail}
+                    className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 shadow-md shadow-emerald-500/20 flex items-center space-x-2"
                   >
-                    Send OTP & Generate Recovery Phrase
+                    {isSendingEmail && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                    <span>{isSendingEmail ? 'Dispatching Real Email...' : 'Send OTP & Generate Recovery Phrase'}</span>
                   </button>
                 </div>
               </form>
             ) : (
               <form onSubmit={handleVerifyOtp} className="space-y-3.5 text-xs animate-fadeIn">
-                {/* Simulated Email & Credentials Callout */}
-                <div className="p-3.5 bg-emerald-950/40 border border-emerald-500/40 rounded-xl space-y-2.5">
-                  <span className="font-bold text-emerald-400 flex items-center space-x-1.5">
-                    <Check className="w-4 h-4" />
-                    <span>OTP & Recovery Phrase Dispatched!</span>
-                  </span>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div className="p-2.5 bg-slate-950 rounded-lg border border-slate-800">
-                      <span className="text-[10px] text-slate-400 block">6-Digit Verification OTP:</span>
-                      <code className="text-emerald-400 font-mono font-bold text-sm">{generatedOtp}</code>
-                    </div>
-
-                    <div className="p-2.5 bg-slate-950 rounded-lg border border-slate-800">
-                      <span className="text-[10px] text-slate-400 block">Auto-Generated Recovery Phrase:</span>
-                      <code className="text-purple-300 font-mono font-bold text-xs">{generatedPhrase}</code>
-                    </div>
+                {/* Real-time Email Dispatch Notification */}
+                <div className="p-4 bg-emerald-950/40 border border-emerald-500/40 rounded-xl space-y-2.5">
+                  <div className="flex items-center space-x-2 text-emerald-400 font-bold text-sm">
+                    <Mail className="w-4 h-4" />
+                    <span>Real-Time Email Dispatched!</span>
                   </div>
 
-                  <div className="p-2.5 bg-slate-950 rounded-lg border border-slate-800 font-mono text-[10px] text-slate-300 whitespace-pre-wrap max-h-36 overflow-y-auto">
-                    {simulatedEmail}
+                  <p className="text-slate-300 text-xs leading-relaxed">
+                    A 6-digit verification code (OTP) and your Auto-Generated Recovery Phrase have been sent to <strong className="text-white font-mono">{regEmail}</strong>.
+                  </p>
+
+                  <div className="p-3 bg-slate-950/80 rounded-lg border border-slate-800 text-[11px] text-slate-400 space-y-1">
+                    <div className="text-slate-200 font-semibold flex items-center space-x-1">
+                      <KeyRound className="w-3.5 h-3.5 text-purple-400" />
+                      <span>Check Your Inbox & Spam Folder:</span>
+                    </div>
+                    <div>1. Open the email from <strong>MongoDB Quiz Lab</strong>.</div>
+                    <div>2. Copy the 6-digit code and enter it below.</div>
+                    <div>3. Keep the email safe — your auto-generated recovery phrase is included inside for password recovery.</div>
                   </div>
                 </div>
 
@@ -723,29 +725,41 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                   </label>
                   <input
                     type="text"
-                    placeholder="Enter 6-digit OTP..."
+                    placeholder="Enter 6-digit OTP from email..."
                     value={otpCodeInput}
                     onChange={(e) => setOtpCodeInput(e.target.value)}
                     required
                     maxLength={6}
-                    className="w-full bg-slate-950 border border-slate-700 text-center font-mono font-bold text-base text-emerald-400 rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none"
+                    className="w-full bg-slate-950 border border-slate-700 text-center font-mono font-bold text-base text-emerald-400 rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none tracking-widest"
                   />
                 </div>
 
-                <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+                <div className="flex justify-between items-center pt-2 border-t border-slate-800">
                   <button
                     type="button"
-                    onClick={() => setRegStep(1)}
-                    className="px-4 py-2 rounded-xl text-slate-400 hover:text-white bg-slate-800"
+                    onClick={handleRequestRegistrationOtp}
+                    disabled={isSendingEmail}
+                    className="text-emerald-400 hover:text-emerald-300 text-xs font-semibold flex items-center space-x-1"
                   >
-                    Back
+                    <RefreshCw className={`w-3.5 h-3.5 ${isSendingEmail ? 'animate-spin' : ''}`} />
+                    <span>Resend Email</span>
                   </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
-                  >
-                    Verify & Claim Profile (+100 🪙)
-                  </button>
+
+                  <div className="flex space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => setRegStep(1)}
+                      className="px-4 py-2 rounded-xl text-slate-400 hover:text-white bg-slate-800"
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
+                    >
+                      Verify & Claim Profile (+100 🪙)
+                    </button>
+                  </div>
                 </div>
               </form>
             )}

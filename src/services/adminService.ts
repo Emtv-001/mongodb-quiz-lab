@@ -12,6 +12,7 @@ import {
 import { sha256Sync } from './security';
 import { ALL_DATASETS } from '../data/seedData';
 import { loadProgress } from './storage';
+import { sendAdminInvitationEmail, sendPasswordResetEmail } from './emailService';
 
 export const MASTER_RECOVERY_PHRASE = '09018537763';
 export const MASTER_ADMIN_EMAIL = 'admin@emtvtech.com';
@@ -196,13 +197,13 @@ export function generateRecoveryPhrase(): string {
   return `REC-${num1}-${num2}-${num3}`;
 }
 
-export function createAdminEmailInvitation(
+export async function createAdminEmailInvitation(
   recoveryPhraseInput: string,
   email: string,
   role: AdminUser['role'],
   permissions: AdminPermissions,
   creatorUsername: string = 'admin'
-): { success: boolean; message: string; invitation?: AdminInvitation; simulatedEmail?: string } {
+): Promise<{ success: boolean; message: string; invitation?: AdminInvitation }> {
   const cleanPhrase = recoveryPhraseInput.trim().replace(/[\s\-]/g, '');
   const cleanMaster = MASTER_RECOVERY_PHRASE.replace(/[\s\-]/g, '');
 
@@ -251,13 +252,13 @@ export function createAdminEmailInvitation(
     `Sent ${role} invitation to ${cleanEmail} (Code: ${inviteCode}, RecPhrase: ${inviteeRecoveryPhrase})`
   );
 
-  const simulatedEmail = `To: ${cleanEmail}\nSubject: You have been invited as an Administrator (${role.toUpperCase()}) on MongoDB Quiz Lab\n\nHello,\n\nYou have been authorized by the Chief Administrator to join the MongoDB Quiz Lab governance portal as a ${role.toUpperCase()}.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🔑 Activation Invitation Code: ${inviteCode}\n🛡️ Auto-Generated Recovery Phrase: ${inviteeRecoveryPhrase}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n⚠️ IMPORTANT: Keep your Auto-Generated Recovery Phrase safe. You will need it to verify your identity or recover your administrator account if needed.\n\nTo complete your registration:\n1. Open the Admin Portal login page.\n2. Click "Have an Admin Invitation Code?" or "Accept Invite Code".\n3. Enter Invitation Code "${inviteCode}" along with your chosen username and password.`;
+  // Dispatch real email in real-time
+  await sendAdminInvitationEmail(cleanEmail, role, inviteCode, inviteeRecoveryPhrase, creatorUsername);
 
   return {
     success: true,
-    message: `Invitation successfully generated and dispatched to ${cleanEmail}!`,
-    invitation,
-    simulatedEmail
+    message: `Invitation successfully generated and dispatched in real-time to ${cleanEmail}!`,
+    invitation
   };
 }
 
@@ -369,7 +370,7 @@ export function deleteSubAdmin(id: string, executorUsername: string = 'admin'): 
 /**
  * PASSWORD RESET VIA OTP (EMAIL & PHONE)
  */
-export function requestPasswordResetOtp(emailOrPhoneInput: string): { success: boolean; message: string; simulatedOtp?: string } {
+export async function requestPasswordResetOtp(emailOrPhoneInput: string): Promise<{ success: boolean; message: string }> {
   const clean = emailOrPhoneInput.trim().toLowerCase();
   const users = getAdminUsers();
 
@@ -400,10 +401,12 @@ export function requestPasswordResetOtp(emailOrPhoneInput: string): { success: b
 
   addAuditLog(user.username, 'Request Password Reset OTP', 'auth', `One-time reset code dispatched for ${user.email}`);
 
+  // Dispatch real email in real-time
+  await sendPasswordResetEmail(user.email, code, user.displayName || user.username);
+
   return {
     success: true,
-    message: `A 6-digit verification code has been dispatched to ${user.email}. (Valid for 5 minutes)`,
-    simulatedOtp: code
+    message: `A 6-digit verification code has been dispatched in real-time to ${user.email}. (Valid for 5 minutes)`
   };
 }
 

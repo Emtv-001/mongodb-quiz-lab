@@ -105,3 +105,23 @@ export interface EmailResetSession {
   verified: boolean;
   adminId: string;
 }
+
+export type EmailProviderType = 'formspree' | 'emailjs' | 'resend' | 'brevo' | 'custom-webhook' | 'auto';
+
+export interface EmailServiceConfig {
+  provider: EmailProviderType;
+  formspreeEndpoint?: string;
+  emailjsServiceId?: string;
+  emailjsTemplateId?: string;
+  emailjsPublicKey?: string;
+  resendApiKey?: string;
+  brevoApiKey?: string;
+  customWebhookUrl?: string;
+  senderName: string;
+  senderEmail: string;
+  lastTestStatus?: {
+    success: boolean;
+    timestamp: string;
+    message: string;
+  };
+}

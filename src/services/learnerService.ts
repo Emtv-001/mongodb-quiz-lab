@@ -9,6 +9,7 @@ import {
 import { generateRecoveryPhrase } from './adminService';
 import { sha256Sync } from './security';
 import { loadProgress, saveProgress } from './storage';
+import { sendOtpRegistrationEmail } from './emailService';
 
 const LEARNER_ACCOUNT_KEY = 'mongo_quiz_registered_learner_account_v2';
 const LEARNER_OTP_SESSION_KEY = 'mongo_quiz_learner_otp_session_v2';
@@ -41,14 +42,15 @@ export function saveRegisteredLearnerAccount(account: RegisteredLearnerAccount |
 }
 
 /**
- * Initiates learner registration by generating an OTP and an auto-generated recovery phrase
+ * Initiates learner registration by generating an OTP and an auto-generated recovery phrase,
+ * and dispatching a real email in real-time to the learner.
  */
-export function requestLearnerRegistrationOtp(
+export async function requestLearnerRegistrationOtp(
   email: string,
   username: string,
   displayName: string,
   passwordPlain: string
-): { success: boolean; message: string; simulatedOtp?: string; recoveryPhrase?: string; simulatedEmail?: string } {
+): Promise<{ success: boolean; message: string; recoveryPhrase?: string }> {
   const cleanEmail = email.trim().toLowerCase();
   const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
 
@@ -87,14 +89,13 @@ export function requestLearnerRegistrationOtp(
     sessionStorage.setItem(LEARNER_OTP_SESSION_KEY, JSON.stringify(session));
   } catch {}
 
-  const simulatedEmail = `To: ${cleanEmail}\nSubject: Verify your MongoDB Quiz Lab Gamification Account\n\nHello ${session.displayName},\n\nThank you for activating your Gamification & Leaderboard profile on MongoDB Quiz Lab!\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🔑 6-Digit Email Verification Code (OTP): ${otpCode}\n🛡️ Auto-Generated Recovery Phrase: ${recoveryPhrase}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n⚠️ IMPORTANT: Keep your Auto-Generated Recovery Phrase safe. If you ever lose your password, this recovery phrase is required to regain access to your MongoCoins, XP, and rank.\n\nEnter code "${otpCode}" in the verification box to activate your profile.`;
+  // Dispatch real email in real-time
+  await sendOtpRegistrationEmail(cleanEmail, session.displayName, otpCode, recoveryPhrase);
 
   return {
     success: true,
-    message: `Verification code and your auto-generated recovery phrase have been dispatched to ${cleanEmail}!`,
-    simulatedOtp: otpCode,
-    recoveryPhrase,
-    simulatedEmail
+    message: `Verification code and your auto-generated recovery phrase have been dispatched in real-time to ${cleanEmail}!`,
+    recoveryPhrase
   };
 }
 
