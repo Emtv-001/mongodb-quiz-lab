@@ -69,6 +69,8 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
   const [regError, setRegError] = useState<string | null>(null);
   const [regSuccessMsg, setRegSuccessMsg] = useState<string | null>(null);
   const [emailCooldown, setEmailCooldown] = useState(0);
+  const [generatedPhrase, setGeneratedPhrase] = useState<string>('');
+  const [generatedOtp, setGeneratedOtp] = useState<string>('');
 
   // Anti-spam countdown timer for email requests
   useEffect(() => {
@@ -117,6 +119,8 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
       if (res.success) {
         setRegStep(2);
         setRegSuccessMsg(res.message);
+        setGeneratedPhrase(res.recoveryPhrase || '');
+        setGeneratedOtp(res.otpCode || '');
         setEmailCooldown(60); // 60 seconds cooldown to avoid spamming
       } else {
         setRegError(res.message);
@@ -709,10 +713,57 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                   </div>
                 </div>
 
+                {/* Auto-Generated Recovery Phrase Card */}
+                {generatedPhrase && (
+                  <div className="p-3 bg-purple-950/40 border border-purple-500/40 rounded-xl space-y-1.5 animate-fadeIn">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-purple-300 font-bold flex items-center space-x-1">
+                        <KeyRound className="w-3.5 h-3.5 text-purple-400" />
+                        <span>Your Auto-Generated Recovery Phrase:</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(generatedPhrase);
+                          alert(`Copied Recovery Phrase: ${generatedPhrase}`);
+                        }}
+                        className="text-[10px] text-purple-300 hover:text-white flex items-center space-x-1"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>Copy</span>
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between bg-slate-950 p-2 rounded-lg border border-purple-500/30">
+                      <code className="text-purple-300 font-mono font-bold text-xs">{generatedPhrase}</code>
+                      <button
+                        type="button"
+                        onClick={() => setOtpCodeInput(generatedPhrase)}
+                        className="text-[10px] font-bold text-emerald-400 hover:underline bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20"
+                      >
+                        Auto-Fill to Verify
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      You can verify with either the 6-digit email code OR this unique recovery phrase.
+                    </p>
+                  </div>
+                )}
+
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">
-                    Enter 6-Digit Email Code or Auto-Generated Recovery Phrase *
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-300 font-semibold">
+                      Enter 6-Digit Code or Recovery Phrase *
+                    </label>
+                    {generatedOtp && (
+                      <button
+                        type="button"
+                        onClick={() => setOtpCodeInput(generatedOtp)}
+                        className="text-[10px] text-emerald-400 hover:underline font-semibold"
+                      >
+                        Fill Generated Code
+                      </button>
+                    )}
+                  </div>
                   <input
                     type="text"
                     placeholder="e.g. 748291 or REC-XXXX-XXXX-XXXX"

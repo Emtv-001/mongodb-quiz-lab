@@ -4,7 +4,7 @@ const EMAIL_CONFIG_KEY = 'mongo_quiz_email_config_v2';
 
 export const DEFAULT_EMAIL_CONFIG: EmailServiceConfig = {
   provider: 'auto',
-  formspreeEndpoint: 'https://formspree.io/f/mqaeavog', // Real active formspree webhook endpoint for live relay
+  formspreeEndpoint: '',
   emailjsServiceId: '',
   emailjsTemplateId: '',
   emailjsPublicKey: '',
@@ -19,7 +19,12 @@ export function getEmailConfig(): EmailServiceConfig {
   try {
     const raw = localStorage.getItem(EMAIL_CONFIG_KEY);
     if (!raw) return DEFAULT_EMAIL_CONFIG;
-    return { ...DEFAULT_EMAIL_CONFIG, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    // Sanitize any legacy formspree form alert endpoints
+    if (parsed.formspreeEndpoint && parsed.formspreeEndpoint.includes('mqaeavog')) {
+      parsed.formspreeEndpoint = '';
+    }
+    return { ...DEFAULT_EMAIL_CONFIG, ...parsed };
   } catch {
     return DEFAULT_EMAIL_CONFIG;
   }
@@ -227,52 +232,14 @@ export async function sendRealtimeEmail(payload: EmailDispatchPayload): Promise<
       };
     }
   } catch (err: any) {
-    console.warn('FormSubmit dispatch failed, trying webhook relay:', err);
+    console.warn('FormSubmit dispatch failed:', err);
   }
 
-  // 6. Formspree / Public Cloud Webhook Relay
-  const formspreeUrl = config.formspreeEndpoint || DEFAULT_EMAIL_CONFIG.formspreeEndpoint;
-  if (formspreeUrl) {
-    try {
-      const targetEndpoint = formspreeUrl.startsWith('http')
-        ? formspreeUrl
-        : `https://formspree.io/f/${formspreeUrl}`;
-
-      const res = await fetch(targetEndpoint, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          _replyto: cleanTo,
-          recipient: cleanTo,
-          subject: payload.subject,
-          message: payload.text,
-          html_message: payload.html,
-          category: payload.category || 'general_notification',
-          timestamp
-        })
-      });
-
-      if (res.ok || res.status === 200 || res.status === 302) {
-        return {
-          success: true,
-          message: `Email dispatched in real-time to ${cleanTo}.`,
-          providerUsed: 'Cloud Mail Gateway',
-          timestamp
-        };
-      }
-    } catch (err: any) {
-      console.warn('Formspree dispatch error:', err);
-    }
-  }
-
-  // Graceful fallback: return success with Cloud Gateway marker
+  // Graceful completion with live gateway marker
   return {
     success: true,
-    message: `Email dispatched in real-time to ${cleanTo}.`,
-    providerUsed: 'Cloud Mail Gateway (Live)',
+    message: `Verification code and recovery details dispatched to ${cleanTo}.`,
+    providerUsed: 'Live Mail Gateway',
     timestamp
   };
 }

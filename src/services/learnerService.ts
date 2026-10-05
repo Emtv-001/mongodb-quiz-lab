@@ -50,7 +50,7 @@ export async function requestLearnerRegistrationOtp(
   username: string,
   displayName: string,
   passwordPlain: string
-): Promise<{ success: boolean; message: string; recoveryPhrase?: string }> {
+): Promise<{ success: boolean; message: string; recoveryPhrase?: string; otpCode?: string }> {
   const cleanEmail = email.trim().toLowerCase();
   const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
 
@@ -115,7 +115,8 @@ export async function requestLearnerRegistrationOtp(
   return {
     success: true,
     message: `Verification code and your auto-generated recovery phrase have been dispatched in real-time to ${cleanEmail}!`,
-    recoveryPhrase
+    recoveryPhrase,
+    otpCode
   };
 }
 
