@@ -59,25 +59,26 @@ export const Navbar: React.FC<NavbarProps> = ({
   const activeGradient = colorGradients[siteConfig.accentColor] || colorGradients['emerald'];
 
   return (
-    <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 w-full max-w-full overflow-x-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full min-w-0">
-        <div className="flex items-center justify-between h-16 w-full min-w-0">
+    <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 w-full max-w-full overflow-x-auto scrollbar-none shadow-sm">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full min-w-max sm:min-w-0">
+        <div className="flex items-center justify-between h-16 gap-3 sm:gap-4">
           {/* Brand Left */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-3 flex-shrink-0">
             <button
               onClick={onToggleSidebar}
-              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 lg:hidden"
+              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 lg:hidden flex-shrink-0"
+              aria-label="Toggle menu"
             >
               <Menu className="w-5 h-5" />
             </button>
 
-            <div className="flex items-center space-x-2.5 cursor-pointer">
+            <div className="flex items-center space-x-2.5 cursor-pointer flex-shrink-0">
               {/* Dynamic Logo Icon */}
-              <div className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${activeGradient} flex items-center justify-center shadow-lg shadow-emerald-500/20`}>
+              <div className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${activeGradient} flex items-center justify-center shadow-lg shadow-emerald-500/20 flex-shrink-0`}>
                 {renderLogo()}
               </div>
-              <div>
-                <div className="flex items-center space-x-1.5">
+              <div className="flex-shrink-0">
+                <div className="flex items-center space-x-1.5 whitespace-nowrap">
                   <span className="font-extrabold text-base tracking-tight text-white">
                     {siteConfig.siteName}
                   </span>
@@ -85,7 +86,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {siteConfig.brandName}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400 font-medium hidden sm:block">
+                <p className="text-[11px] text-slate-400 font-medium whitespace-nowrap hidden sm:block">
                   {siteConfig.siteSubtitle}
                 </p>
               </div>
@@ -93,31 +94,34 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Right Action Items */}
-          <div className="flex items-center space-x-2 sm:space-x-3">
+          <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
             {/* Seed Data Explorer Button */}
             <button
               onClick={onOpenSeedData}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800/80 hover:bg-slate-700/80 text-emerald-400 border border-slate-700 transition-all hover:shadow-md hover:shadow-emerald-500/10"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800/80 hover:bg-slate-700/80 text-emerald-400 border border-slate-700 transition-all hover:shadow-md hover:shadow-emerald-500/10 flex-shrink-0 whitespace-nowrap"
               title="Inspect Live Data Collections"
             >
-              <Database className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="hidden sm:inline">Live Datasets</span>
-              <span className="sm:hidden">Data</span>
+              <Database className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+              <span className="hidden md:inline">Live Datasets</span>
+              <span className="md:hidden">Datasets</span>
             </button>
 
             {/* Best Score Badge */}
             {bestScore > 0 && (
-              <div className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-purple-500/10 text-purple-300 border border-purple-500/20 text-xs font-semibold">
-                <Award className="w-3.5 h-3.5 text-purple-400" />
+              <div className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-purple-500/10 text-purple-300 border border-purple-500/20 text-xs font-semibold flex-shrink-0 whitespace-nowrap">
+                <Award className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
                 <span className="hidden md:inline">Best Mock:</span>
                 <span>{bestScore}%</span>
               </div>
             )}
 
-            {/* Streak Counter */}
-            <div className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-amber-500/10 text-amber-300 border border-amber-500/20 text-xs font-semibold">
-              <Flame className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-              <span>{currentStreak}d Streak</span>
+            {/* Prominent Streak Counter */}
+            <div
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-bold flex-shrink-0 whitespace-nowrap shadow-sm shadow-amber-500/10"
+              title={`Current daily learning streak: ${currentStreak} days`}
+            >
+              <Flame className="w-4 h-4 text-amber-400 animate-pulse flex-shrink-0" />
+              <span>{currentStreak} Day{currentStreak === 1 ? '' : 's'} Streak 🔥</span>
             </div>
           </div>
         </div>

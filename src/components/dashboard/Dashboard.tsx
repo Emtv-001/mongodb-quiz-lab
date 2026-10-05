@@ -108,6 +108,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <span>{progress.learnerId?.pseudonym || 'MongoLearner-PRO'}</span>
             </span>
 
+            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center space-x-1.5 shadow-sm">
+              <Flame className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+              <span>{progress.currentStreak} Day Streak 🔥</span>
+            </span>
+
             <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">
               {levelTitle}
             </span>
@@ -209,14 +214,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
         {/* Daily Calendar Streak */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-2 min-w-0">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold">Current Streak</span>
-            <Flame className="w-4 h-4 text-amber-400 animate-pulse" />
+            <span className="text-xs font-semibold">Daily Streak</span>
+            <Flame className="w-4 h-4 text-amber-400 animate-pulse flex-shrink-0" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black font-mono text-amber-400 truncate">
-            {progress.currentStreak} Days
+          <div className="text-2xl sm:text-3xl font-black font-mono text-amber-400 truncate flex items-baseline gap-1.5">
+            <span>{progress.currentStreak}</span>
+            <span className="text-xs sm:text-sm font-semibold text-slate-400">Days</span>
           </div>
           <div className="text-[11px] text-slate-400 truncate">
-            Longest: {progress.longestStreak || progress.currentStreak} Days
+            Longest: <span className="text-amber-300 font-semibold">{progress.longestStreak || progress.currentStreak} Days</span>
           </div>
         </div>
 
@@ -244,17 +250,23 @@ export const Dashboard: React.FC<DashboardProps> = ({
               Daily Learning Activity Calendar (Last 21 Days)
             </h3>
           </div>
-          <span className="text-xs text-slate-400 font-mono flex-shrink-0">
-            Meaningful activity required for streak
-          </span>
+          <div className="flex items-center space-x-2">
+            <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center space-x-1 shadow-sm">
+              <Flame className="w-3 h-3 text-amber-400" />
+              <span>{progress.currentStreak}d Streak</span>
+            </span>
+            <span className="text-xs text-slate-400 font-mono hidden md:inline">
+              Active practice required daily
+            </span>
+          </div>
         </div>
 
-        <div className="w-full min-w-0 overflow-x-auto pb-2 pt-1">
-          <div className="flex items-center justify-between gap-1 min-w-[500px] sm:min-w-0 w-full">
+        <div className="w-full min-w-0 overflow-x-auto pb-2 pt-1 scrollbar-none">
+          <div className="flex items-center justify-between gap-1.5 min-w-[520px] sm:min-w-0 w-full">
             {calendarDays.map((cd) => {
               const hasActivity = cd.count > 0;
               const levelClass = cd.count >= 5
-                ? 'bg-emerald-400 border-emerald-300'
+                ? 'bg-emerald-400 border-emerald-300 shadow-sm shadow-emerald-400/30'
                 : cd.count >= 3
                 ? 'bg-emerald-600 border-emerald-500'
                 : cd.count >= 1
@@ -262,8 +274,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 : 'bg-slate-950 border-slate-800';
 
               return (
-                <div key={cd.dateStr} className="flex flex-col items-center space-y-1.5 flex-1 min-w-[18px] sm:min-w-[24px]" title={`${cd.dateStr}: ${cd.count} questions solved`}>
-                  <div className={`w-full aspect-square rounded-md border ${levelClass} transition-colors`} />
+                <div
+                  key={cd.dateStr}
+                  className="flex flex-col items-center space-y-1.5 flex-1 min-w-[18px] sm:min-w-[22px] group"
+                  title={`${cd.dateStr}: ${cd.count} questions solved`}
+                >
+                  <div className={`w-full aspect-square rounded-md border ${levelClass} transition-transform group-hover:scale-110`} />
                   <span className="text-[10px] text-slate-500 font-mono">{cd.dayLabel}</span>
                 </div>
               );

@@ -44,3 +44,14 @@
 .rotate-y-180 {
   transform: rotateY(180deg);
 }
+
+/* Hide scrollbar utilities for horizontal scrollable strips */
+.scrollbar-none::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none,
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
