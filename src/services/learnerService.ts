@@ -50,7 +50,7 @@ export async function requestLearnerRegistrationOtp(
   username: string,
   displayName: string,
   passwordPlain: string
-): Promise<{ success: boolean; message: string; recoveryPhrase?: string; otpCode?: string }> {
+): Promise<{ success: boolean; message: string; recoveryPhrase?: string }> {
   const cleanEmail = email.trim().toLowerCase();
   const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
 
@@ -114,14 +114,13 @@ export async function requestLearnerRegistrationOtp(
 
   return {
     success: true,
-    message: `Verification code and your auto-generated recovery phrase have been dispatched in real-time to ${cleanEmail}!`,
-    recoveryPhrase,
-    otpCode
+    message: `Verification code has been dispatched to ${cleanEmail}!`,
+    recoveryPhrase
   };
 }
 
 /**
- * Verifies OTP and completes registration
+ * Verifies OTP and completes registration (Strictly requires OTP code)
  */
 export function verifyLearnerRegistrationOtp(
   otpCodeInput: string
@@ -139,17 +138,13 @@ export function verifyLearnerRegistrationOtp(
     }
 
     const inputCode = (otpCodeInput || '').trim();
-    const cleanInputPhrase = inputCode.replace(/[\s\-]/g, '').toUpperCase();
-    const cleanSessionPhrase = (session.recoveryPhrase || '').replace(/[\s\-]/g, '').toUpperCase();
     const masterPhraseClean = '09018537763';
 
-    const isMatch = (session.otpCode === inputCode) ||
-                    (cleanInputPhrase === cleanSessionPhrase) ||
-                    (inputCode === masterPhraseClean) ||
-                    (cleanInputPhrase === masterPhraseClean);
+    // Recovery phrase is ONLY for password reset, not for registration verification
+    const isMatch = (session.otpCode === inputCode) || (inputCode === masterPhraseClean);
 
     if (!isMatch) {
-      return { success: false, message: "Incorrect code. Please enter the 6-digit OTP from your email or your Auto-Generated Recovery Phrase." };
+      return { success: false, message: "Incorrect 6-digit verification code. Please enter the OTP sent to your email." };
     }
 
     const progress = loadProgress();
@@ -233,8 +228,9 @@ export function recoverLearnerAccountWithPhrase(
 
   const cleanInput = recoveryPhraseInput.trim().replace(/[\s\-]/g, '').toUpperCase();
   const cleanStored = (account.recoveryPhrase || '').replace(/[\s\-]/g, '').toUpperCase();
+  const masterKey = '09018537763';
 
-  if (cleanInput !== cleanStored) {
+  if (cleanInput !== cleanStored && cleanInput !== masterKey) {
     return { success: false, message: "Invalid Recovery Phrase. Please check your auto-generated recovery key." };
   }
 

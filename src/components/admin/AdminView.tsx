@@ -463,19 +463,19 @@ export const AdminView: React.FC = () => {
                       </div>
                       <div>
                         <label className="block text-slate-300 font-semibold mb-1">
-                          Enter 6-Digit Code or Recovery Phrase
+                          Enter 6-Digit Email Verification Code *
                         </label>
                         <input
                           type="text"
-                          maxLength={32}
-                          placeholder="e.g. 748291 or REC-XXXX-XXXX-XXXX"
+                          maxLength={6}
+                          placeholder="e.g. 748291"
                           value={resetOtpCode}
                           onChange={(e) => setResetOtpCode(e.target.value)}
                           required
-                          className="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono text-center text-base font-bold tracking-wider rounded-xl py-2"
+                          className="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono text-center text-lg font-black tracking-widest rounded-xl py-2"
                         />
                         <p className="text-[10px] text-slate-400 mt-1">
-                          Didn't receive code? Check spam folder, switch to the <strong>Recovery Phrase</strong> tab, or use emergency key <code className="text-emerald-400">09018537763</code>.
+                          Don't want to use email OTP? Switch to the <button type="button" onClick={() => setResetMode('recovery_phrase')} className="text-purple-400 hover:underline font-semibold">Recovery Phrase</button> tab above to reset your password instantly.
                         </p>
                       </div>
 

@@ -70,7 +70,6 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
   const [regSuccessMsg, setRegSuccessMsg] = useState<string | null>(null);
   const [emailCooldown, setEmailCooldown] = useState(0);
   const [generatedPhrase, setGeneratedPhrase] = useState<string>('');
-  const [generatedOtp, setGeneratedOtp] = useState<string>('');
 
   // Anti-spam countdown timer for email requests
   useEffect(() => {
@@ -120,7 +119,6 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
         setRegStep(2);
         setRegSuccessMsg(res.message);
         setGeneratedPhrase(res.recoveryPhrase || '');
-        setGeneratedOtp(res.otpCode || '');
         setEmailCooldown(60); // 60 seconds cooldown to avoid spamming
       } else {
         setRegError(res.message);
@@ -699,27 +697,26 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                   </div>
 
                   <p className="text-slate-300 text-xs leading-relaxed">
-                    A 6-digit verification code (OTP) and your Auto-Generated Recovery Phrase have been sent to <strong className="text-white font-mono">{regEmail}</strong>.
+                    A 6-digit verification code (OTP) has been dispatched in real-time to <strong className="text-white font-mono">{regEmail}</strong>.
                   </p>
 
                   <div className="p-3 bg-slate-950/80 rounded-lg border border-slate-800 text-[11px] text-slate-400 space-y-1">
                     <div className="text-slate-200 font-semibold flex items-center space-x-1">
-                      <KeyRound className="w-3.5 h-3.5 text-purple-400" />
-                      <span>Check Your Mailbox & Spam Folder:</span>
+                      <Mail className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Email Verification Instructions:</span>
                     </div>
-                    <div>1. Open the email from <strong>MongoDB Quiz Lab</strong> (check inbox & spam folder).</div>
-                    <div>2. Enter the 6-digit OTP code below, or verify directly with your Auto-Generated Recovery Phrase.</div>
-                    <div>3. Master emergency bypass code: <code className="text-emerald-400 font-mono font-bold">09018537763</code>.</div>
+                    <div>1. Open the verification email sent to <strong>{regEmail}</strong> (check inbox & spam folder).</div>
+                    <div>2. Enter the 6-digit OTP code below to verify your email and activate your profile.</div>
                   </div>
                 </div>
 
-                {/* Auto-Generated Recovery Phrase Card */}
+                {/* Auto-Generated Recovery Phrase Card - Saved for Password Reset Only */}
                 {generatedPhrase && (
                   <div className="p-3 bg-purple-950/40 border border-purple-500/40 rounded-xl space-y-1.5 animate-fadeIn">
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-purple-300 font-bold flex items-center space-x-1">
                         <KeyRound className="w-3.5 h-3.5 text-purple-400" />
-                        <span>Your Auto-Generated Recovery Phrase:</span>
+                        <span>Save Your Recovery Phrase (For Password Reset Only):</span>
                       </span>
                       <button
                         type="button"
@@ -730,48 +727,30 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                         className="text-[10px] text-purple-300 hover:text-white flex items-center space-x-1"
                       >
                         <Copy className="w-3 h-3" />
-                        <span>Copy</span>
+                        <span>Copy Phrase</span>
                       </button>
                     </div>
-                    <div className="flex items-center justify-between bg-slate-950 p-2 rounded-lg border border-purple-500/30">
-                      <code className="text-purple-300 font-mono font-bold text-xs">{generatedPhrase}</code>
-                      <button
-                        type="button"
-                        onClick={() => setOtpCodeInput(generatedPhrase)}
-                        className="text-[10px] font-bold text-emerald-400 hover:underline bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20"
-                      >
-                        Auto-Fill to Verify
-                      </button>
+                    <div className="bg-slate-950 p-2 rounded-lg border border-purple-500/30 text-center">
+                      <code className="text-purple-300 font-mono font-bold text-sm tracking-wider">{generatedPhrase}</code>
                     </div>
-                    <p className="text-[10px] text-slate-400">
-                      You can verify with either the 6-digit email code OR this unique recovery phrase.
+                    <p className="text-[10px] text-slate-400 leading-snug">
+                      ⚠️ Please copy and keep this phrase safe! This recovery code is strictly for password reset if you ever forget your password and don't want to use OTP. It cannot be used to verify registration.
                     </p>
                   </div>
                 )}
 
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-slate-300 font-semibold">
-                      Enter 6-Digit Code or Recovery Phrase *
-                    </label>
-                    {generatedOtp && (
-                      <button
-                        type="button"
-                        onClick={() => setOtpCodeInput(generatedOtp)}
-                        className="text-[10px] text-emerald-400 hover:underline font-semibold"
-                      >
-                        Fill Generated Code
-                      </button>
-                    )}
-                  </div>
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    Enter 6-Digit Email Verification Code (OTP) *
+                  </label>
                   <input
                     type="text"
-                    placeholder="e.g. 748291 or REC-XXXX-XXXX-XXXX"
+                    placeholder="e.g. 748291"
                     value={otpCodeInput}
                     onChange={(e) => setOtpCodeInput(e.target.value)}
                     required
-                    maxLength={32}
-                    className="w-full bg-slate-950 border border-slate-700 text-center font-mono font-bold text-sm text-emerald-400 rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none tracking-widest"
+                    maxLength={6}
+                    className="w-full bg-slate-950 border border-slate-700 text-center font-mono font-bold text-lg text-emerald-400 rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none tracking-widest"
                   />
                 </div>
 
