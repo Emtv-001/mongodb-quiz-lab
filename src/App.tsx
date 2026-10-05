@@ -171,7 +171,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans w-full max-w-full overflow-x-hidden">
       {/* Top Navbar */}
       <Navbar
         currentStreak={progress.currentStreak}
@@ -181,7 +181,7 @@ export function App() {
       />
 
       {/* Main Layout Container */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto">
+      <div className="flex-1 flex max-w-7xl w-full mx-auto min-w-0 overflow-x-hidden">
         {/* Responsive Sidebar */}
         <Sidebar
           currentTab={currentTab}
@@ -191,7 +191,7 @@ export function App() {
         />
 
         {/* Content View Area */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 overflow-x-hidden">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 w-full max-w-full overflow-x-hidden">
           {renderContent()}
         </main>
       </div>

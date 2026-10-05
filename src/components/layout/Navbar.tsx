@@ -59,9 +59,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   const activeGradient = colorGradients[siteConfig.accentColor] || colorGradients['emerald'];
 
   return (
-    <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+    <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 w-full max-w-full overflow-x-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full min-w-0">
+        <div className="flex items-center justify-between h-16 w-full min-w-0">
           {/* Brand Left */}
           <div className="flex items-center space-x-3">
             <button

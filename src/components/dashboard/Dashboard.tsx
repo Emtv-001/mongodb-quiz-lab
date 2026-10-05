@@ -98,9 +98,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 py-4 animate-fadeIn">
+    <div className="max-w-6xl mx-auto space-y-8 py-4 animate-fadeIn w-full max-w-full min-w-0 overflow-x-hidden">
       {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-emerald-950/40 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+      <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-emerald-950/40 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden w-full max-w-full min-w-0">
         <div className="relative z-10 max-w-3xl space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[11px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center space-x-1.5">
@@ -177,109 +177,111 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {/* Primary Metrics Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full min-w-0">
         {/* Questions Attempted */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-2">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-2 min-w-0">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-semibold">Questions Solved</span>
             <Target className="w-4 h-4 text-blue-400" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black font-mono text-white">
+          <div className="text-2xl sm:text-3xl font-black font-mono text-white truncate">
             {progress.questionsAttempted}
           </div>
-          <div className="text-[11px] text-slate-400">
+          <div className="text-[11px] text-slate-400 truncate">
             {progress.questionsCorrect} full marks, {progress.questionsPartial} partial
           </div>
         </div>
 
         {/* Overall Accuracy */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-2">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-2 min-w-0">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-semibold">Accuracy & Score</span>
             <CheckCircle className="w-4 h-4 text-emerald-400" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black font-mono text-emerald-400">
+          <div className="text-2xl sm:text-3xl font-black font-mono text-emerald-400 truncate">
             {accuracy}%
           </div>
-          <div className="text-[11px] text-slate-400">
+          <div className="text-[11px] text-slate-400 truncate">
             Avg Assessment: {averageScore}%
           </div>
         </div>
 
         {/* Daily Calendar Streak */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-2">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-2 min-w-0">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-semibold">Current Streak</span>
             <Flame className="w-4 h-4 text-amber-400 animate-pulse" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black font-mono text-amber-400">
+          <div className="text-2xl sm:text-3xl font-black font-mono text-amber-400 truncate">
             {progress.currentStreak} Days
           </div>
-          <div className="text-[11px] text-slate-400">
-            Longest Streak: {progress.longestStreak || progress.currentStreak} Days
+          <div className="text-[11px] text-slate-400 truncate">
+            Longest: {progress.longestStreak || progress.currentStreak} Days
           </div>
         </div>
 
         {/* Curriculum Mastery */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-2">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-2 min-w-0">
           <div className="flex items-center justify-between text-slate-400">
             <span className="text-xs font-semibold">Curriculum Mastery</span>
             <Award className="w-4 h-4 text-purple-400" />
           </div>
-          <div className="text-2xl sm:text-3xl font-black font-mono text-purple-400">
+          <div className="text-2xl sm:text-3xl font-black font-mono text-purple-400 truncate">
             {overallMasteryPercent}%
           </div>
-          <div className="text-[11px] text-slate-400">
+          <div className="text-[11px] text-slate-400 truncate">
             Across 20 MongoDB Topics
           </div>
         </div>
       </div>
 
       {/* Daily Activity Calendar Heatmap */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Calendar className="w-4 h-4 text-emerald-400" />
-            <h3 className="text-sm font-bold text-white">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl space-y-4 w-full max-w-full min-w-0 overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center space-x-2 min-w-0">
+            <Calendar className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+            <h3 className="text-sm font-bold text-white truncate">
               Daily Learning Activity Calendar (Last 21 Days)
             </h3>
           </div>
-          <span className="text-xs text-slate-400 font-mono">
+          <span className="text-xs text-slate-400 font-mono flex-shrink-0">
             Meaningful activity required for streak
           </span>
         </div>
 
-        <div className="flex items-center justify-between gap-1 overflow-x-auto py-2">
-          {calendarDays.map((cd) => {
-            const hasActivity = cd.count > 0;
-            const levelClass = cd.count >= 5
-              ? 'bg-emerald-400 border-emerald-300'
-              : cd.count >= 3
-              ? 'bg-emerald-600 border-emerald-500'
-              : cd.count >= 1
-              ? 'bg-emerald-900 border-emerald-800'
-              : 'bg-slate-950 border-slate-800';
+        <div className="w-full min-w-0 overflow-x-auto pb-2 pt-1">
+          <div className="flex items-center justify-between gap-1 min-w-[500px] sm:min-w-0 w-full">
+            {calendarDays.map((cd) => {
+              const hasActivity = cd.count > 0;
+              const levelClass = cd.count >= 5
+                ? 'bg-emerald-400 border-emerald-300'
+                : cd.count >= 3
+                ? 'bg-emerald-600 border-emerald-500'
+                : cd.count >= 1
+                ? 'bg-emerald-900 border-emerald-800'
+                : 'bg-slate-950 border-slate-800';
 
-            return (
-              <div key={cd.dateStr} className="flex flex-col items-center space-y-1.5 flex-1 min-w-[28px]" title={`${cd.dateStr}: ${cd.count} questions solved`}>
-                <div className={`w-full aspect-square rounded-md border ${levelClass} transition-colors`} />
-                <span className="text-[10px] text-slate-500 font-mono">{cd.dayLabel}</span>
-              </div>
-            );
-          })}
+              return (
+                <div key={cd.dateStr} className="flex flex-col items-center space-y-1.5 flex-1 min-w-[18px] sm:min-w-[24px]" title={`${cd.dateStr}: ${cd.count} questions solved`}>
+                  <div className={`w-full aspect-square rounded-md border ${levelClass} transition-colors`} />
+                  <span className="text-[10px] text-slate-500 font-mono">{cd.dayLabel}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
       {/* Recommended Practice & Weak Topics Callout */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full min-w-0">
         {/* Recommended Next Practice */}
-        <div className="bg-gradient-to-br from-slate-900 to-emerald-950/20 border border-emerald-500/30 rounded-2xl p-5 space-y-3">
+        <div className="bg-gradient-to-br from-slate-900 to-emerald-950/20 border border-emerald-500/30 rounded-2xl p-5 space-y-3 min-w-0">
           <div className="flex items-center space-x-2 text-xs font-bold text-emerald-400 uppercase tracking-wider">
             <Compass className="w-4 h-4" />
             <span>Recommended Next Practice</span>
           </div>
 
-          <h4 className="text-base font-bold text-white">
+          <h4 className="text-base font-bold text-white truncate">
             {lowestAccuracyTopic}
           </h4>
 
@@ -297,7 +299,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         {/* Weak Topics */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3 min-w-0">
           <div className="flex items-center space-x-2 text-xs font-bold text-amber-400 uppercase tracking-wider">
             <AlertTriangle className="w-4 h-4" />
             <span>Weak Topics Requiring Review ({weakTopics.length})</span>
@@ -325,15 +327,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
       </div>
 
       {/* 20-Topic Mastery Progress Chart */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-5">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl space-y-5 w-full max-w-full min-w-0 overflow-hidden">
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-          <div className="flex items-center space-x-2">
-            <BarChart3 className="w-5 h-5 text-emerald-400" />
-            <h3 className="text-base font-bold text-white">
+          <div className="flex items-center space-x-2 min-w-0">
+            <BarChart3 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+            <h3 className="text-base font-bold text-white truncate">
               Curriculum Mastery & Level Breakdown
             </h3>
           </div>
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-slate-400 flex-shrink-0">
             20 Core Topics
           </span>
         </div>
@@ -348,14 +350,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div
                 key={item.topic}
                 onClick={() => onStartQuiz('topic-practice', item.topic)}
-                className="p-3 bg-slate-950/60 hover:bg-slate-800/40 rounded-xl border border-slate-800 transition-all cursor-pointer group flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                className="p-3 bg-slate-950/60 hover:bg-slate-800/40 rounded-xl border border-slate-800 transition-all cursor-pointer group flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full min-w-0"
               >
-                <div className="flex-1">
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="font-semibold text-slate-200 group-hover:text-emerald-400 transition-colors">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between text-xs mb-1 min-w-0">
+                    <span className="font-semibold text-slate-200 group-hover:text-emerald-400 transition-colors truncate pr-2">
                       {item.topic}
                     </span>
-                    <span className="font-mono text-slate-400">
+                    <span className="font-mono text-slate-400 flex-shrink-0 text-[11px]">
                       {item.attempted} solved ({item.correct} correct)
                     </span>
                   </div>
@@ -376,11 +378,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-3 sm:pl-4 self-end sm:self-center">
+                <div className="flex items-center space-x-3 sm:pl-4 self-end sm:self-center flex-shrink-0">
                   <span className="font-mono text-xs text-emerald-400 tracking-tight hidden md:inline">
                     {asciiBar}
                   </span>
-                  <span className="font-mono text-xs font-bold text-white min-w-[40px] text-right">
+                  <span className="font-mono text-xs font-bold text-white min-w-[36px] text-right">
                     {item.accuracy}%
                   </span>
                   <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-800 group-hover:bg-emerald-500 group-hover:text-slate-950 text-slate-300 transition-colors">
