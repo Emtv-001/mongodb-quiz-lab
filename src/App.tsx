@@ -14,6 +14,7 @@ import { StudyNotesView } from './components/study/StudyNotesView';
 import { AdminView } from './components/admin/AdminView';
 import { ReviewView } from './components/review/ReviewView';
 import { LearnerGamificationView } from './components/learner/LearnerGamificationView';
+import { LearnerFeedbackView } from './components/learner/LearnerFeedbackView';
 import { DEFAULT_QUESTIONS } from './data/questions';
 
 import { QuizConfigModal } from './components/quiz/QuizConfigModal';
@@ -163,6 +164,9 @@ export function App() {
             onGoToMockExams={() => handleSelectTab('mock-exam-selector')}
           />
         );
+
+      case 'feedback':
+        return <LearnerFeedbackView />;
 
       case 'admin':
         return <AdminView />;

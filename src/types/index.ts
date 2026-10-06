@@ -306,3 +306,12 @@ export interface LearnerOtpSession {
   expiresAt: number;
   requestedAt?: number;
 }
+
+export interface FeedbackEntry {
+  id: string;
+  type: 'complaint' | 'suggestion';
+  message: string;
+  senderFingerprint: string;
+  senderPseudonym: string;
+  createdAt: string;
+}

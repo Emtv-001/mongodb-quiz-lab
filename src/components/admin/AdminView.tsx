@@ -17,6 +17,7 @@ import { AdminUserTracker } from './AdminUserTracker';
 import { AdminManagementRBAC } from './AdminManagementRBAC';
 import { AdminShareHub } from './AdminShareHub';
 import { AdminSecuritySettings } from './AdminSecuritySettings';
+import { AdminFeedbackView } from './AdminFeedbackView';
 import { DEFAULT_QUESTIONS } from '../../data/questions';
 import { ALL_TOPICS } from '../../services/storage';
 import { DifficultyLevel, MongoTopic, Question, QuestionType, CurriculumLevel } from '../../types';
@@ -45,6 +46,7 @@ import {
   ShieldAlert,
   Clock,
   RefreshCw,
+  MessageSquare,
   X
 } from 'lucide-react';
 
@@ -56,7 +58,8 @@ type AdminTab =
   | 'users'
   | 'admins'
   | 'share'
-  | 'security';
+  | 'security'
+  | 'feedback';
 
 export const AdminView: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(() => {
@@ -784,6 +787,7 @@ export const AdminView: React.FC = () => {
     { id: 'users', label: 'Learner Cohort', icon: Users },
     { id: 'admins', label: 'Admin Governance (RBAC)', icon: ShieldCheck },
     { id: 'share', label: 'Share & Export Hub', icon: Share2 },
+    { id: 'feedback', label: 'Learner Feedback', icon: MessageSquare },
     { id: 'security', label: 'Security & Audit Logs', icon: Lock }
   ];
 
@@ -958,6 +962,10 @@ export const AdminView: React.FC = () => {
 
       {currentAdminTab === 'security' && (
         <AdminSecuritySettings />
+      )}
+
+      {currentAdminTab === 'feedback' && (
+        <AdminFeedbackView isSuperAdmin={currentUser.role === 'super-admin'} />
       )}
 
       {/* Question Bank Directory */}

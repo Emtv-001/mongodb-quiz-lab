@@ -14,6 +14,7 @@ import {
   Database,
   Lock,
   Trophy,
+  MessageSquare,
   X
 } from 'lucide-react';
 
@@ -32,6 +33,7 @@ export type NavTab =
   | 'study-notes'
   | 'datasets'
   | 'review'
+  | 'feedback'
   | 'admin';
 
 interface SidebarProps {
@@ -78,6 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'datasets', defaultLabel: 'Live Datasets Explorer', icon: Database, badge: '5 Sets', category: 'Smart Study' },
 
     { id: 'review', defaultLabel: 'Question Review', icon: CheckSquare, category: 'Analysis' },
+    { id: 'feedback', defaultLabel: 'Support & Feedback', icon: MessageSquare, category: 'Main' },
     { id: 'admin', defaultLabel: 'Instructor Portal', icon: Lock, badge: 'Secured', category: 'Admin' }
   ];
 
