@@ -10,7 +10,9 @@ import {
   resetAdminPasswordWithRecoveryPhrase,
   acceptAdminInvitation,
   getFreshAdminUser,
-  getDeletionStatements
+  getDeletionStatements,
+  deleteSubAdmin,
+  isMasterAccount
 } from '../../services/adminService';
 import { AdminDashboardOverview } from './AdminDashboardOverview';
 import { AdminBrandingConfig } from './AdminBrandingConfig';
@@ -257,6 +259,24 @@ export const AdminView: React.FC = () => {
   const handleLogout = () => {
     setCurrentUser(null);
     sessionStorage.removeItem('mongo_quiz_logged_admin_user');
+  };
+
+  const handleSelfDelete = () => {
+    if (!currentUser) return;
+    if (isMasterAccount(currentUser)) {
+      alert("The Master Super Admin account cannot be deleted.");
+      return;
+    }
+    
+    if (window.confirm("Are you absolutely sure you want to permanently delete your administrator account? This action cannot be undone.")) {
+      const res = deleteSubAdmin(currentUser.id, currentUser.username, 'self-resignation', 'Administrator chose to delete account.');
+      if (res.success) {
+        alert("Your account has been successfully deleted.");
+        handleLogout();
+      } else {
+        alert(res.message);
+      }
+    }
   };
 
   const handleRequestLoginOtp = async (e?: React.FormEvent) => {
@@ -1008,13 +1028,25 @@ export const AdminView: React.FC = () => {
           </div>
         </div>
 
-        <button
-          onClick={handleLogout}
-          className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-red-500/20 text-slate-300 hover:text-red-400 border border-slate-700 transition-colors self-end sm:self-center"
-        >
-          <LogOut className="w-3.5 h-3.5" />
-          <span>Lock & Logout</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2 self-end sm:self-center">
+          {!isMasterAccount(currentUser) && (
+            <button
+              onClick={handleSelfDelete}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition-colors"
+              title="Delete Administrator Account"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete Account</span>
+            </button>
+          )}
+          <button
+            onClick={handleLogout}
+            className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-red-500/20 text-slate-300 hover:text-red-400 border border-slate-700 transition-colors"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Lock & Logout</span>
+          </button>
+        </div>
       </div>
 
       {/* Admin Module Tabs Switcher */}
