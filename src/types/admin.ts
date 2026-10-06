@@ -29,7 +29,7 @@ export interface AdminUser {
 
 export interface AdminInvitation {
   id: string;
-  email: string;
+  email?: string;
   role: AdminRole;
   permissions: AdminPermissions;
   invitationCode: string; // e.g. "INV-98214"

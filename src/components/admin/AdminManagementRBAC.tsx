@@ -3,7 +3,7 @@ import { AdminUser, AdminPermissions, AdminRole, AdminInvitation } from '../../t
 import {
   getAdminUsers,
   getAdminInvitations,
-  createAdminEmailInvitation,
+  createAdminInvitationCode,
   acceptAdminInvitation,
   cancelAdminInvitation,
   updateSubAdmin,
@@ -37,7 +37,6 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
 
   // Invite Admin Modal state
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<AdminRole>('sub-admin');
   const [recoveryPhraseInput, setRecoveryPhraseInput] = useState('09018537763');
   const [isSendingInvite, setIsSendingInvite] = useState(false);
@@ -68,6 +67,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
   // Accept Invite Modal state (for invitee activation)
   const [showAcceptModal, setShowAcceptModal] = useState(false);
   const [acceptCode, setAcceptCode] = useState('');
+  const [acceptEmail, setAcceptEmail] = useState('');
   const [acceptUsername, setAcceptUsername] = useState('');
   const [acceptDisplayName, setAcceptDisplayName] = useState('');
   const [acceptPassword, setAcceptPassword] = useState('');
@@ -83,12 +83,6 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
     setModalError(null);
     setIsSendingInvite(true);
 
-    if (!inviteEmail.trim()) {
-      setModalError("Please provide a valid assignee email address.");
-      setIsSendingInvite(false);
-      return;
-    }
-
     if (!recoveryPhraseInput.trim()) {
       setModalError("Please enter the Master Recovery Phrase (09018537763) to authorize role dispatch.");
       setIsSendingInvite(false);
@@ -96,9 +90,8 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
     }
 
     try {
-      const res = await createAdminEmailInvitation(
+      const res = await createAdminInvitationCode(
         recoveryPhraseInput,
-        inviteEmail,
         inviteRole,
         invitePerms,
         currentAdmin.username
@@ -107,7 +100,6 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
       if (res.success && res.invitation) {
         setStatusMsg({ text: res.message, isError: false });
         setLastCreatedInvite(res.invitation);
-        setInviteEmail('');
         setInviteCooldown(30); // 30s cooldown on invitation dispatch
         refreshData();
       } else {
@@ -115,7 +107,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
         setStatusMsg({ text: res.message, isError: true });
       }
     } catch (err: any) {
-      setModalError(err?.message || "Failed to dispatch invitation email.");
+      setModalError(err?.message || "Failed to generate invitation code.");
     } finally {
       setIsSendingInvite(false);
     }
@@ -125,6 +117,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
     e.preventDefault();
     const res = acceptAdminInvitation(acceptCode, {
       username: acceptUsername,
+      email: acceptEmail,
       displayName: acceptDisplayName,
       passwordPlain: acceptPassword
     });
@@ -133,6 +126,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
       setStatusMsg({ text: res.message, isError: false });
       setShowAcceptModal(false);
       setAcceptCode('');
+      setAcceptEmail('');
       setAcceptUsername('');
       setAcceptDisplayName('');
       setAcceptPassword('');
@@ -205,13 +199,13 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
         <div>
           <div className="flex items-center space-x-2 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-1">
             <ShieldCheck className="w-4 h-4" />
-            <span>Email Invitation & Role Assignment</span>
+            <span>Invitation & Role Assignment</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-white">
             Administrator Governance (RBAC)
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Assign admin roles by email address with master recovery verification, and manage rights and active privileges.
+            Generate admin roles with master recovery verification, and manage rights and active privileges.
           </p>
         </div>
 
@@ -231,8 +225,8 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
             }}
             className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition-all"
           >
-            <Mail className="w-4 h-4" />
-            <span>Invite Admin via Email</span>
+            <KeyRound className="w-4 h-4" />
+            <span>Generate Admin Invite</span>
           </button>
         </div>
       </div>
@@ -429,14 +423,14 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
         </div>
       </div>
 
-      {/* Modal: Invite Admin via Email */}
+      {/* Modal: Invite Admin */}
       {showInviteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <h3 className="text-base font-bold text-white flex items-center space-x-2">
-                <Mail className="w-5 h-5 text-emerald-400" />
-                <span>Invite Administrator via Email</span>
+                <KeyRound className="w-5 h-5 text-emerald-400" />
+                <span>Generate Administrator Invite Code</span>
               </h3>
               <button
                 onClick={() => {
@@ -460,12 +454,12 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
               <div className="space-y-3.5 text-xs animate-fadeIn">
                 <div className="p-4 bg-emerald-950/40 border border-emerald-500/40 rounded-xl space-y-3">
                   <span className="font-bold text-emerald-400 flex items-center space-x-1.5 text-sm">
-                    <Mail className="w-4 h-4" />
-                    <span>Real-Time Invitation Email Dispatched!</span>
+                    <Check className="w-4 h-4" />
+                    <span>Invitation Code Generated!</span>
                   </span>
 
                   <p className="text-slate-300 text-xs leading-relaxed">
-                    An official invitation email has been sent in real-time to <strong className="text-white font-mono">{lastCreatedInvite.email}</strong> with role <strong className="text-emerald-400">{lastCreatedInvite.role.toUpperCase()}</strong>.
+                    Share these credentials securely with the assignee to grant them the role of <strong className="text-emerald-400">{lastCreatedInvite.role.toUpperCase()}</strong>.
                   </p>
 
                   {/* Generated Credentials Callout */}
@@ -527,20 +521,6 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
               </div>
             ) : (
               <form onSubmit={handleSendInvite} className="space-y-3.5 text-xs">
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">
-                    Assignee Email Address *
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="e.g. professor.john@university.edu"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    required
-                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1">
                     Pre-Assigned Admin Role *
@@ -608,8 +588,8 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                       </>
                     ) : (
                       <>
-                        <Send className={`w-3.5 h-3.5 ${isSendingInvite ? 'animate-pulse' : ''}`} />
-                        <span>{isSendingInvite ? 'Dispatching Real Email...' : 'Dispatch Invitation Email'}</span>
+                        <KeyRound className={`w-3.5 h-3.5 ${isSendingInvite ? 'animate-pulse' : ''}`} />
+                        <span>{isSendingInvite ? 'Generating Code...' : 'Generate Invitation Code'}</span>
                       </>
                     )}
                   </button>
@@ -657,6 +637,18 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                   placeholder="e.g. Dr. Jane Smith"
                   value={acceptDisplayName}
                   onChange={(e) => setAcceptDisplayName(e.target.value)}
+                  required
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Your Email Address *</label>
+                <input
+                  type="email"
+                  placeholder="e.g. jane@university.edu"
+                  value={acceptEmail}
+                  onChange={(e) => setAcceptEmail(e.target.value)}
                   required
                   className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
                 />

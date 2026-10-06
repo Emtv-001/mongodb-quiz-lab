@@ -98,6 +98,7 @@ export const AdminView: React.FC = () => {
   // Login Page Invitation Activation Modal State
   const [showLoginInviteModal, setShowLoginInviteModal] = useState(false);
   const [inviteCodeInput, setInviteCodeInput] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
   const [inviteUsername, setInviteUsername] = useState('');
   const [inviteDisplayName, setInviteDisplayName] = useState('');
   const [invitePassword, setInvitePassword] = useState('');
@@ -222,6 +223,7 @@ export const AdminView: React.FC = () => {
     e.preventDefault();
     const res = acceptAdminInvitation(inviteCodeInput, {
       username: inviteUsername,
+      email: inviteEmail,
       displayName: inviteDisplayName,
       passwordPlain: invitePassword
     });
@@ -666,6 +668,18 @@ export const AdminView: React.FC = () => {
                     placeholder="e.g. Dr. Jane Smith"
                     value={inviteDisplayName}
                     onChange={(e) => setInviteDisplayName(e.target.value)}
+                    required
+                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Email Address *</label>
+                  <input
+                    type="email"
+                    placeholder="e.g. jane@university.edu"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
                     required
                     className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
                   />

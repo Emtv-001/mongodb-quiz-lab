@@ -232,9 +232,8 @@ export function generateRecoveryPhrase(): string {
   return `REC-${num1}-${num2}-${num3}`;
 }
 
-export async function createAdminEmailInvitation(
+export async function createAdminInvitationCode(
   recoveryPhraseInput: string,
-  email: string,
   role: AdminUser['role'],
   permissions: AdminPermissions,
   creatorUsername: string = 'admin'
@@ -249,16 +248,6 @@ export async function createAdminEmailInvitation(
     };
   }
 
-  const cleanEmail = email.trim().toLowerCase();
-  if (!cleanEmail.includes('@') || !cleanEmail.includes('.')) {
-    return { success: false, message: "Please provide a valid email address." };
-  }
-
-  const users = getAdminUsers();
-  if (users.some(u => u.email.toLowerCase() === cleanEmail)) {
-    return { success: false, message: `An administrator account already exists with email "${cleanEmail}".` };
-  }
-
   const invites = getAdminInvitations();
   const codeNumber = Math.floor(10000 + Math.random() * 90000);
   const inviteCode = `INV-${codeNumber}`;
@@ -266,7 +255,6 @@ export async function createAdminEmailInvitation(
 
   const invitation: AdminInvitation = {
     id: 'invite_' + Date.now(),
-    email: cleanEmail,
     role,
     permissions: role === 'super-admin' ? FULL_PERMISSIONS : permissions,
     invitationCode: inviteCode,
@@ -282,24 +270,21 @@ export async function createAdminEmailInvitation(
 
   addAuditLog(
     creatorUsername,
-    'Dispatch Admin Email Invite',
+    'Generate Admin Invite Code',
     'security',
-    `Sent ${role} invitation to ${cleanEmail} (Code: ${inviteCode}, RecPhrase: ${inviteeRecoveryPhrase})`
+    `Generated ${role} invitation code (Code: ${inviteCode})`
   );
-
-  // Dispatch real email in real-time
-  await sendAdminInvitationEmail(cleanEmail, role, inviteCode, inviteeRecoveryPhrase, creatorUsername);
 
   return {
     success: true,
-    message: `Invitation successfully generated and dispatched in real-time to ${cleanEmail}!`,
+    message: `Invitation code successfully generated!`,
     invitation
   };
 }
 
 export function acceptAdminInvitation(
   invitationCodeInput: string,
-  details: { username: string; displayName: string; passwordPlain: string }
+  details: { username: string; email: string; displayName: string; passwordPlain: string }
 ): { success: boolean; message: string; user?: AdminUser } {
   const cleanCode = invitationCodeInput.trim().toUpperCase();
   const invites = getAdminInvitations();
@@ -317,9 +302,14 @@ export function acceptAdminInvitation(
 
   const users = getAdminUsers();
   const cleanUsername = details.username.trim().toLowerCase();
+  const cleanEmail = details.email.trim().toLowerCase();
 
   if (users.some(u => u.username.toLowerCase() === cleanUsername)) {
     return { success: false, message: `Username "${details.username}" is already taken.` };
+  }
+
+  if (users.some(u => u.email.toLowerCase() === cleanEmail)) {
+    return { success: false, message: `An administrator account already exists with email "${cleanEmail}".` };
   }
 
   if (details.passwordPlain.length < 6) {
@@ -330,7 +320,7 @@ export function acceptAdminInvitation(
     id: 'admin_' + Date.now(),
     username: details.username.trim(),
     displayName: details.displayName.trim() || details.username.trim(),
-    email: invite.email,
+    email: cleanEmail,
     recoveryPhrase: invite.recoveryPhrase || generateRecoveryPhrase(),
     role: invite.role,
     permissions: invite.permissions,
@@ -431,8 +421,8 @@ export async function requestPasswordResetOtp(emailOrPhoneInput: string): Promis
       const newAdmin: AdminUser = {
         id: 'admin_' + Date.now(),
         username: clean.split('@')[0].replace(/[^a-z0-9_]/g, '') || ('admin_' + Math.floor(100 + Math.random() * 900)),
-        displayName: invite.email.split('@')[0],
-        email: invite.email,
+        displayName: invite.email!.split('@')[0],
+        email: invite.email!,
         recoveryPhrase: invite.recoveryPhrase || generateRecoveryPhrase(),
         role: invite.role,
         permissions: invite.permissions,
@@ -608,8 +598,8 @@ export function resetAdminPasswordWithRecoveryPhrase(
         const newAdmin: AdminUser = {
           id: 'admin_' + Date.now(),
           username: clean.split('@')[0].replace(/[^a-z0-9_]/g, '') || ('admin_' + Math.floor(100 + Math.random() * 900)),
-          displayName: invite.email.split('@')[0],
-          email: invite.email,
+          displayName: invite.email!.split('@')[0],
+          email: invite.email!,
           recoveryPhrase: invite.recoveryPhrase || generateRecoveryPhrase(),
           role: invite.role,
           permissions: invite.permissions,
