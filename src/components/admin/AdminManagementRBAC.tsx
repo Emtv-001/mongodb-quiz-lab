@@ -7,7 +7,8 @@ import {
   acceptAdminInvitation,
   cancelAdminInvitation,
   updateSubAdmin,
-  deleteSubAdmin
+  deleteSubAdmin,
+  getRolePermissions
 } from '../../services/adminService';
 import {
   Shield,
@@ -30,6 +31,13 @@ interface AdminManagementRBACProps {
   currentAdmin: AdminUser;
 }
 
+const ROLE_ACCESS_SUMMARY: Record<AdminRole, string> = {
+  'super-admin': 'Full control of everything (reserved for the Master account).',
+  'sub-admin': 'Branding & Tabs, Databases, Question Bank, Learner Cohort, Export Hub, Feedback. No admin management or security.',
+  'examiner': 'Question Bank, Learner Cohort, Feedback only.',
+  'moderator': 'Learner Cohort and Feedback only (read/review).'
+};
+
 export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ currentAdmin }) => {
   const [adminList, setAdminList] = useState<AdminUser[]>(() => getAdminUsers());
   const [invitations, setInvitations] = useState<AdminInvitation[]>(() => getAdminInvitations());
@@ -44,6 +52,12 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
   const [modalError, setModalError] = useState<string | null>(null);
   const [inviteCooldown, setInviteCooldown] = useState(0);
 
+  // Admin Account Deletion Modal state
+  const [deleteTargetAdmin, setDeleteTargetAdmin] = useState<AdminUser | null>(null);
+  const [deleteAdminReason, setDeleteAdminReason] = useState('voluntary-resignation');
+  const [deleteAdminStatement, setDeleteAdminStatement] = useState('');
+  const [deleteAdminError, setDeleteAdminError] = useState<string | null>(null);
+
   // Cooldown countdown timer
   useEffect(() => {
     if (inviteCooldown <= 0) return;
@@ -53,16 +67,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
     return () => clearInterval(timer);
   }, [inviteCooldown]);
 
-  const [invitePerms, setInvitePerms] = useState<AdminPermissions>({
-    canEditBranding: false,
-    canManageTabs: false,
-    canManageDatabases: true,
-    canManageQuestions: true,
-    canViewLearnerData: true,
-    canExportData: true,
-    canManageSubAdmins: false,
-    canResetSystem: false
-  });
+  const canManage = currentAdmin.role === 'super-admin' || Boolean(currentAdmin.permissions?.canManageSubAdmins);
 
   // Accept Invite Modal state (for invitee activation)
   const [showAcceptModal, setShowAcceptModal] = useState(false);
@@ -80,6 +85,12 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (inviteCooldown > 0) return;
+    const ok = window.confirm(
+      `Generate an invitation code for the role ${inviteRole.toUpperCase()}?\n\n` +
+      `Access granted: ${ROLE_ACCESS_SUMMARY[inviteRole]}\n\n` +
+      `Anyone who uses this code will register with this role.`
+    );
+    if (!ok) return;
     setModalError(null);
     setIsSendingInvite(true);
 
@@ -93,7 +104,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
       const res = await createAdminInvitationCode(
         recoveryPhraseInput,
         inviteRole,
-        invitePerms,
+        getRolePermissions(inviteRole),
         currentAdmin.username
       );
 
@@ -157,7 +168,8 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
       [permKey]: !target.permissions[permKey]
     };
 
-    updateSubAdmin(adminId, { permissions: updatedPermissions }, currentAdmin.username);
+    const res = updateSubAdmin(adminId, { permissions: updatedPermissions }, currentAdmin.username);
+    if (!res.success) alert(res.message);
     refreshData();
   };
 
@@ -174,6 +186,17 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
   };
 
   const handleChangeRole = (adminId: string, newRole: AdminRole) => {
+    const target = adminList.find(a => a.id === adminId);
+    if (!target || target.role === newRole) return;
+    const ok = window.confirm(
+      `Change @${target.username}'s role from ${target.role.toUpperCase()} to ${newRole.toUpperCase()}?\n\n` +
+      `New access: ${ROLE_ACCESS_SUMMARY[newRole]}\n\n` +
+      `Their rights will be reset to the ${newRole.toUpperCase()} defaults and take effect immediately.`
+    );
+    if (!ok) {
+      refreshData(); // revert the dropdown
+      return;
+    }
     const res = updateSubAdmin(adminId, { role: newRole }, currentAdmin.username);
     if (res.success) {
       refreshData();
@@ -182,14 +205,36 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
     }
   };
 
-  const handleDelete = (adminId: string) => {
-    if (!confirm("Are you sure you want to remove this administrator account?")) return;
-    const res = deleteSubAdmin(adminId, currentAdmin.username);
+  const handleOpenDeleteModal = (target: AdminUser) => {
+    setDeleteTargetAdmin(target);
+    setDeleteAdminReason(target.id === currentAdmin.id ? 'voluntary-resignation' : 'administrative-removal');
+    setDeleteAdminStatement('');
+    setDeleteAdminError(null);
+  };
+
+  const handleConfirmAdminDelete = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deleteTargetAdmin) return;
+    const isSelf = deleteTargetAdmin.id === currentAdmin.id;
+    const res = deleteSubAdmin(
+      deleteTargetAdmin.id,
+      currentAdmin.username,
+      deleteAdminReason,
+      deleteAdminStatement
+    );
     if (res.success) {
+      setDeleteTargetAdmin(null);
+      setDeleteAdminStatement('');
+      setDeleteAdminError(null);
       refreshData();
-      setStatusMsg({ text: res.message, isError: false });
+      if (isSelf) {
+        sessionStorage.removeItem('mongo_quiz_logged_admin_user');
+        window.location.reload();
+      } else {
+        setStatusMsg({ text: res.message, isError: false });
+      }
     } else {
-      alert(res.message);
+      setDeleteAdminError(res.message);
     }
   };
 
@@ -341,7 +386,9 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
 
         <div className="space-y-4">
           {adminList.map((admin) => {
-            const isMaster = admin.id === 'admin_master_1' || admin.role === 'super-admin';
+            const isMaster = admin.id === 'admin_master_1';
+            const isSelf = admin.id === currentAdmin.id;
+            const isLocked = isMaster || isSelf || !canManage;
             return (
               <div
                 key={admin.id}
@@ -356,7 +403,10 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                       <div className="flex items-center space-x-2">
                         <span className="font-bold text-sm text-white">{admin.displayName}</span>
                         <span className="text-xs font-mono text-slate-400">(@{admin.username})</span>
-                        {isMaster ? (
+                        {isSelf && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">YOU</span>
+                        )}
+                        {isLocked ? (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border bg-purple-500/15 text-purple-300 border-purple-500/30">
                             {admin.role}
                           </span>
@@ -369,23 +419,17 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                             <option value="sub-admin">SUB-ADMIN</option>
                             <option value="examiner">EXAMINER</option>
                             <option value="moderator">MODERATOR</option>
-                            <option value="super-admin">SUPER-ADMIN</option>
                           </select>
                         )}
                       </div>
                       <div className="text-[11px] text-slate-400 space-x-3 mt-0.5">
                         <span>Email: {admin.email}</span>
                         <span>Created: {admin.createdAt.split('T')[0]}</span>
-                        {admin.recoveryPhrase && (
-                          <span className="text-purple-400 font-mono text-[10px]">
-                            RecPhrase: {admin.recoveryPhrase}
-                          </span>
-                        )}
                       </div>
                     </div>
                   </div>
 
-                  {!isMaster && (
+                  {!isLocked && (
                     <div className="flex items-center space-x-2 self-end sm:self-center">
                       <button
                         onClick={() => handleToggleStatus(admin.id)}
@@ -398,12 +442,27 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                         {admin.status === 'active' ? 'Active' : 'Suspended'}
                       </button>
 
+                      {currentAdmin.id === 'admin_master_1' && (
+                        <button
+                          onClick={() => handleOpenDeleteModal(admin)}
+                          className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                          title="Remove Administrator"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {isSelf && !isMaster && (
+                    <div className="flex items-center space-x-2 self-end sm:self-center">
                       <button
-                        onClick={() => handleDelete(admin.id)}
-                        className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                        title="Remove Administrator"
+                        onClick={() => handleOpenDeleteModal(admin)}
+                        className="px-2.5 py-1 rounded-xl text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition-colors flex items-center space-x-1"
+                        title="Delete My Administrator Account"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete My Account</span>
                       </button>
                     </div>
                   )}
@@ -416,17 +475,18 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                   </span>
                   <div className="flex flex-wrap gap-2 text-xs">
                     {permissionLabels.map((perm) => {
-                      const hasPerm = isMaster || Boolean(admin.permissions[perm.key]);
+                      const chipLocked = isLocked || admin.role === 'super-admin';
+                      const hasPerm = admin.role === 'super-admin' || Boolean(admin.permissions[perm.key]);
                       return (
                         <button
                           key={perm.key}
-                          disabled={isMaster}
+                          disabled={chipLocked}
                           onClick={() => handleTogglePermission(admin.id, perm.key)}
                           className={`px-2.5 py-1 rounded-xl text-xs font-semibold border transition-all flex items-center space-x-1.5 ${
                             hasPerm
                               ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
                               : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'
-                          } ${isMaster ? 'cursor-default' : 'cursor-pointer'}`}
+                          } ${chipLocked ? 'cursor-default' : 'cursor-pointer'}`}
                         >
                           <span className={`w-1.5 h-1.5 rounded-full ${hasPerm ? 'bg-emerald-400' : 'bg-slate-600'}`} />
                           <span>{perm.label}</span>
@@ -535,7 +595,6 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                     <option value="sub-admin">Sub-Admin (Full Curriculum & Database Access)</option>
                     <option value="examiner">Examiner (Question Bank & Cohort only)</option>
                     <option value="moderator">Moderator (Review & Inspection only)</option>
-                    <option value="super-admin">Super Admin (Root Governance Privileges)</option>
                   </select>
                 </div>
 
@@ -699,6 +758,100 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
           </div>
         </div>
       )}
+
+      {/* Modal: Admin Account Deletion */}
+      {deleteTargetAdmin && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h3 className="text-base font-bold text-red-400 flex items-center space-x-2">
+                <AlertCircle className="w-5 h-5" />
+                <span>Confirm Account Deletion</span>
+              </h3>
+              <button
+                onClick={() => setDeleteTargetAdmin(null)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {deleteAdminError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl text-xs flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span className="font-semibold">{deleteAdminError}</span>
+              </div>
+            )}
+
+            <div className="text-sm text-slate-300 space-y-2">
+              <p>
+                You are about to permanently delete the administrator account for <strong>{deleteTargetAdmin.displayName} (@{deleteTargetAdmin.username})</strong>.
+              </p>
+              <p className="text-xs text-red-400 font-semibold">
+                This action cannot be undone. All access will be revoked immediately.
+              </p>
+            </div>
+
+            <form onSubmit={handleConfirmAdminDelete} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Reason for Deletion
+                </label>
+                <select
+                  value={deleteAdminReason}
+                  onChange={(e) => setDeleteAdminReason(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 text-sm focus:border-red-500 focus:outline-none"
+                >
+                  {deleteTargetAdmin.id === currentAdmin.id ? (
+                    <>
+                      <option value="voluntary-resignation">Voluntary Resignation</option>
+                      <option value="personal-reasons">Personal Reasons</option>
+                      <option value="other">Other</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="administrative-removal">Administrative Removal</option>
+                      <option value="policy-violation">Policy Violation</option>
+                      <option value="role-obsolete">Role No Longer Needed</option>
+                      <option value="other">Other</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Exit Statement / Remarks
+                </label>
+                <textarea
+                  value={deleteAdminStatement}
+                  onChange={(e) => setDeleteAdminStatement(e.target.value)}
+                  placeholder="Provide any final remarks or context..."
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-3 text-sm focus:border-red-500 focus:outline-none h-24 resize-none"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setDeleteTargetAdmin(null)}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl text-sm font-bold bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/30 hover:border-red-500 transition-all"
+                >
+                  Delete Account
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+

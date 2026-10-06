@@ -1,5 +1,6 @@
 import {
   AdminUser,
+  AdminRole,
   AdminPermissions,
   AdminInvitation,
   SiteCustomization,
@@ -7,7 +8,8 @@ import {
   AdminAuditLog,
   LearnerProfile,
   EmailResetSession,
-  DatabaseEngineType
+  DatabaseEngineType,
+  DeletionStatement
 } from '../types/admin';
 import { sha256Sync } from './security';
 import { ALL_DATASETS } from '../data/seedData';
@@ -24,6 +26,7 @@ const SITE_CONFIG_KEY = 'mongo_quiz_site_customization_v3';
 const GENERIC_DATABASES_KEY = 'mongo_quiz_generic_databases_v3';
 const AUDIT_LOGS_KEY = 'mongo_quiz_admin_audit_logs_v3';
 const RESET_OTP_KEY = 'mongo_quiz_reset_otp_session_v3';
+const DELETION_STATEMENTS_KEY = 'mongo_quiz_deletion_statements_v1';
 
 export const FULL_PERMISSIONS: AdminPermissions = {
   canEditBranding: true,
@@ -163,15 +166,91 @@ export function getAdminUsers(): AdminUser[] {
 
   // Ensure all other sub-admins have a recovery phrase
   let hasRepaired = false;
+
+  // One-time removal of admin accounts requested by the Master Super Admin
+  const PURGE_FLAG = 'mongo_quiz_admin_purge_v1';
+  const PURGED_EMAILS = ['uzooejims@gmail.com'];
+  if (!localStorage.getItem(PURGE_FLAG)) {
+    const before = users.length;
+    users = users.filter(u => isMasterAccount(u) || !PURGED_EMAILS.includes((u.email || '').trim().toLowerCase()));
+    if (users.length !== before) {
+      hasRepaired = true;
+      addAuditLog('admin', 'Delete Administrator', 'security', `Removed admin account(s): ${PURGED_EMAILS.join(', ')}`);
+    }
+    try { localStorage.setItem(PURGE_FLAG, '1'); } catch {}
+  }
+
   users.forEach(u => {
+    // The master account is the only Super Admin
+    if (!isMasterAccount(u) && u.role === 'super-admin') {
+      u.role = 'sub-admin';
+      u.permissions = getRolePermissions('sub-admin');
+      hasRepaired = true;
+    }
     if (!u.recoveryPhrase) {
       u.recoveryPhrase = generateRecoveryPhrase();
+      hasRepaired = true;
+    }
+    // One-time migration: sync permissions with the assigned role
+    if (!u.permsSynced) {
+      u.permissions = getRolePermissions(u.role);
+      u.permsSynced = true;
+      hasRepaired = true;
+    }
+    // Super admins always retain full rights
+    if (u.role === 'super-admin' && Object.values(u.permissions).some(v => !v)) {
+      u.permissions = { ...FULL_PERMISSIONS };
       hasRepaired = true;
     }
   });
   if (hasRepaired) saveAdminUsers(users);
 
   return users;
+}
+
+export function isMasterAccount(u: Pick<AdminUser, 'id' | 'username'>): boolean {
+  return u.id === 'admin_master_1' || u.username.toLowerCase() === 'admin';
+}
+
+/**
+ * ROLE-BASED PERMISSION PRESETS
+ */
+export const ROLE_PERMISSIONS: Record<AdminRole, AdminPermissions> = {
+  'super-admin': {
+    canEditBranding: true, canManageTabs: true, canManageDatabases: true, canManageQuestions: true,
+    canViewLearnerData: true, canExportData: true, canManageSubAdmins: true, canResetSystem: true
+  },
+  'sub-admin': {
+    canEditBranding: true, canManageTabs: true, canManageDatabases: true, canManageQuestions: true,
+    canViewLearnerData: true, canExportData: true, canManageSubAdmins: false, canResetSystem: false
+  },
+  'examiner': {
+    canEditBranding: false, canManageTabs: false, canManageDatabases: false, canManageQuestions: true,
+    canViewLearnerData: true, canExportData: false, canManageSubAdmins: false, canResetSystem: false
+  },
+  'moderator': {
+    canEditBranding: false, canManageTabs: false, canManageDatabases: false, canManageQuestions: false,
+    canViewLearnerData: true, canExportData: false, canManageSubAdmins: false, canResetSystem: false
+  }
+};
+
+export function getRolePermissions(role: AdminRole): AdminPermissions {
+  return { ...(ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS['moderator']) };
+}
+
+/** Returns the fresh stored record for an admin (or null if deleted). */
+export function getFreshAdminUser(id: string): AdminUser | null {
+  return getAdminUsers().find(u => u.id === id) || null;
+}
+
+/** Verifies that the executor is an active admin holding the given permission. */
+function authorize(executorUsername: string, perm: keyof AdminPermissions): string | null {
+  const executor = getAdminUsers().find(u => u.username.toLowerCase() === executorUsername.toLowerCase());
+  if (!executor || executor.status !== 'active') return "Unauthorized: your admin session is invalid.";
+  if (executor.role !== 'super-admin' && !executor.permissions[perm]) {
+    return "Access denied: your role does not have permission to perform this action.";
+  }
+  return null;
 }
 
 export function saveAdminUsers(users: AdminUser[]): void {
@@ -238,6 +317,13 @@ export async function createAdminInvitationCode(
   permissions: AdminPermissions,
   creatorUsername: string = 'admin'
 ): Promise<{ success: boolean; message: string; invitation?: AdminInvitation }> {
+  const authError = authorize(creatorUsername, 'canManageSubAdmins');
+  if (authError) return { success: false, message: authError };
+
+  if (role === 'super-admin') {
+    return { success: false, message: "The Super Admin role is reserved for the Master account and cannot be assigned." };
+  }
+
   const cleanPhrase = recoveryPhraseInput.trim().replace(/[\s\-]/g, '');
   const cleanMaster = MASTER_RECOVERY_PHRASE.replace(/[\s\-]/g, '');
 
@@ -256,7 +342,7 @@ export async function createAdminInvitationCode(
   const invitation: AdminInvitation = {
     id: 'invite_' + Date.now(),
     role,
-    permissions: role === 'super-admin' ? FULL_PERMISSIONS : permissions,
+    permissions: permissions || getRolePermissions(role),
     invitationCode: inviteCode,
     recoveryPhrase: inviteeRecoveryPhrase,
     status: 'pending',
@@ -327,7 +413,8 @@ export function acceptAdminInvitation(
     passwordHash: sha256Sync(details.passwordPlain.trim()),
     status: 'active',
     createdAt: new Date().toISOString(),
-    createdBy: invite.createdBy
+    createdBy: invite.createdBy,
+    permsSynced: true
   };
 
   users.push(newUser);
@@ -353,6 +440,9 @@ export function acceptAdminInvitation(
 }
 
 export function cancelAdminInvitation(id: string, executorUsername: string = 'admin'): { success: boolean; message: string } {
+  const authError = authorize(executorUsername, 'canManageSubAdmins');
+  if (authError) return { success: false, message: authError };
+
   let invites = getAdminInvitations();
   invites = invites.filter(i => i.id !== id);
   saveAdminInvitations(invites);
@@ -369,29 +459,137 @@ export function updateSubAdmin(
   const index = users.findIndex(u => u.id === id);
   if (index === -1) return { success: false, message: "Admin not found." };
 
-  if (users[index].id === 'admin_master_1' && updates.status === 'suspended') {
-    return { success: false, message: "The Master Super Admin cannot be suspended." };
+  const target = users[index];
+  const executor = users.find(u => u.username.toLowerCase() === executorUsername.toLowerCase());
+  const isSelf = executor?.id === target.id;
+  const touchesPrivileges = 'role' in updates || 'permissions' in updates || 'status' in updates;
+
+  // Self-service edits (e.g. profile/password) are allowed; privilege changes are not
+  if (!isSelf || touchesPrivileges) {
+    const authError = authorize(executorUsername, 'canManageSubAdmins');
+    if (authError) return { success: false, message: authError };
   }
 
-  users[index] = { ...users[index], ...updates };
+  if (isMasterAccount(target) && touchesPrivileges) {
+    return { success: false, message: "The Master Super Admin's role, rights and status cannot be changed." };
+  }
+
+  if (updates.role === 'super-admin') {
+    return { success: false, message: "The Super Admin role is reserved for the Master account and cannot be assigned." };
+  }
+
+  if (isSelf && touchesPrivileges) {
+    return { success: false, message: "You cannot change your own role, rights or status." };
+  }
+
+  const safeUpdates: Partial<AdminUser> = { ...updates };
+  delete safeUpdates.id;
+  // When role changes, reset permissions to that role's preset
+  if (safeUpdates.role && safeUpdates.role !== target.role && !safeUpdates.permissions) {
+    safeUpdates.permissions = getRolePermissions(safeUpdates.role);
+  }
+  if ((safeUpdates.role || target.role) === 'super-admin') {
+    safeUpdates.permissions = { ...FULL_PERMISSIONS };
+  }
+
+  users[index] = { ...target, ...safeUpdates };
   saveAdminUsers(users);
   addAuditLog(executorUsername, 'Update Administrator', 'security', `Updated account/permissions for ${users[index].username}`);
 
   return { success: true, message: "Administrator details updated successfully." };
 }
 
-export function deleteSubAdmin(id: string, executorUsername: string = 'admin'): { success: boolean; message: string } {
-  if (id === 'admin_master_1') {
-    return { success: false, message: "The Master Super Admin cannot be deleted." };
+/**
+ * ACCOUNT DELETION STATEMENTS & STATEMENTS BOARD (FOR SUPER ADMIN)
+ */
+export function getDeletionStatements(): DeletionStatement[] {
+  try {
+    const raw = localStorage.getItem(DELETION_STATEMENTS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
   }
+}
+
+export function saveDeletionStatements(statements: DeletionStatement[]): void {
+  try {
+    localStorage.setItem(DELETION_STATEMENTS_KEY, JSON.stringify(statements));
+    window.dispatchEvent(new CustomEvent('deletion_statements_updated', { detail: statements }));
+  } catch (err) {
+    console.error("Failed to save deletion statements", err);
+  }
+}
+
+export function recordDeletionStatement(
+  data: Omit<DeletionStatement, 'id' | 'deletedAt'>
+): DeletionStatement {
+  const statements = getDeletionStatements();
+  const newStmt: DeletionStatement = {
+    ...data,
+    id: 'stmt_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+    deletedAt: new Date().toISOString()
+  };
+  statements.unshift(newStmt);
+  if (statements.length > 200) statements.pop();
+  saveDeletionStatements(statements);
+  return newStmt;
+}
+
+export function clearDeletionStatements(executorUsername: string = 'admin'): { success: boolean; message: string } {
+  const authError = authorize(executorUsername, 'canResetSystem');
+  if (authError) return { success: false, message: authError };
+  saveDeletionStatements([]);
+  addAuditLog(executorUsername, 'Clear Deletion Statements', 'security', 'Super Admin cleared the account deletion statements board.');
+  return { success: true, message: "Deletion statements board cleared." };
+}
+
+export function deleteSubAdmin(
+  id: string,
+  executorUsername: string = 'admin',
+  reasonCategory: string = 'administrative-removal',
+  statement: string = 'Administrator account removed.'
+): { success: boolean; message: string } {
   let users = getAdminUsers();
   const target = users.find(u => u.id === id);
+  if (!target) return { success: false, message: "Administrator account not found." };
+
+  if (isMasterAccount(target)) {
+    return { success: false, message: "The Master Super Admin account cannot be deleted under any circumstances." };
+  }
+
+  const executor = users.find(u => u.username.toLowerCase() === executorUsername.toLowerCase());
+  const isSelf = executor?.id === id;
+
+  // If not self-deletion, require permission
+  if (!isSelf) {
+    const authError = authorize(executorUsername, 'canManageSubAdmins');
+    if (authError) return { success: false, message: authError };
+  }
+
   users = users.filter(u => u.id !== id);
   saveAdminUsers(users);
-  if (target) {
-    addAuditLog(executorUsername, 'Delete Administrator', 'security', `Deleted admin account ${target.username}`);
-  }
-  return { success: true, message: "Administrator removed." };
+
+  // Record statement to the Statements Board
+  recordDeletionStatement({
+    accountType: 'admin',
+    accountId: target.id,
+    username: target.username,
+    email: target.email,
+    displayName: target.displayName,
+    role: target.role,
+    reasonCategory: reasonCategory || (isSelf ? 'self-resignation' : 'administrative-removal'),
+    statement: statement.trim() || (isSelf ? 'Administrator chose to delete account.' : 'Removed by administrator.'),
+    deletedBy: isSelf ? `@${target.username} (Self)` : `@${executorUsername}`
+  });
+
+  addAuditLog(
+    executorUsername,
+    'Delete Administrator',
+    'security',
+    `${isSelf ? 'Self-deleted' : 'Deleted'} admin @${target.username} (${target.role}). Reason: ${reasonCategory}. Statement: ${statement}`
+  );
+
+  return { success: true, message: `Administrator account @${target.username} has been deleted.` };
 }
 
 /**

@@ -8,7 +8,8 @@ import {
   verifyPasswordResetOtp,
   completePasswordReset,
   resetAdminPasswordWithRecoveryPhrase,
-  acceptAdminInvitation
+  acceptAdminInvitation,
+  getFreshAdminUser
 } from '../../services/adminService';
 import { AdminDashboardOverview } from './AdminDashboardOverview';
 import { AdminBrandingConfig } from './AdminBrandingConfig';
@@ -18,10 +19,12 @@ import { AdminManagementRBAC } from './AdminManagementRBAC';
 import { AdminShareHub } from './AdminShareHub';
 import { AdminSecuritySettings } from './AdminSecuritySettings';
 import { AdminFeedbackView } from './AdminFeedbackView';
+import { AdminStatementsBoard } from './AdminStatementsBoard';
 import { DEFAULT_QUESTIONS } from '../../data/questions';
 import { ALL_TOPICS } from '../../services/storage';
 import { DifficultyLevel, MongoTopic, Question, QuestionType, CurriculumLevel } from '../../types';
 import { loadCustomQuestions, saveCustomQuestions } from '../../services/storage';
+import { getFeedbackEntries } from '../../services/feedbackService';
 
 import {
   LayoutDashboard,
@@ -47,7 +50,8 @@ import {
   Clock,
   RefreshCw,
   MessageSquare,
-  X
+  X,
+  FileText
 } from 'lucide-react';
 
 type AdminTab =
@@ -59,18 +63,80 @@ type AdminTab =
   | 'admins'
   | 'share'
   | 'security'
-  | 'feedback';
+  | 'feedback'
+  | 'statements';
 
 export const AdminView: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(() => {
     const raw = sessionStorage.getItem('mongo_quiz_logged_admin_user');
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    try {
+      const cached: AdminUser = JSON.parse(raw);
+      const fresh = getFreshAdminUser(cached.id);
+      if (!fresh || fresh.status !== 'active') {
+        sessionStorage.removeItem('mongo_quiz_logged_admin_user');
+        return null;
+      }
+      return fresh;
+    } catch {
+      return null;
+    }
   });
 
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
   const [currentAdminTab, setCurrentAdminTab] = useState<AdminTab>('overview');
+
+  // Keep the session in sync with the stored admin record (role/permission/status changes)
+  useEffect(() => {
+    if (!currentUser) return;
+    const sync = () => {
+      const fresh = getFreshAdminUser(currentUser.id);
+      if (!fresh || fresh.status !== 'active') {
+        sessionStorage.removeItem('mongo_quiz_logged_admin_user');
+        setCurrentUser(null);
+        setAuthError(!fresh ? 'Your administrator account has been removed.' : 'Your administrator account has been suspended.');
+        return;
+      }
+      if (JSON.stringify(fresh) !== JSON.stringify(currentUser)) {
+        sessionStorage.setItem('mongo_quiz_logged_admin_user', JSON.stringify(fresh));
+        setCurrentUser(fresh);
+      }
+    };
+    sync();
+    const interval = setInterval(sync, 5000);
+    window.addEventListener('storage', sync);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', sync);
+    };
+  }, [currentUser, currentAdminTab]);
+
+  const TAB_PERMISSIONS: Partial<Record<AdminTab, keyof AdminUser['permissions']>> = {
+    branding: 'canEditBranding',
+    databases: 'canManageDatabases',
+    questions: 'canManageQuestions',
+    users: 'canViewLearnerData',
+    admins: 'canManageSubAdmins',
+    share: 'canExportData',
+    security: 'canResetSystem'
+  };
+
+  const canAccessTab = (tab: AdminTab): boolean => {
+    if (!currentUser) return false;
+    if (currentUser.role === 'super-admin') return true;
+    if (tab === 'statements') return false;
+    const perm = TAB_PERMISSIONS[tab];
+    return !perm || Boolean(currentUser.permissions?.[perm]);
+  };
+
+  // If the active tab becomes forbidden (e.g. after a role change), fall back to overview
+  useEffect(() => {
+    if (currentUser && !canAccessTab(currentAdminTab)) {
+      setCurrentAdminTab('overview');
+    }
+  }, [currentUser, currentAdminTab]);
 
   // Login Page Password Reset Modal State
   const [showLoginResetModal, setShowLoginResetModal] = useState(false);
@@ -133,6 +199,14 @@ export const AdminView: React.FC = () => {
 
   const siteConfig = getSiteCustomization();
   const allQuestions = [...DEFAULT_QUESTIONS, ...customQuestions];
+
+  const [feedbackCount, setFeedbackCount] = useState(0);
+
+  useEffect(() => {
+    if (currentUser?.role === 'super-admin') {
+      setFeedbackCount(getFeedbackEntries().length);
+    }
+  }, [currentAdminTab, currentUser]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -779,17 +853,19 @@ export const AdminView: React.FC = () => {
 
   // --- UNLOCKED INSTRUCTOR PORTAL NAVIGATION ---
 
-  const adminNavTabs: { id: AdminTab; label: string; icon: React.FC<{ className?: string }>; badge?: string }[] = [
+  const allAdminNavTabs: { id: AdminTab; label: string; icon: React.FC<{ className?: string }>; badge?: string; perm?: keyof AdminUser['permissions'] }[] = [
     { id: 'overview', label: 'Overview & Telemetry', icon: LayoutDashboard },
-    { id: 'branding', label: 'Branding & Tabs', icon: Palette },
-    { id: 'databases', label: 'Multi-Database Manager', icon: Database },
-    { id: 'questions', label: 'Question Bank', icon: FileCode, badge: `${allQuestions.length}` },
-    { id: 'users', label: 'Learner Cohort', icon: Users },
-    { id: 'admins', label: 'Admin Governance (RBAC)', icon: ShieldCheck },
-    { id: 'share', label: 'Share & Export Hub', icon: Share2 },
-    { id: 'feedback', label: 'Learner Feedback', icon: MessageSquare },
-    { id: 'security', label: 'Security & Audit Logs', icon: Lock }
+    { id: 'branding', label: 'Branding & Tabs', icon: Palette, perm: 'canEditBranding' },
+    { id: 'databases', label: 'Multi-Database Manager', icon: Database, perm: 'canManageDatabases' },
+    { id: 'questions', label: 'Question Bank', icon: FileCode, badge: `${allQuestions.length}`, perm: 'canManageQuestions' },
+    { id: 'users', label: 'Learner Cohort', icon: Users, perm: 'canViewLearnerData' },
+    { id: 'admins', label: 'Admin Governance (RBAC)', icon: ShieldCheck, perm: 'canManageSubAdmins' },
+    { id: 'share', label: 'Share & Export Hub', icon: Share2, perm: 'canExportData' },
+    { id: 'feedback', label: 'Learner Feedback', icon: MessageSquare, badge: currentUser.role === 'super-admin' && feedbackCount > 0 ? `${feedbackCount} New` : undefined },
+    { id: 'security', label: 'Security & Audit Logs', icon: Lock, perm: 'canResetSystem' },
+    { id: 'statements', label: 'Statements Board', icon: FileText }
   ];
+  const adminNavTabs = allAdminNavTabs.filter(t => canAccessTab(t.id));
 
   const handleCreateQuestion = (e: React.FormEvent) => {
     e.preventDefault();
@@ -936,40 +1012,44 @@ export const AdminView: React.FC = () => {
       </div>
 
       {/* Render Active Admin Submodule */}
-      {currentAdminTab === 'overview' && (
+      {canAccessTab(currentAdminTab) && currentAdminTab === 'overview' && (
         <AdminDashboardOverview onNavigateTab={(tab) => setCurrentAdminTab(tab as AdminTab)} />
       )}
 
-      {currentAdminTab === 'branding' && (
+      {canAccessTab(currentAdminTab) && currentAdminTab === 'branding' && (
         <AdminBrandingConfig currentAdminUsername={currentUser.username} />
       )}
 
-      {currentAdminTab === 'databases' && (
+      {canAccessTab(currentAdminTab) && currentAdminTab === 'databases' && (
         <AdminDatabaseManager currentAdminUsername={currentUser.username} />
       )}
 
-      {currentAdminTab === 'users' && (
+      {canAccessTab(currentAdminTab) && currentAdminTab === 'users' && (
         <AdminUserTracker />
       )}
 
-      {currentAdminTab === 'admins' && (
+      {canAccessTab(currentAdminTab) && currentAdminTab === 'admins' && (
         <AdminManagementRBAC currentAdmin={currentUser} />
       )}
 
-      {currentAdminTab === 'share' && (
+      {canAccessTab(currentAdminTab) && currentAdminTab === 'share' && (
         <AdminShareHub />
       )}
 
-      {currentAdminTab === 'security' && (
+      {canAccessTab(currentAdminTab) && currentAdminTab === 'security' && (
         <AdminSecuritySettings />
       )}
 
-      {currentAdminTab === 'feedback' && (
+      {canAccessTab(currentAdminTab) && currentAdminTab === 'feedback' && (
         <AdminFeedbackView isSuperAdmin={currentUser.role === 'super-admin'} />
       )}
 
+      {canAccessTab(currentAdminTab) && currentAdminTab === 'statements' && (
+        <AdminStatementsBoard currentAdmin={currentUser} />
+      )}
+
       {/* Question Bank Directory */}
-      {currentAdminTab === 'questions' && (
+      {canAccessTab(currentAdminTab) && currentAdminTab === 'questions' && (
         <div className="space-y-6 animate-fadeIn">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>

@@ -7,7 +7,8 @@ import {
   loginLearner,
   logoutLearner,
   recoverLearnerAccountWithPhrase,
-  getLearnerGamificationStats
+  getLearnerGamificationStats,
+  deleteLearnerAccount
 } from '../../services/learnerService';
 import {
   Trophy,
@@ -21,6 +22,7 @@ import {
   UserPlus,
   LogIn,
   LogOut,
+  Trash2,
   Copy,
   Check,
   AlertCircle,
@@ -57,6 +59,14 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRecoverModal, setShowRecoverModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  // Delete Account Form State
+  const [deleteReasonCategory, setDeleteReasonCategory] = useState('completed-goals');
+  const [deleteStatement, setDeleteStatement] = useState('');
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   // Register Form State
   const [regEmail, setRegEmail] = useState('');
@@ -177,6 +187,31 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
     }
   };
 
+  // Handle Account Deletion
+  const handleDeleteAccountSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!account) return;
+    setDeleteError(null);
+    setIsDeletingAccount(true);
+
+    try {
+      const res = deleteLearnerAccount(account.id, deleteReasonCategory, deleteStatement, deletePassword);
+      if (res.success) {
+        setShowDeleteModal(false);
+        setDeleteStatement('');
+        setDeletePassword('');
+        refreshAccountState();
+        alert(res.message);
+      } else {
+        setDeleteError(res.message);
+      }
+    } catch (err: any) {
+      setDeleteError(err?.message || "Failed to delete account.");
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
   // Handle Recovery
   const handleRecoverSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -278,8 +313,22 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                     onClick={handleLogoutClick}
                     className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
                   >
-                    <LogOut className="w-3.5 h-3.5 text-red-400" />
+                    <LogOut className="w-3.5 h-3.5 text-slate-400" />
                     <span>Sign Out</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setShowDeleteModal(true);
+                      setDeleteError(null);
+                      setDeleteStatement('');
+                      setDeletePassword('');
+                    }}
+                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition-colors"
+                    title="Delete Account and Profile"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                    <span>Delete Account</span>
                   </button>
                 </div>
               )}
@@ -934,6 +983,115 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                   className="px-5 py-2 rounded-xl font-bold bg-purple-500 hover:bg-purple-400 text-slate-950 shadow-md shadow-purple-500/20"
                 >
                   Reset Password & Recover
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Delete Learner Account */}
+      {showDeleteModal && account && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-slate-900 border border-red-500/30 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center space-x-2 text-red-400">
+                <div className="p-2 bg-red-500/10 rounded-xl border border-red-500/20">
+                  <Trash2 className="w-5 h-5 text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Delete Learner Account</h3>
+                  <span className="text-[11px] text-slate-400 font-mono">@{account.username}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-300 space-y-1">
+              <p className="font-bold flex items-center space-x-1.5">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 text-red-400" />
+                <span>This action cannot be undone.</span>
+              </p>
+              <p className="text-[11px] text-red-200/80">
+                Your registered credentials, MongoCoins, and personal badges will be permanently removed. Your exit statement will be recorded on the Super Admin Statements Board.
+              </p>
+            </div>
+
+            {deleteError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl text-xs flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span className="font-semibold">{deleteError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleDeleteAccountSubmit} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">
+                  Reason for Leaving *
+                </label>
+                <select
+                  value={deleteReasonCategory}
+                  onChange={(e) => setDeleteReasonCategory(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-red-500/50 focus:outline-none"
+                >
+                  <option value="completed-goals">Completed my MongoDB study goals</option>
+                  <option value="privacy-concerns">Privacy & data cleanup request</option>
+                  <option value="starting-fresh">Starting fresh with a new account</option>
+                  <option value="technical-difficulties">Encountered technical difficulties or bugs</option>
+                  <option value="dissatisfied">Course / quiz content didn't meet needs</option>
+                  <option value="other">Other reason</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">
+                  Exit Statement & Feedback *
+                </label>
+                <textarea
+                  value={deleteStatement}
+                  onChange={(e) => setDeleteStatement(e.target.value)}
+                  placeholder="Please state why you are deleting your account or leave any exit feedback for the instructors..."
+                  required
+                  rows={3}
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-red-500/50 focus:outline-none resize-none placeholder:text-slate-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">
+                  Confirm Account Password *
+                </label>
+                <input
+                  type="password"
+                  placeholder="Enter your current password..."
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  required
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-red-500/50 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={isDeletingAccount}
+                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white bg-slate-800 transition-colors"
+                >
+                  Keep My Account
+                </button>
+                <button
+                  type="submit"
+                  disabled={isDeletingAccount}
+                  className="px-5 py-2 rounded-xl font-bold bg-red-500 hover:bg-red-400 text-white shadow-md shadow-red-500/20 transition-all flex items-center space-x-1.5"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>{isDeletingAccount ? 'Deleting...' : 'Permanently Delete Account'}</span>
                 </button>
               </div>
             </form>

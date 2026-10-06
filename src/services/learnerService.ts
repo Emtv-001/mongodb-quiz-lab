@@ -6,7 +6,7 @@ import {
   StudentProgress,
   LearnerTier
 } from '../types';
-import { generateRecoveryPhrase } from './adminService';
+import { generateRecoveryPhrase, recordDeletionStatement, addAuditLog } from './adminService';
 import { sha256Sync } from './security';
 import { loadProgress, saveProgress } from './storage';
 import { sendOtpRegistrationEmail } from './emailService';
@@ -246,6 +246,65 @@ export function loginLearner(
  */
 export function logoutLearner(): void {
   saveRegisteredLearnerAccount(null);
+}
+
+/**
+ * Permanently deletes a registered learner account and records a statement for the Super Admin board.
+ */
+export function deleteLearnerAccount(
+  accountId: string,
+  reasonCategory: string,
+  statement: string,
+  passwordPlain: string
+): { success: boolean; message: string } {
+  const dir = getLearnerAccountsDirectory();
+  const account = dir[accountId];
+
+  if (!account) {
+    return { success: false, message: "Learner account not found." };
+  }
+
+  // Security check: verify password before permanent deletion
+  if (passwordPlain) {
+    const inputHash = sha256Sync(passwordPlain.trim());
+    if (inputHash !== account.passwordHash) {
+      return { success: false, message: "Incorrect password. Please enter your valid password to confirm deletion." };
+    }
+  }
+
+  // Remove account from directory
+  delete dir[accountId];
+  try {
+    localStorage.setItem(LEARNER_ACCOUNTS_DIR_KEY, JSON.stringify(dir));
+  } catch (err) {
+    console.error("Failed to update accounts directory", err);
+  }
+
+  // Clear active session
+  sessionStorage.removeItem(ACTIVE_LEARNER_SESSION_KEY);
+  window.dispatchEvent(new CustomEvent('learner_account_updated', { detail: null }));
+
+  // Record statement to the Statements Board
+  recordDeletionStatement({
+    accountType: 'user',
+    accountId: account.id,
+    username: account.username,
+    email: account.email,
+    displayName: account.displayName,
+    role: 'learner',
+    reasonCategory: reasonCategory || 'user-choice',
+    statement: statement.trim() || 'User chose to delete account.',
+    deletedBy: `@${account.username} (Self)`
+  });
+
+  addAuditLog(
+    account.username,
+    'Delete Learner Account',
+    'auth',
+    `Learner @${account.username} (${account.email}) deleted their account. Reason: ${reasonCategory}. Statement: ${statement}`
+  );
+
+  return { success: true, message: "Your account and personal profile have been permanently deleted." };
 }
 
 /**

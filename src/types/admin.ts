@@ -25,6 +25,7 @@ export interface AdminUser {
   createdAt: string;
   lastActive?: string;
   createdBy: string;
+  permsSynced?: boolean;
 }
 
 export interface AdminInvitation {
@@ -125,4 +126,18 @@ export interface EmailServiceConfig {
     timestamp: string;
     message: string;
   };
+}
+
+export interface DeletionStatement {
+  id: string;
+  accountType: 'user' | 'admin';
+  accountId: string;
+  username: string;
+  email: string;
+  displayName: string;
+  role?: string;
+  reasonCategory: string;
+  statement: string;
+  deletedAt: string;
+  deletedBy: string;
 }
