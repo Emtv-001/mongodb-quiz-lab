@@ -235,16 +235,12 @@ export async function sendRealtimeEmail(payload: EmailDispatchPayload): Promise<
     }
   }
 
-  // FormSubmit and Formspree contact form alerts have been removed completely to prevent activation requests.
-  console.info(`[Transactional Mail Engine] Dispatched verification for ${cleanTo}:`, {
-    subject: payload.subject,
-    category: payload.category
-  });
+  console.error(`[Transactional Mail Engine] Failed to dispatch email to ${cleanTo}. No active live email provider configured or all providers failed.`);
 
   return {
-    success: true,
-    message: `Verification code dispatched to ${cleanTo}.`,
-    providerUsed: 'Resend Transactional Engine',
+    success: false,
+    message: `Failed to send email. Please configure a live email provider in the Admin Dashboard.`,
+    providerUsed: 'None',
     timestamp
   };
 }
