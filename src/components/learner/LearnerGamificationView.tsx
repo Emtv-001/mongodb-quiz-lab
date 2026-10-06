@@ -231,13 +231,13 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              {account ? `Welcome, ${account.displayName}` : 'Earn Points, MongoCoins & Cohort Rank'}
+              {account ? `Welcome, ${account.displayName}` : 'Earn Personal Points & MongoCoins'}
             </h1>
 
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
               {account
-                ? `You are signed in as @${account.username}. Your earned points, achievements, and leaderboard rankings are saved and synced across sessions.`
-                : 'Registration is optional! You can explore anonymously as a guest, or register your profile with an email OTP and auto-generated recovery phrase to claim your global leaderboard rank and rewards.'}
+                ? `You are signed in as @${account.username}. Your earned points, achievements, and personal mastery stats are securely synced and saved.`
+                : 'Registration is optional! You can explore anonymously as a guest, or register your profile with an email OTP and auto-generated recovery phrase to claim your personal points and rewards.'}
             </p>
 
             {/* Quick CTAs based on registration state */}
@@ -292,8 +292,8 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
               <Crown className="w-6 h-6 animate-pulse" />
             </div>
             <div>
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">Cohort Ranking</span>
-              <span className="text-3xl font-black font-mono text-white">#{stats.rank}</span>
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Personal Rank Level</span>
+              <span className="text-3xl font-black font-mono text-white">Lvl {stats.rank}</span>
             </div>
             <span className="text-[11px] font-bold text-emerald-400 font-mono">
               {stats.xp} Total XP
@@ -357,17 +357,17 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
           </div>
         </div>
 
-        {/* Cohort Leaderboard Rank */}
+        {/* Personal Level Rank */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm space-y-2 min-w-0">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold">Cohort Rank</span>
+            <span className="text-xs font-semibold">Mastery Level</span>
             <Trophy className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="text-2xl sm:text-3xl font-black font-mono text-emerald-400 truncate">
-            Rank #{stats.rank}
+            Level {stats.rank}
           </div>
           <div className="text-[11px] text-slate-400 truncate">
-            Top Active Learners
+            Your Personal Tier
           </div>
         </div>
 
@@ -388,72 +388,51 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
 
       {/* Cohort Leaderboard & Tier Progression Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full min-w-0">
-        {/* Left 2 Cols: Real-Time Cohort Leaderboard */}
+        {/* Left 2 Cols: Personal Progression */}
         <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-800 flex-wrap gap-2">
             <div className="flex items-center space-x-2">
               <Trophy className="w-5 h-5 text-amber-400" />
               <h3 className="text-base font-bold text-white">
-                Global Real-Time Leaderboard
+                Personal Mastery Progression
               </h3>
             </div>
             <span className="text-xs font-bold text-emerald-400 flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 font-mono">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span>Live Updates</span>
+              <span>Live Sync</span>
             </span>
           </div>
 
-          <div className="space-y-2.5 overflow-x-auto">
-            {stats.leaderboard.map((entry) => {
-              const isUser = Boolean(entry.isCurrentUser);
-              const rankBadge =
-                entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `#${entry.rank}`;
+          <div className="space-y-4 pt-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-bold text-white">{stats.levelTitle}</div>
+                <div className="text-xs text-slate-400">Current Rank Tier</div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-bold text-purple-400">{stats.xp} / {stats.nextTierXp} XP</div>
+                <div className="text-xs text-slate-400">Progress to Next Tier</div>
+              </div>
+            </div>
+            
+            {/* Main Progress Bar */}
+            <div className="w-full bg-slate-950 rounded-full h-3 border border-slate-800 overflow-hidden relative">
+              <div 
+                className="h-full bg-gradient-to-r from-purple-600 to-purple-400 transition-all duration-1000 ease-out"
+                style={{ width: `${Math.min(100, (stats.xp / stats.nextTierXp) * 100)}%` }}
+              />
+            </div>
 
-              return (
-                <div
-                  key={entry.username}
-                  className={`p-3.5 rounded-xl border transition-all flex items-center justify-between gap-3 ${
-                    isUser
-                      ? 'bg-emerald-500/10 border-emerald-500/40 shadow-md shadow-emerald-500/10'
-                      : 'bg-slate-950/60 border-slate-800/80 hover:bg-slate-800/40'
-                  }`}
-                >
-                  <div className="flex items-center space-x-3 min-w-0">
-                    <span className="font-bold font-mono text-sm w-7 text-center text-slate-300">
-                      {rankBadge}
-                    </span>
-
-                    <div className="min-w-0">
-                      <div className="flex items-center space-x-2">
-                        <span className={`font-bold text-xs sm:text-sm truncate ${isUser ? 'text-emerald-400' : 'text-white'}`}>
-                          {entry.displayName}
-                        </span>
-                        {isUser && (
-                          <span className="text-[9px] uppercase font-extrabold px-1.5 py-0.5 rounded bg-emerald-500 text-slate-950">
-                            YOU
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[11px] text-slate-400 font-mono block">
-                        {entry.username} • {entry.tier}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-4 flex-shrink-0 text-xs font-mono">
-                    <div className="text-right">
-                      <span className="font-bold text-purple-400 block">{entry.xp} XP</span>
-                      <span className="text-[10px] text-slate-400">{entry.accuracy}% acc</span>
-                    </div>
-
-                    <div className="hidden sm:flex items-center space-x-1 text-amber-400 font-semibold bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">
-                      <Coins className="w-3 h-3" />
-                      <span>{entry.coins} 🪙</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            <div className="grid grid-cols-2 gap-4 pt-4">
+              <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+                <div className="text-[11px] text-slate-400 uppercase font-bold tracking-wider mb-1">Global Accuracy</div>
+                <div className="text-2xl font-black text-emerald-400 font-mono">{stats.leaderboard[0]?.accuracy || 0}%</div>
+              </div>
+              <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+                <div className="text-[11px] text-slate-400 uppercase font-bold tracking-wider mb-1">Total Solved</div>
+                <div className="text-2xl font-black text-white font-mono">{progress.questionsAttempted} Qs</div>
+              </div>
+            </div>
           </div>
         </div>
 

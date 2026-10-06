@@ -11,32 +11,63 @@ import { sha256Sync } from './security';
 import { loadProgress, saveProgress } from './storage';
 import { sendOtpRegistrationEmail } from './emailService';
 
-const LEARNER_ACCOUNT_KEY = 'mongo_quiz_registered_learner_account_v2';
+const LEARNER_ACCOUNTS_DIR_KEY = 'mongo_quiz_learner_accounts_directory_v2';
+const ACTIVE_LEARNER_SESSION_KEY = 'mongo_quiz_active_learner_session_v2';
 const LEARNER_OTP_SESSION_KEY = 'mongo_quiz_learner_otp_session_v2';
+const LEGACY_ACCOUNT_KEY = 'mongo_quiz_registered_learner_account_v2';
 
 /**
- * Retrieves the currently registered & logged in learner account (if user opted in)
+ * Retrieves the directory of all registered accounts on this device.
+ */
+function getLearnerAccountsDirectory(): Record<string, RegisteredLearnerAccount> {
+  try {
+    const raw = localStorage.getItem(LEARNER_ACCOUNTS_DIR_KEY);
+    let dir = raw ? JSON.parse(raw) : {};
+    
+    // Migration from old single-account setup
+    const legacyRaw = localStorage.getItem(LEGACY_ACCOUNT_KEY);
+    if (legacyRaw) {
+      const legacyAccount: RegisteredLearnerAccount = JSON.parse(legacyRaw);
+      if (!dir[legacyAccount.id]) {
+        dir[legacyAccount.id] = legacyAccount;
+        localStorage.setItem(LEARNER_ACCOUNTS_DIR_KEY, JSON.stringify(dir));
+        localStorage.removeItem(LEGACY_ACCOUNT_KEY);
+      }
+    }
+    return dir;
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Retrieves the currently registered & logged in learner account from the active session.
  */
 export function getRegisteredLearnerAccount(): RegisteredLearnerAccount | null {
   try {
-    const raw = localStorage.getItem(LEARNER_ACCOUNT_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const sessionId = sessionStorage.getItem(ACTIVE_LEARNER_SESSION_KEY);
+    if (!sessionId) return null;
+    const dir = getLearnerAccountsDirectory();
+    return dir[sessionId] || null;
   } catch {
     return null;
   }
 }
 
 /**
- * Saves or clears the registered learner account
+ * Saves a learner account to the directory and updates the active session if provided.
+ * If account is null, it logs the user out by clearing the active session.
  */
 export function saveRegisteredLearnerAccount(account: RegisteredLearnerAccount | null): void {
   try {
     if (account) {
-      localStorage.setItem(LEARNER_ACCOUNT_KEY, JSON.stringify(account));
+      const dir = getLearnerAccountsDirectory();
+      dir[account.id] = account;
+      localStorage.setItem(LEARNER_ACCOUNTS_DIR_KEY, JSON.stringify(dir));
+      sessionStorage.setItem(ACTIVE_LEARNER_SESSION_KEY, account.id);
     } else {
-      localStorage.removeItem(LEARNER_ACCOUNT_KEY);
+      sessionStorage.removeItem(ACTIVE_LEARNER_SESSION_KEY);
     }
-    // Dispatch event so Navbar, Sidebar, and Dashboard update in real-time
     window.dispatchEvent(new CustomEvent('learner_account_updated', { detail: account }));
   } catch {}
 }
@@ -190,15 +221,19 @@ export function loginLearner(
   emailOrUsername: string,
   passwordPlain: string
 ): { success: boolean; message: string; account?: RegisteredLearnerAccount } {
-  const account = getRegisteredLearnerAccount();
-  if (!account) {
-    return { success: false, message: "No registered account found on this device. Please create a new profile." };
+  const dir = getLearnerAccountsDirectory();
+  const accounts = Object.values(dir);
+  
+  if (accounts.length === 0) {
+    return { success: false, message: "No registered accounts found on this device. Please create a new profile." };
   }
 
   const clean = emailOrUsername.trim().toLowerCase();
   const inputHash = sha256Sync(passwordPlain.trim());
 
-  if ((account.email.toLowerCase() === clean || account.username.toLowerCase() === clean) && account.passwordHash === inputHash) {
+  const account = accounts.find(a => a.email.toLowerCase() === clean || a.username.toLowerCase() === clean);
+  
+  if (account && account.passwordHash === inputHash) {
     saveRegisteredLearnerAccount(account);
     return { success: true, message: `Welcome back, ${account.displayName}!`, account };
   }
@@ -221,9 +256,12 @@ export function recoverLearnerAccountWithPhrase(
   recoveryPhraseInput: string,
   newPasswordPlain: string
 ): { success: boolean; message: string } {
-  const account = getRegisteredLearnerAccount();
+  const dir = getLearnerAccountsDirectory();
+  const cleanEmailOrUser = emailOrUsername.trim().toLowerCase();
+  const account = Object.values(dir).find(a => a.email.toLowerCase() === cleanEmailOrUser || a.username.toLowerCase() === cleanEmailOrUser);
+
   if (!account) {
-    return { success: false, message: "No registered account found to recover." };
+    return { success: false, message: "No registered account found matching that email/username." };
   }
 
   const cleanInput = recoveryPhraseInput.trim().replace(/[\s\-]/g, '').toUpperCase();
@@ -295,15 +333,13 @@ export function getLearnerGamificationStats(progress: StudentProgress) {
     levelTitle = 'Level 2 — Query Apprentice';
   }
 
-  // Rank position in cohort
-  let rank = 14;
-  if (computedXp >= 3000) rank = 1;
-  else if (computedXp >= 2200) rank = 2;
-  else if (computedXp >= 1700) rank = 3;
-  else if (computedXp >= 1200) rank = 5;
-  else if (computedXp >= 800) rank = 7;
-  else if (computedXp >= 400) rank = 9;
-  else if (computedXp >= 200) rank = 11;
+  // Rank position (Personal Mastery Level)
+  let rank = 1;
+  if (tier === 'MongoDB Master') rank = 9;
+  else if (tier === 'Diamond') rank = 7;
+  else if (tier === 'Platinum') rank = 5;
+  else if (tier === 'Gold') rank = 3;
+  else if (tier === 'Silver') rank = 2;
 
   // Accuracy
   const accuracy = totalAttempted > 0 ? Math.round((totalCorrect / totalAttempted) * 100) : 0;
@@ -396,37 +432,11 @@ export function getLearnerGamificationStats(progress: StudentProgress) {
     }
   ];
 
-  // Real-Time Dynamic Global Leaderboard
-  const LEADERBOARD_KEY = 'mongo_quiz_realtime_leaderboard_v3';
-  let peerLeaderboard: LeaderboardEntry[] = [];
-  try {
-    const raw = localStorage.getItem(LEADERBOARD_KEY);
-    if (raw) peerLeaderboard = JSON.parse(raw);
-  } catch {}
-
-  if (peerLeaderboard.length === 0) {
-    peerLeaderboard = [
-      { rank: 1, displayName: "Dr. Chioma Adebayo", username: "@chioma_db", tier: "MongoDB Master", xp: 3420, coins: 890, streak: 14, accuracy: 94 },
-      { rank: 2, displayName: "Tunde Oladipo", username: "@tunde_query", tier: "MongoDB Master", xp: 2890, coins: 740, streak: 12, accuracy: 91 },
-      { rank: 3, displayName: "Amara Nwosu", username: "@amara_nosql", tier: "Diamond", xp: 2310, coins: 610, streak: 9, accuracy: 88 },
-      { rank: 4, displayName: "Emmanuel Kalu", username: "@emmanuel_dev", tier: "Diamond", xp: 1980, coins: 520, streak: 8, accuracy: 86 },
-      { rank: 5, displayName: "Fatima Bello", username: "@fatima_bson", tier: "Platinum", xp: 1540, coins: 410, streak: 6, accuracy: 82 },
-      { rank: 6, displayName: "David Chukwu", username: "@david_atlas", tier: "Platinum", xp: 1280, coins: 340, streak: 5, accuracy: 80 },
-      { rank: 7, displayName: "Blessing Eze", username: "@blessing_crud", tier: "Gold", xp: 920, coins: 250, streak: 4, accuracy: 76 },
-      { rank: 8, displayName: "Kehinde Johnson", username: "@kjohnson", tier: "Gold", xp: 710, coins: 190, streak: 3, accuracy: 72 },
-      { rank: 9, displayName: "Zainab Mohammed", username: "@zainab_m", tier: "Silver", xp: 480, coins: 130, streak: 2, accuracy: 68 },
-      { rank: 10, displayName: "Samuel Okon", username: "@samuel_ok", tier: "Silver", xp: 320, coins: 90, streak: 2, accuracy: 64 }
-    ];
-    try {
-      localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(peerLeaderboard));
-    } catch {}
-  }
-
   const currentUserName = account ? account.displayName : (progress.learnerId?.pseudonym || 'You (Learner)');
   const currentUserHandle = account ? `@${account.username}` : '@you';
 
   const userEntry: LeaderboardEntry = {
-    rank: 1,
+    rank,
     displayName: currentUserName,
     username: currentUserHandle,
     tier,
@@ -437,24 +447,6 @@ export function getLearnerGamificationStats(progress: StudentProgress) {
     isCurrentUser: true
   };
 
-  // Merge live user entry and dynamic peers, then sort strictly in real-time
-  const allLeaderboard = [
-    ...peerLeaderboard.filter(p => !p.isCurrentUser && p.username !== currentUserHandle),
-    userEntry
-  ].sort((a, b) => {
-    if (b.xp !== a.xp) return b.xp - a.xp;
-    if (b.accuracy !== a.accuracy) return b.accuracy - a.accuracy;
-    return b.streak - a.streak;
-  });
-
-  // Calculate exact dynamic ranks
-  allLeaderboard.forEach((entry, idx) => {
-    entry.rank = idx + 1;
-    if (entry.isCurrentUser) {
-      rank = entry.rank;
-    }
-  });
-
   return {
     account,
     coins: computedCoins,
@@ -464,7 +456,7 @@ export function getLearnerGamificationStats(progress: StudentProgress) {
     nextTierXp,
     levelTitle,
     badges: allAchievements,
-    leaderboard: allLeaderboard.slice(0, 15),
+    leaderboard: [userEntry],
     userEntry
   };
 }

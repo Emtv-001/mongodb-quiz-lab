@@ -116,10 +116,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={() => onNavigateTab && onNavigateTab('learner-hub')}
               className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/15 to-purple-500/15 hover:from-amber-500/25 hover:to-purple-500/25 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all shadow-sm flex-shrink-0 whitespace-nowrap"
-              title="View Leaderboard, Earned Points & MongoCoins"
+              title="View Personal Points, Rank & MongoCoins"
             >
               <Trophy className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
-              <span>{learnerAccount ? `${learnerAccount.coins || 100} 🪙` : 'Leaderboard & 🪙'}</span>
+              <span>{learnerAccount ? `${learnerAccount.coins || 100} 🪙` : 'Points & 🪙'}</span>
             </button>
 
             {/* Seed Data Explorer Button */}

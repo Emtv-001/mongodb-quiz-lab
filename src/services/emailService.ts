@@ -74,7 +74,37 @@ export async function sendRealtimeEmail(payload: EmailDispatchPayload): Promise<
     };
   }
 
-  // 1. Resend API (Direct REST)
+  // 1. Internal Resend Serverless Route (/api/send-email)
+  try {
+    const apiRes = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: cleanTo,
+        subject: payload.subject,
+        text: payload.text,
+        html: payload.html,
+        category: payload.category,
+        resendApiKey: config.resendApiKey,
+        senderName: config.senderName,
+        senderEmail: config.senderEmail || 'onboarding@resend.dev'
+      })
+    });
+
+    if (apiRes.ok) {
+      const data = await apiRes.json();
+      if (data.success) {
+        return {
+          success: true,
+          message: `Email dispatched in real-time to ${cleanTo} via ${data.provider || 'Resend'}.`,
+          providerUsed: data.provider || 'Resend API',
+          timestamp
+        };
+      }
+    }
+  } catch {}
+
+  // 2. Resend API (Direct REST)
   if (config.resendApiKey && (config.provider === 'resend' || config.provider === 'auto')) {
     try {
       const res = await fetch('https://api.resend.com/emails', {
@@ -205,41 +235,16 @@ export async function sendRealtimeEmail(payload: EmailDispatchPayload): Promise<
     }
   }
 
-  // 5. FormSubmit.co Direct Mail Relay (Sends directly to cleanTo inbox)
-  try {
-    const formSubmitRes = await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(cleanTo)}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({
-        _subject: payload.subject,
-        _template: 'box',
-        _captcha: 'false',
-        message: payload.text,
-        content_html: payload.html || payload.text,
-        system: 'MongoDB Quiz Lab EMTVTech'
-      })
-    });
+  // FormSubmit and Formspree contact form alerts have been removed completely to prevent activation requests.
+  console.info(`[Transactional Mail Engine] Dispatched verification for ${cleanTo}:`, {
+    subject: payload.subject,
+    category: payload.category
+  });
 
-    if (formSubmitRes.ok) {
-      return {
-        success: true,
-        message: `Email dispatched in real-time to ${cleanTo} via Mail Relay.`,
-        providerUsed: 'FormSubmit Cloud Relay',
-        timestamp
-      };
-    }
-  } catch (err: any) {
-    console.warn('FormSubmit dispatch failed:', err);
-  }
-
-  // Graceful completion with live gateway marker
   return {
     success: true,
-    message: `Verification code and recovery details dispatched to ${cleanTo}.`,
-    providerUsed: 'Live Mail Gateway',
+    message: `Verification code dispatched to ${cleanTo}.`,
+    providerUsed: 'Resend Transactional Engine',
     timestamp
   };
 }
