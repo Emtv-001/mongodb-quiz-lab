@@ -200,11 +200,19 @@ export const AdminView: React.FC = () => {
   const siteConfig = getSiteCustomization();
   const allQuestions = [...DEFAULT_QUESTIONS, ...customQuestions];
 
-  const [feedbackCount, setFeedbackCount] = useState(0);
+  const [unreadFeedbackCount, setUnreadFeedbackCount] = useState(0);
 
   useEffect(() => {
     if (currentUser?.role === 'super-admin') {
-      setFeedbackCount(getFeedbackEntries().length);
+      const totalFeedbacks = getFeedbackEntries().length;
+      const lastSeenCount = Number(localStorage.getItem('mongo_quiz_last_seen_feedback_count') || '0');
+      
+      if (currentAdminTab === 'feedback') {
+        localStorage.setItem('mongo_quiz_last_seen_feedback_count', totalFeedbacks.toString());
+        setUnreadFeedbackCount(0);
+      } else {
+        setUnreadFeedbackCount(Math.max(0, totalFeedbacks - lastSeenCount));
+      }
     }
   }, [currentAdminTab, currentUser]);
 
@@ -861,7 +869,7 @@ export const AdminView: React.FC = () => {
     { id: 'users', label: 'Learner Cohort', icon: Users, perm: 'canViewLearnerData' },
     { id: 'admins', label: 'Admin Governance (RBAC)', icon: ShieldCheck, perm: 'canManageSubAdmins' },
     { id: 'share', label: 'Share & Export Hub', icon: Share2, perm: 'canExportData' },
-    { id: 'feedback', label: 'Learner Feedback', icon: MessageSquare, badge: currentUser.role === 'super-admin' && feedbackCount > 0 ? `${feedbackCount} New` : undefined },
+    { id: 'feedback', label: 'Learner Feedback', icon: MessageSquare, badge: currentUser.role === 'super-admin' && unreadFeedbackCount > 0 ? `${unreadFeedbackCount} New` : undefined },
     { id: 'security', label: 'Security & Audit Logs', icon: Lock, perm: 'canResetSystem' },
     { id: 'statements', label: 'Statements Board', icon: FileText }
   ];
