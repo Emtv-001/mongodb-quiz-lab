@@ -10,8 +10,10 @@ import {
   CheckCircle,
   Eye,
   Download,
-  X
+  X,
+  Trash2
 } from 'lucide-react';
+import { deleteLearnerAccount } from '../../services/learnerService';
 
 export const AdminUserTracker: React.FC = () => {
   const [learners, setLearners] = useState<LearnerProfile[]>(() => getRealtimeLearnerProfiles());
@@ -19,6 +21,17 @@ export const AdminUserTracker: React.FC = () => {
   const [selectedLearner, setSelectedLearner] = useState<LearnerProfile | null>(null);
 
   const progress = loadProgress();
+
+  const handleDeleteUser = (learner: LearnerProfile) => {
+    if (window.confirm(`Are you sure you want to permanently delete learner ${learner.pseudonym}?`)) {
+      const statement = window.prompt("Reason for deletion (optional):", "Administrative Removal");
+      if (statement !== null) {
+        deleteLearnerAccount(learner.id, 'Administrative Removal', statement || 'Administrative Removal', '');
+        setLearners(getRealtimeLearnerProfiles());
+        setSelectedLearner(null);
+      }
+    }
+  };
 
   const filtered = learners.filter(l => {
     const term = searchTerm.toLowerCase();
@@ -256,10 +269,19 @@ export const AdminUserTracker: React.FC = () => {
               )}
             </div>
 
-            <div className="pt-3 border-t border-slate-800 flex justify-end">
+            <div className="pt-3 border-t border-slate-800 flex justify-between items-center">
+              <button
+                onClick={() => handleDeleteUser(selectedLearner)}
+                className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 rounded-xl text-xs font-semibold flex items-center space-x-1 transition-colors"
+                title="Permanently Delete Learner Account"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Learner</span>
+              </button>
+              
               <button
                 onClick={() => setSelectedLearner(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold"
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition-colors"
               >
                 Close Inspector
               </button>

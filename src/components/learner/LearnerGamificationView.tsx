@@ -127,7 +127,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
       const res = await requestLearnerRegistrationOtp(regEmail, regUsername, regDisplayName, regPassword);
       if (res.success) {
         setRegStep(2);
-        setRegSuccessMsg(res.message);
+        setRegSuccessMsg(`${res.message} (Dev OTP: ${res.otpCode})`);
         setGeneratedPhrase(res.recoveryPhrase || '');
         setEmailCooldown(60); // 60 seconds cooldown to avoid spamming
       } else {
