@@ -173,6 +173,15 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
     }
   };
 
+  const handleChangeRole = (adminId: string, newRole: AdminRole) => {
+    const res = updateSubAdmin(adminId, { role: newRole }, currentAdmin.username);
+    if (res.success) {
+      refreshData();
+    } else {
+      alert(res.message);
+    }
+  };
+
   const handleDelete = (adminId: string) => {
     if (!confirm("Are you sure you want to remove this administrator account?")) return;
     const res = deleteSubAdmin(adminId, currentAdmin.username);
@@ -347,13 +356,22 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                       <div className="flex items-center space-x-2">
                         <span className="font-bold text-sm text-white">{admin.displayName}</span>
                         <span className="text-xs font-mono text-slate-400">(@{admin.username})</span>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border ${
-                          isMaster
-                            ? 'bg-purple-500/15 text-purple-300 border-purple-500/30'
-                            : 'bg-blue-500/15 text-blue-300 border-blue-500/30'
-                        }`}>
-                          {admin.role}
-                        </span>
+                        {isMaster ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border bg-purple-500/15 text-purple-300 border-purple-500/30">
+                            {admin.role}
+                          </span>
+                        ) : (
+                          <select
+                            value={admin.role}
+                            onChange={(e) => handleChangeRole(admin.id, e.target.value as AdminRole)}
+                            className="bg-slate-900 border border-slate-700 text-emerald-400 text-[10px] font-bold uppercase rounded-lg px-2 py-0.5 cursor-pointer hover:border-emerald-500/50 outline-none"
+                          >
+                            <option value="sub-admin">SUB-ADMIN</option>
+                            <option value="examiner">EXAMINER</option>
+                            <option value="moderator">MODERATOR</option>
+                            <option value="super-admin">SUPER-ADMIN</option>
+                          </select>
+                        )}
                       </div>
                       <div className="text-[11px] text-slate-400 space-x-3 mt-0.5">
                         <span>Email: {admin.email}</span>
@@ -463,7 +481,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                   </p>
 
                   {/* Generated Credentials Callout */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  <div className="grid grid-cols-1 gap-2 pt-1">
                     <div className="p-2.5 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-between">
                       <div>
                         <span className="text-[10px] text-slate-400 block">Invitation Code:</span>
@@ -480,28 +498,12 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                         Copy Code
                       </button>
                     </div>
-
-                    <div className="p-2.5 bg-slate-950 rounded-lg border border-slate-800 flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] text-slate-400 block">Invitee Recovery Phrase:</span>
-                        <code className="text-purple-300 font-mono font-bold text-xs">{lastCreatedInvite.recoveryPhrase}</code>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(lastCreatedInvite.recoveryPhrase);
-                          alert(`Copied Recovery Phrase: ${lastCreatedInvite.recoveryPhrase}`);
-                        }}
-                        className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px] font-bold"
-                      >
-                        Copy Phrase
-                      </button>
-                    </div>
                   </div>
 
                   <div className="p-2.5 bg-slate-950/80 rounded-lg border border-slate-800 text-[11px] text-slate-400 space-y-1">
-                    <div>1. The assignee receives their Invitation Code and Auto-Generated Recovery Phrase in their inbox.</div>
-                    <div>2. They can navigate to the Admin Login page and click <strong>"Accept Admin Invitation Code"</strong> to complete their account setup.</div>
+                    <div>1. Securely share this Invitation Code with the assignee.</div>
+                    <div>2. They can navigate to the Admin Login page and click <strong>"Accept Invite Code"</strong> to complete their account setup.</div>
+                    <div>3. The assignee will receive their unique recovery phrase upon successful activation.</div>
                   </div>
                 </div>
 

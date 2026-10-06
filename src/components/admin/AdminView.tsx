@@ -103,6 +103,7 @@ export const AdminView: React.FC = () => {
   const [inviteDisplayName, setInviteDisplayName] = useState('');
   const [invitePassword, setInvitePassword] = useState('');
   const [inviteMsg, setInviteMsg] = useState<{ text: string; isError: boolean } | null>(null);
+  const [acceptedInviteDetails, setAcceptedInviteDetails] = useState<{ recoveryPhrase: string; role: string } | null>(null);
 
   // Question Management state
   const [customQuestions, setCustomQuestions] = useState<Question[]>(() => loadCustomQuestions());
@@ -228,13 +229,15 @@ export const AdminView: React.FC = () => {
       passwordPlain: invitePassword
     });
 
-    if (res.success && res.user) {
+    if (res.success && res.user && res.recoveryPhrase && res.assignedRole) {
       setInviteMsg({ text: res.message, isError: false });
-      setTimeout(() => {
-        setShowLoginInviteModal(false);
-        setCurrentUser(res.user!);
-        sessionStorage.setItem('mongo_quiz_logged_admin_user', JSON.stringify(res.user));
-      }, 1800);
+      setAcceptedInviteDetails({
+        recoveryPhrase: res.recoveryPhrase,
+        role: res.assignedRole
+      });
+      // We do not auto login right away. The user must copy the recovery phrase.
+      // We will provide a button in the UI to proceed to login.
+      sessionStorage.setItem('mongo_quiz_logged_admin_user_pending', JSON.stringify(res.user));
     } else {
       setInviteMsg({ text: res.message, isError: true });
     }
@@ -648,83 +651,122 @@ export const AdminView: React.FC = () => {
                 </div>
               )}
 
-              <form onSubmit={handleAcceptLoginInvite} className="space-y-3 text-xs">
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Invitation Code *</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. INV-98214"
-                    value={inviteCodeInput}
-                    onChange={(e) => setInviteCodeInput(e.target.value)}
-                    required
-                    className="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono font-bold text-center rounded-xl p-2.5"
-                  />
-                </div>
+              {!acceptedInviteDetails ? (
+                <form onSubmit={handleAcceptLoginInvite} className="space-y-3 text-xs">
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Invitation Code *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. INV-98214"
+                      value={inviteCodeInput}
+                      onChange={(e) => setInviteCodeInput(e.target.value)}
+                      required
+                      className="w-full bg-slate-950 border border-slate-700 text-emerald-400 font-mono font-bold text-center rounded-xl p-2.5"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Full Display Name *</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Dr. Jane Smith"
-                    value={inviteDisplayName}
-                    onChange={(e) => setInviteDisplayName(e.target.value)}
-                    required
-                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Full Display Name *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Dr. Jane Smith"
+                      value={inviteDisplayName}
+                      onChange={(e) => setInviteDisplayName(e.target.value)}
+                      required
+                      className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Email Address *</label>
-                  <input
-                    type="email"
-                    placeholder="e.g. jane@university.edu"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    required
-                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Email Address *</label>
+                    <input
+                      type="email"
+                      placeholder="e.g. jane@university.edu"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      required
+                      className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Desired Username *</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. janesmith"
-                    value={inviteUsername}
-                    onChange={(e) => setInviteUsername(e.target.value)}
-                    required
-                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 font-mono"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Desired Username *</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. janesmith"
+                      value={inviteUsername}
+                      onChange={(e) => setInviteUsername(e.target.value)}
+                      required
+                      className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 font-mono"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Set Password *</label>
-                  <input
-                    type="password"
-                    placeholder="Min 6 characters..."
-                    value={invitePassword}
-                    onChange={(e) => setInvitePassword(e.target.value)}
-                    required
-                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Set Password *</label>
+                    <input
+                      type="password"
+                      placeholder="Min 6 characters..."
+                      value={invitePassword}
+                      onChange={(e) => setInvitePassword(e.target.value)}
+                      required
+                      className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
+                    />
+                  </div>
 
-                <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+                  <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginInviteModal(false)}
+                      className="px-4 py-2 rounded-xl text-slate-400 hover:text-white bg-slate-800"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
+                    >
+                      Activate Account
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="space-y-4 text-sm">
+                  <div className="p-4 bg-purple-900/20 border border-purple-500/30 rounded-2xl text-center space-y-2">
+                    <ShieldCheck className="w-8 h-8 text-purple-400 mx-auto" />
+                    <p className="text-purple-200 font-medium">Your assigned role is <strong className="text-white">{acceptedInviteDetails.role.toUpperCase()}</strong>.</p>
+                  </div>
+                  
+                  <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-2">
+                    <p className="text-amber-400 font-bold flex items-center space-x-2">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>CRITICAL: Save Your Recovery Phrase</span>
+                    </p>
+                    <p className="text-slate-300 text-xs">
+                      If you ever forget your password, this phrase is the ONLY way to recover your account instantly. Please write it down and store it safely.
+                    </p>
+                    <div className="mt-2 p-3 bg-slate-950 border border-slate-800 rounded-xl text-center">
+                      <span className="text-lg font-mono font-bold text-amber-400 select-all">
+                        {acceptedInviteDetails.recoveryPhrase}
+                      </span>
+                    </div>
+                  </div>
+
                   <button
-                    type="button"
-                    onClick={() => setShowLoginInviteModal(false)}
-                    className="px-4 py-2 rounded-xl text-slate-400 hover:text-white bg-slate-800"
+                    onClick={() => {
+                      const pendingUserStr = sessionStorage.getItem('mongo_quiz_logged_admin_user_pending');
+                      if (pendingUserStr) {
+                        sessionStorage.setItem('mongo_quiz_logged_admin_user', pendingUserStr);
+                        sessionStorage.removeItem('mongo_quiz_logged_admin_user_pending');
+                        setCurrentUser(JSON.parse(pendingUserStr));
+                        setShowLoginInviteModal(false);
+                      }
+                    }}
+                    className="w-full py-3 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md transition-all"
                   >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
-                  >
-                    Activate Account
+                    I have saved my recovery phrase. Continue to Dashboard.
                   </button>
                 </div>
-              </form>
+              )}
             </div>
           </div>
         )}

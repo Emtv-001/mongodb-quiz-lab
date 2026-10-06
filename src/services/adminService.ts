@@ -345,8 +345,10 @@ export function acceptAdminInvitation(
 
   return {
     success: true,
-    message: `Welcome @${newUser.username}! Your administrator account is now active. Your recovery phrase is: ${newUser.recoveryPhrase}`,
-    user: newUser
+    message: `Welcome @${newUser.username}! Your administrator account is now active.`,
+    user: newUser,
+    recoveryPhrase: newUser.recoveryPhrase,
+    assignedRole: newUser.role
   };
 }
 
