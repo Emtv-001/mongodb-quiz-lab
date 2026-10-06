@@ -1031,16 +1031,60 @@ export function saveDatabaseCollections(collections: GenericDatabaseCollection[]
  */
 export function getRealtimeLearnerProfiles(): LearnerProfile[] {
   const profiles: LearnerProfile[] = [];
-
-  // 1. Add active local progress student
   const currentProgress = loadProgress();
-  if (currentProgress.questionsAttempted > 0 || currentProgress.learnerId.pseudonym !== 'AnonymousLearner') {
+  const activeLocalId = currentProgress.learnerId.fingerprintHash.slice(0, 10);
+  
+  let activeRegisteredAccountId: string | null = null;
+  try {
+    const sessionRaw = sessionStorage.getItem('mongo_quiz_active_learner_session_v2');
+    if (sessionRaw) {
+      activeRegisteredAccountId = JSON.parse(sessionRaw).id;
+    }
+  } catch {}
+
+  // 1. Process all Registered Gamification Accounts
+  try {
+    const raw = localStorage.getItem('mongo_quiz_learner_accounts_directory_v2');
+    if (raw) {
+      const dir = JSON.parse(raw);
+      Object.values(dir).forEach((acc: any) => {
+        const isCurrentlyActive = acc.id === activeRegisteredAccountId;
+        
+        // If this registered account is currently playing, show their real real-time progress stats!
+        const attempts = isCurrentlyActive ? currentProgress.questionsAttempted : (acc.xp || 0);
+        const corrects = isCurrentlyActive ? currentProgress.questionsCorrect : (acc.coins || 0);
+        const accuracy = attempts > 0 ? Math.round((corrects / attempts) * 100) : 100;
+        
+        profiles.push({
+          id: acc.id,
+          pseudonym: acc.username,
+          fingerprintHash: acc.email,
+          firstJoined: acc.createdAt || new Date().toISOString(),
+          lastActive: isCurrentlyActive ? currentProgress.lastActiveDate : (acc.createdAt || new Date().toISOString()),
+          currentStreak: isCurrentlyActive ? currentProgress.currentStreak : 0,
+          longestStreak: isCurrentlyActive ? currentProgress.longestStreak : 0,
+          questionsAttempted: attempts,
+          questionsCorrect: corrects,
+          accuracy: accuracy,
+          bestMockScore: isCurrentlyActive ? currentProgress.bestMockScore : 0,
+          weakTopics: [],
+          masteredTopics: acc.unlockedBadges || [],
+          status: 'active'
+        });
+      });
+    }
+  } catch (err) {}
+
+  // 2. Add active local progress student ONLY if they aren't logged into a gamification account
+  // and they have actually answered questions (not just a blank slate).
+  const isWorthTracking = currentProgress.questionsAttempted > 0;
+  if (!activeRegisteredAccountId && isWorthTracking) {
     const currentAccuracy = currentProgress.questionsAttempted > 0
       ? Math.round((currentProgress.questionsCorrect / currentProgress.questionsAttempted) * 100)
       : 0;
 
     profiles.push({
-      id: currentProgress.learnerId.fingerprintHash.slice(0, 10),
+      id: activeLocalId,
       pseudonym: currentProgress.learnerId.pseudonym + " (Local)",
       fingerprintHash: currentProgress.learnerId.fingerprintHash,
       firstJoined: currentProgress.learnerId.createdAt,
@@ -1060,32 +1104,6 @@ export function getRealtimeLearnerProfiles(): LearnerProfile[] {
       status: 'active'
     });
   }
-
-  // 2. Add registered gamification accounts
-  try {
-    const raw = localStorage.getItem('mongo_quiz_learner_accounts_directory_v2');
-    if (raw) {
-      const dir = JSON.parse(raw);
-      Object.values(dir).forEach((acc: any) => {
-        profiles.push({
-          id: acc.id,
-          pseudonym: acc.username,
-          fingerprintHash: acc.email, // using email here
-          firstJoined: acc.createdAt || new Date().toISOString(),
-          lastActive: acc.createdAt || new Date().toISOString(),
-          currentStreak: 0,
-          longestStreak: 0,
-          questionsAttempted: acc.xp || 0, // mock mapping
-          questionsCorrect: acc.coins || 0, // mock mapping
-          accuracy: 100,
-          bestMockScore: 0,
-          weakTopics: [],
-          masteredTopics: acc.unlockedBadges || [],
-          status: 'active'
-        });
-      });
-    }
-  } catch (err) {}
 
   return profiles;
 }

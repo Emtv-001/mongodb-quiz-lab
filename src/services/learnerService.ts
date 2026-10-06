@@ -264,6 +264,8 @@ export function deleteLearnerAccount(
   
   if (accountId === localId) {
     localStorage.removeItem('mongo_quiz_student_progress_v2');
+    localStorage.removeItem('mongo_quiz_learner_id_v2'); // Also delete the persistent fingerprint!
+    sessionStorage.removeItem('mongo_quiz_active_learner_session_v2'); // Just in case
     
     const doc: any = {
       id: 'del_' + Date.now(),
@@ -278,7 +280,7 @@ export function deleteLearnerAccount(
     existing.push(doc);
     localStorage.setItem('mongo_quiz_deletion_statements', JSON.stringify(existing));
 
-    return { success: true, message: "Local student progress deleted permanently." };
+    return { success: true, message: "Local student progress and device fingerprint deleted permanently." };
   }
 
   const dir = getLearnerAccountsDirectory();
