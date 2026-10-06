@@ -285,7 +285,7 @@ export async function createAdminInvitationCode(
 export function acceptAdminInvitation(
   invitationCodeInput: string,
   details: { username: string; email: string; displayName: string; passwordPlain: string }
-): { success: boolean; message: string; user?: AdminUser } {
+): { success: boolean; message: string; user?: AdminUser; recoveryPhrase?: string; assignedRole?: string } {
   const cleanCode = invitationCodeInput.trim().toUpperCase();
   const invites = getAdminInvitations();
   const invite = invites.find(i => i.invitationCode === cleanCode && i.status === 'pending');
