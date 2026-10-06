@@ -13,6 +13,7 @@ import {
   verifyLearnerPasswordResetOtp,
   completeLearnerPasswordReset
 } from '../../services/learnerService';
+import { sha256Sync } from '../../services/security';
 import {
   Trophy,
   Award,
@@ -109,6 +110,12 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
   const [recoverPhrase, setRecoverPhrase] = useState('');
   const [recoverNewPassword, setRecoverNewPassword] = useState('');
   const [recoverMsg, setRecoverMsg] = useState<{ text: string; isError: boolean } | null>(null);
+
+  // Phrase Reveal State
+  const [showPhraseAuthModal, setShowPhraseAuthModal] = useState(false);
+  const [phraseAuthPassword, setPhraseAuthPassword] = useState('');
+  const [phraseAuthError, setPhraseAuthError] = useState<string | null>(null);
+  const [isPhraseRevealed, setIsPhraseRevealed] = useState(false);
 
   // Anti-spam countdown timer for recover email requests
   useEffect(() => {
@@ -249,6 +256,22 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
       setRecoverMsg({ text: err?.message || "Failed to dispatch reset OTP.", isError: true });
     } finally {
       setIsSendingRecoverOtp(false);
+    }
+  };
+
+  const handlePhraseAuthSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPhraseAuthError(null);
+
+    if (!account) return;
+
+    const inputHash = sha256Sync(phraseAuthPassword.trim());
+    if (inputHash === account.passwordHash) {
+      setIsPhraseRevealed(true);
+      setShowPhraseAuthModal(false);
+      setPhraseAuthPassword('');
+    } else {
+      setPhraseAuthError("Incorrect password.");
     }
   };
 
@@ -418,21 +441,36 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
               <KeyRound className="w-4 h-4 text-purple-400 flex-shrink-0" />
               <span>
                 <strong>Your Auto-Generated Recovery Phrase:</strong>{' '}
-                <code className="text-white font-mono bg-slate-900 px-2 py-0.5 rounded border border-purple-500/30 ml-1">
-                  {account.recoveryPhrase}
-                </code>
+                {isPhraseRevealed ? (
+                  <code className="text-white font-mono bg-slate-900 px-2 py-0.5 rounded border border-purple-500/30 ml-1">
+                    {account.recoveryPhrase}
+                  </code>
+                ) : (
+                  <span className="text-slate-500 font-mono bg-slate-900 px-2 py-0.5 rounded border border-slate-700 ml-1 tracking-[0.2em]">
+                    ••••••••••••••••
+                  </span>
+                )}
               </span>
             </div>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(account.recoveryPhrase!);
-                alert(`Copied Recovery Phrase: ${account.recoveryPhrase}`);
-              }}
-              className="px-3 py-1 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-lg text-xs font-semibold flex items-center space-x-1.5 self-start sm:self-auto"
-            >
-              <Copy className="w-3.5 h-3.5" />
-              <span>Copy Phrase</span>
-            </button>
+            {isPhraseRevealed ? (
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(account.recoveryPhrase!);
+                  alert(`Copied Recovery Phrase: ${account.recoveryPhrase}`);
+                }}
+                className="px-3 py-1 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-lg text-xs font-semibold flex items-center space-x-1.5 self-start sm:self-auto"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copy Phrase</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowPhraseAuthModal(true)}
+                className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold self-start sm:self-auto transition-colors"
+              >
+                Reveal Phrase
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -1021,14 +1059,19 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                     className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 disabled:opacity-50"
                   />
                   {recoverMode === 'email_otp' && recoverStep === 1 && (
-                    <button
-                      type="button"
-                      onClick={handleRecoverRequestOtp}
-                      disabled={isSendingRecoverOtp || recoverCooldown > 0 || !recoverIdentifier.trim()}
-                      className="px-3 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-700 disabled:opacity-50 whitespace-nowrap"
-                    >
-                      {isSendingRecoverOtp ? 'Sending...' : recoverCooldown > 0 ? `Wait ${recoverCooldown}s` : 'Get OTP'}
-                    </button>
+                    <div className="flex flex-col space-y-1">
+                      <button
+                        type="button"
+                        onClick={handleRecoverRequestOtp}
+                        disabled={isSendingRecoverOtp || recoverCooldown > 0 || !recoverIdentifier.trim()}
+                        className="px-3 py-2 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-700 disabled:opacity-50 whitespace-nowrap h-full"
+                      >
+                        {isSendingRecoverOtp ? 'Sending...' : recoverCooldown > 0 ? `Wait ${recoverCooldown}s` : 'Get OTP'}
+                      </button>
+                      <span className="text-[9px] text-amber-500/80 font-semibold px-1 text-center whitespace-nowrap tracking-tight">
+                        Costs 50 🪙
+                      </span>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1093,6 +1136,66 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                     Reset Password & Recover
                   </button>
                 )}
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Reveal Phrase Auth */}
+      {showPhraseAuthModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h3 className="text-base font-bold text-white flex items-center space-x-2">
+                <KeyRound className="w-5 h-5 text-purple-400" />
+                <span>Verify Password</span>
+              </h3>
+              <button
+                onClick={() => { setShowPhraseAuthModal(false); setPhraseAuthPassword(''); setPhraseAuthError(null); }}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              Please enter your password to reveal your recovery phrase.
+            </p>
+
+            {phraseAuthError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl text-xs flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4" />
+                <span>{phraseAuthError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handlePhraseAuthSubmit} className="space-y-4 text-xs">
+              <div>
+                <input
+                  type="password"
+                  placeholder="Enter your password..."
+                  value={phraseAuthPassword}
+                  onChange={(e) => setPhraseAuthPassword(e.target.value)}
+                  required
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-purple-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => { setShowPhraseAuthModal(false); setPhraseAuthPassword(''); setPhraseAuthError(null); }}
+                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl font-bold bg-purple-500 hover:bg-purple-400 text-white shadow-md shadow-purple-500/20"
+                >
+                  Reveal
+                </button>
               </div>
             </form>
           </div>

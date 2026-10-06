@@ -343,6 +343,17 @@ export async function requestLearnerPasswordResetOtp(emailOrUsername: string): P
 
   if (!account) return { success: false, message: "No registered gamification account found." };
 
+  if (account.coins < 50) {
+    return { success: false, message: "Insufficient MongoCoins (50 required) to dispatch an OTP email to prevent spam. Please use your Recovery Phrase." };
+  }
+
+  // Deduct 50 coins
+  account.coins -= 50;
+  dir[account.id] = account;
+  try {
+    localStorage.setItem(LEARNER_ACCOUNTS_DIR_KEY, JSON.stringify(dir));
+  } catch {}
+
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   const session = {
     accountId: account.id,
@@ -358,7 +369,7 @@ export async function requestLearnerPasswordResetOtp(emailOrUsername: string): P
 
   await sendOtpRegistrationEmail(account.email, account.displayName, code, account.recoveryPhrase);
 
-  return { success: true, message: `A 6-digit OTP has been dispatched to ${account.email}.` };
+  return { success: true, message: `OTP dispatched to ${account.email}. 50 MongoCoins have been deducted.` };
 }
 
 export function verifyLearnerPasswordResetOtp(otpCodeInput: string): { success: boolean; message: string } {
