@@ -26,9 +26,13 @@ export const AdminUserTracker: React.FC = () => {
     if (window.confirm(`Are you sure you want to permanently delete learner ${learner.pseudonym}?`)) {
       const statement = window.prompt("Reason for deletion (optional):", "Administrative Removal");
       if (statement !== null) {
-        deleteLearnerAccount(learner.id, 'Administrative Removal', statement || 'Administrative Removal', '');
-        setLearners(getRealtimeLearnerProfiles());
-        setSelectedLearner(null);
+        const res = deleteLearnerAccount(learner.id, 'Administrative Removal', statement || 'Administrative Removal', '');
+        if (res.success) {
+          setLearners(getRealtimeLearnerProfiles());
+          setSelectedLearner(null);
+        } else {
+          alert(res.message);
+        }
       }
     }
   };

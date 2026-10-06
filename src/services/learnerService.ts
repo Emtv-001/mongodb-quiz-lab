@@ -258,6 +258,29 @@ export function deleteLearnerAccount(
   statement: string,
   passwordPlain: string
 ): { success: boolean; message: string } {
+  // Check if the Admin is deleting the Local Browser Progress
+  const currentProgress = loadProgress();
+  const localId = currentProgress.learnerId.fingerprintHash.slice(0, 10);
+  
+  if (accountId === localId) {
+    localStorage.removeItem('mongo_quiz_student_progress_v2');
+    
+    const doc: any = {
+      id: 'del_' + Date.now(),
+      type: 'learner',
+      targetEmail: currentProgress.learnerId.pseudonym + ' (Local Device)',
+      category: reasonCategory,
+      statement,
+      timestamp: new Date().toISOString()
+    };
+    
+    const existing = JSON.parse(localStorage.getItem('mongo_quiz_deletion_statements') || '[]');
+    existing.push(doc);
+    localStorage.setItem('mongo_quiz_deletion_statements', JSON.stringify(existing));
+
+    return { success: true, message: "Local student progress deleted permanently." };
+  }
+
   const dir = getLearnerAccountsDirectory();
   const account = dir[accountId];
 
