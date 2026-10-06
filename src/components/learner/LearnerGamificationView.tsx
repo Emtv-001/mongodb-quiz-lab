@@ -8,7 +8,10 @@ import {
   logoutLearner,
   recoverLearnerAccountWithPhrase,
   getLearnerGamificationStats,
-  deleteLearnerAccount
+  deleteLearnerAccount,
+  requestLearnerPasswordResetOtp,
+  verifyLearnerPasswordResetOtp,
+  completeLearnerPasswordReset
 } from '../../services/learnerService';
 import {
   Trophy,
@@ -96,10 +99,25 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
   const [loginError, setLoginError] = useState<string | null>(null);
 
   // Recovery Form State
+  const [recoverMode, setRecoverMode] = useState<'email_otp' | 'recovery_phrase'>('email_otp');
+  const [recoverStep, setRecoverStep] = useState<1 | 2>(1);
+  const [recoverOtpCode, setRecoverOtpCode] = useState('');
+  const [isSendingRecoverOtp, setIsSendingRecoverOtp] = useState(false);
+  const [recoverCooldown, setRecoverCooldown] = useState(0);
+
   const [recoverIdentifier, setRecoverIdentifier] = useState('');
   const [recoverPhrase, setRecoverPhrase] = useState('');
   const [recoverNewPassword, setRecoverNewPassword] = useState('');
   const [recoverMsg, setRecoverMsg] = useState<{ text: string; isError: boolean } | null>(null);
+
+  // Anti-spam countdown timer for recover email requests
+  useEffect(() => {
+    if (recoverCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setRecoverCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [recoverCooldown]);
 
   // Rewards store purchase
   const [storeMessage, setStoreMessage] = useState<string | null>(null);
@@ -212,23 +230,66 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
     }
   };
 
-  // Handle Recovery
+  const handleRecoverRequestOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (recoverCooldown > 0) return;
+    setIsSendingRecoverOtp(true);
+    setRecoverMsg(null);
+
+    try {
+      const res = await requestLearnerPasswordResetOtp(recoverIdentifier);
+      if (res.success) {
+        setRecoverMsg({ text: res.message, isError: false });
+        setRecoverStep(2);
+        setRecoverCooldown(60);
+      } else {
+        setRecoverMsg({ text: res.message, isError: true });
+      }
+    } catch (err: any) {
+      setRecoverMsg({ text: err?.message || "Failed to dispatch reset OTP.", isError: true });
+    } finally {
+      setIsSendingRecoverOtp(false);
+    }
+  };
+
   const handleRecoverSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setRecoverMsg(null);
 
-    const res = recoverLearnerAccountWithPhrase(recoverIdentifier, recoverPhrase, recoverNewPassword);
-    if (res.success) {
-      setRecoverMsg({ text: res.message, isError: false });
-      setTimeout(() => {
-        setShowRecoverModal(false);
-        setRecoverIdentifier('');
-        setRecoverPhrase('');
-        setRecoverNewPassword('');
-        setRecoverMsg(null);
-      }, 2000);
+    if (recoverMode === 'email_otp') {
+      const vRes = verifyLearnerPasswordResetOtp(recoverOtpCode);
+      if (!vRes.success) {
+        setRecoverMsg({ text: vRes.message, isError: true });
+        return;
+      }
+      const cRes = completeLearnerPasswordReset(recoverNewPassword);
+      if (cRes.success) {
+        setRecoverMsg({ text: cRes.message, isError: false });
+        setTimeout(() => {
+          setShowRecoverModal(false);
+          setRecoverIdentifier('');
+          setRecoverOtpCode('');
+          setRecoverNewPassword('');
+          setRecoverMsg(null);
+          setRecoverStep(1);
+        }, 2000);
+      } else {
+        setRecoverMsg({ text: cRes.message, isError: true });
+      }
     } else {
-      setRecoverMsg({ text: res.message, isError: true });
+      const res = recoverLearnerAccountWithPhrase(recoverIdentifier, recoverPhrase, recoverNewPassword);
+      if (res.success) {
+        setRecoverMsg({ text: res.message, isError: false });
+        setTimeout(() => {
+          setShowRecoverModal(false);
+          setRecoverIdentifier('');
+          setRecoverPhrase('');
+          setRecoverNewPassword('');
+          setRecoverMsg(null);
+        }, 2000);
+      } else {
+        setRecoverMsg({ text: res.message, isError: true });
+      }
     }
   };
 
@@ -903,20 +964,35 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
         </div>
       )}
 
-      {/* Modal: Recovery with Recovery Phrase */}
+      {/* Modal: Recovery */}
       {showRecoverModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <h3 className="text-base font-bold text-white flex items-center space-x-2">
                 <KeyRound className="w-5 h-5 text-purple-400" />
-                <span>Recover Account with Recovery Phrase</span>
+                <span>Recover Account Password</span>
               </h3>
               <button
                 onClick={() => setShowRecoverModal(false)}
                 className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
               >
                 <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex bg-slate-950 rounded-lg p-1">
+              <button
+                onClick={() => { setRecoverMode('email_otp'); setRecoverStep(1); setRecoverMsg(null); }}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${recoverMode === 'email_otp' ? 'bg-purple-500 text-white' : 'text-slate-400 hover:text-white'}`}
+              >
+                Email OTP
+              </button>
+              <button
+                onClick={() => { setRecoverMode('recovery_phrase'); setRecoverStep(1); setRecoverMsg(null); }}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${recoverMode === 'recovery_phrase' ? 'bg-purple-500 text-white' : 'text-slate-400 hover:text-white'}`}
+              >
+                Recovery Phrase
               </button>
             </div>
 
@@ -934,41 +1010,72 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
             <form onSubmit={handleRecoverSubmit} className="space-y-3.5 text-xs">
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">Registered Email or Username *</label>
-                <input
-                  type="text"
-                  placeholder="Enter email or username..."
-                  value={recoverIdentifier}
-                  onChange={(e) => setRecoverIdentifier(e.target.value)}
-                  required
-                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
-                />
+                <div className="flex space-x-2">
+                  <input
+                    type="text"
+                    placeholder="Enter email or username..."
+                    value={recoverIdentifier}
+                    onChange={(e) => setRecoverIdentifier(e.target.value)}
+                    required
+                    disabled={recoverStep === 2 && recoverMode === 'email_otp'}
+                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 disabled:opacity-50"
+                  />
+                  {recoverMode === 'email_otp' && recoverStep === 1 && (
+                    <button
+                      type="button"
+                      onClick={handleRecoverRequestOtp}
+                      disabled={isSendingRecoverOtp || recoverCooldown > 0 || !recoverIdentifier.trim()}
+                      className="px-3 bg-slate-800 text-white rounded-xl font-semibold hover:bg-slate-700 disabled:opacity-50 whitespace-nowrap"
+                    >
+                      {isSendingRecoverOtp ? 'Sending...' : recoverCooldown > 0 ? `Wait ${recoverCooldown}s` : 'Get OTP'}
+                    </button>
+                  )}
+                </div>
               </div>
 
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1">
-                  Your Auto-Generated Recovery Phrase *
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. REC-8492-1049-7712"
-                  value={recoverPhrase}
-                  onChange={(e) => setRecoverPhrase(e.target.value)}
-                  required
-                  className="w-full bg-slate-950 border border-purple-500/40 text-purple-300 font-mono text-xs rounded-xl p-2.5"
-                />
-              </div>
+              {recoverMode === 'email_otp' && recoverStep === 2 && (
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">6-Digit Verification Code *</label>
+                  <input
+                    type="text"
+                    placeholder="Enter OTP..."
+                    value={recoverOtpCode}
+                    onChange={(e) => setRecoverOtpCode(e.target.value)}
+                    required
+                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 tracking-widest font-mono"
+                  />
+                </div>
+              )}
 
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1">Set New Password *</label>
-                <input
-                  type="password"
-                  placeholder="Min 6 characters..."
-                  value={recoverNewPassword}
-                  onChange={(e) => setRecoverNewPassword(e.target.value)}
-                  required
-                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
-                />
-              </div>
+              {recoverMode === 'recovery_phrase' && (
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    Your Auto-Generated Recovery Phrase *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. REC-8492-1049-7712"
+                    value={recoverPhrase}
+                    onChange={(e) => setRecoverPhrase(e.target.value)}
+                    required
+                    className="w-full bg-slate-950 border border-purple-500/40 text-purple-300 font-mono text-xs rounded-xl p-2.5"
+                  />
+                </div>
+              )}
+
+              {(recoverMode === 'recovery_phrase' || recoverStep === 2) && (
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Set New Password *</label>
+                  <input
+                    type="password"
+                    placeholder="Min 6 characters..."
+                    value={recoverNewPassword}
+                    onChange={(e) => setRecoverNewPassword(e.target.value)}
+                    required
+                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
+                  />
+                </div>
+              )}
 
               <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
                 <button
@@ -978,12 +1085,14 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl font-bold bg-purple-500 hover:bg-purple-400 text-slate-950 shadow-md shadow-purple-500/20"
-                >
-                  Reset Password & Recover
-                </button>
+                {(recoverMode === 'recovery_phrase' || recoverStep === 2) && (
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-xl font-bold bg-purple-500 hover:bg-purple-400 text-slate-950 shadow-md shadow-purple-500/20"
+                  >
+                    Reset Password & Recover
+                  </button>
+                )}
               </div>
             </form>
           </div>

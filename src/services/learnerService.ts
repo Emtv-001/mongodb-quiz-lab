@@ -207,7 +207,7 @@ export function verifyLearnerRegistrationOtp(
 
     return {
       success: true,
-      message: `Welcome @${newAccount.username}! Your Gamification Profile has been activated with +100 MongoCoins bonus!`,
+      message: `Welcome @${newAccount.username}! Your Gamification Profile has been activated with +100 MongoCoins bonus!\n\nIMPORTANT: Your account recovery phrase is ${newAccount.recoveryPhrase}. Please save this securely!`,
       account: newAccount
     };
   } catch {
@@ -329,6 +329,77 @@ export function deleteLearnerAccount(
   );
 
   return { success: true, message: "Your account and personal profile have been permanently deleted." };
+}
+
+const LEARNER_RESET_OTP_KEY = 'mongo_quiz_learner_reset_otp';
+
+export async function requestLearnerPasswordResetOtp(emailOrUsername: string): Promise<{ success: boolean; message: string }> {
+  const raw = (emailOrUsername || '').trim();
+  if (!raw) return { success: false, message: "Please enter your registered email or username." };
+
+  const clean = raw.toLowerCase();
+  const dir = getLearnerAccountsDirectory();
+  const account = Object.values(dir).find(a => a.email.toLowerCase() === clean || a.username.toLowerCase() === clean);
+
+  if (!account) return { success: false, message: "No registered gamification account found." };
+
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const session = {
+    accountId: account.id,
+    email: account.email,
+    otpCode: code,
+    expiresAt: Date.now() + 5 * 60 * 1000,
+    verified: false
+  };
+
+  try {
+    sessionStorage.setItem(LEARNER_RESET_OTP_KEY, JSON.stringify(session));
+  } catch {}
+
+  await sendOtpRegistrationEmail(account.email, account.displayName, code, account.recoveryPhrase);
+
+  return { success: true, message: `A 6-digit OTP has been dispatched to ${account.email}.` };
+}
+
+export function verifyLearnerPasswordResetOtp(otpCodeInput: string): { success: boolean; message: string } {
+  try {
+    const raw = sessionStorage.getItem(LEARNER_RESET_OTP_KEY);
+    if (!raw) return { success: false, message: "No active reset session found." };
+    const session = JSON.parse(raw);
+    if (Date.now() > session.expiresAt) return { success: false, message: "OTP has expired." };
+
+    if (session.otpCode !== otpCodeInput.trim()) {
+      return { success: false, message: "Incorrect verification code." };
+    }
+
+    session.verified = true;
+    sessionStorage.setItem(LEARNER_RESET_OTP_KEY, JSON.stringify(session));
+    return { success: true, message: "Code verified! You may now set a new password." };
+  } catch {
+    return { success: false, message: "Failed to verify code." };
+  }
+}
+
+export function completeLearnerPasswordReset(newPasswordPlain: string): { success: boolean; message: string } {
+  try {
+    const raw = sessionStorage.getItem(LEARNER_RESET_OTP_KEY);
+    if (!raw) return { success: false, message: "Session expired." };
+    const session = JSON.parse(raw);
+    if (!session.verified) return { success: false, message: "Verification required." };
+    if (newPasswordPlain.length < 6) return { success: false, message: "New password must be at least 6 characters." };
+
+    const dir = getLearnerAccountsDirectory();
+    const account = dir[session.accountId];
+    if (!account) return { success: false, message: "Account not found." };
+
+    account.passwordHash = sha256Sync(newPasswordPlain.trim());
+    saveRegisteredLearnerAccount(account);
+    sessionStorage.removeItem(LEARNER_RESET_OTP_KEY);
+
+    return { success: true, message: "Password reset successful! You can now log in." };
+  } catch {
+    return { success: false, message: "Failed to complete password reset." };
+  }
 }
 
 /**
