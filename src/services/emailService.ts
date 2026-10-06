@@ -100,6 +100,24 @@ export async function sendRealtimeEmail(payload: EmailDispatchPayload): Promise<
           providerUsed: data.provider || 'Resend API',
           timestamp
         };
+      } else if (data.error && config.resendApiKey) {
+        // If Resend was explicitly provided and failed, surface the error
+        return {
+          success: false,
+          message: `Resend Error: ${data.error}`,
+          providerUsed: 'Resend API',
+          timestamp
+        };
+      }
+    } else {
+      const errData = await apiRes.json().catch(() => ({}));
+      if (errData.error && config.resendApiKey) {
+        return {
+          success: false,
+          message: `Resend Error: ${errData.error}`,
+          providerUsed: 'Resend API',
+          timestamp
+        };
       }
     }
   } catch {}
@@ -129,9 +147,22 @@ export async function sendRealtimeEmail(payload: EmailDispatchPayload): Promise<
           providerUsed: 'Resend Cloud',
           timestamp
         };
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        return {
+          success: false,
+          message: `Resend Error: ${errorData.message || res.statusText}`,
+          providerUsed: 'Resend Cloud',
+          timestamp
+        };
       }
     } catch (err: any) {
-      console.warn('Resend dispatch failed, attempting next gateway:', err);
+      return {
+        success: false,
+        message: `Resend Error: ${err.message || 'Network request failed'}`,
+        providerUsed: 'Resend Cloud',
+        timestamp
+      };
     }
   }
 

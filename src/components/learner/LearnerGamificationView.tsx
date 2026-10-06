@@ -837,35 +837,6 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                   </div>
                 </div>
 
-                {/* Auto-Generated Recovery Phrase Card - Saved for Password Reset Only */}
-                {generatedPhrase && (
-                  <div className="p-3 bg-purple-950/40 border border-purple-500/40 rounded-xl space-y-1.5 animate-fadeIn">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-purple-300 font-bold flex items-center space-x-1">
-                        <KeyRound className="w-3.5 h-3.5 text-purple-400" />
-                        <span>Save Your Recovery Phrase (For Password Reset Only):</span>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(generatedPhrase);
-                          alert(`Copied Recovery Phrase: ${generatedPhrase}`);
-                        }}
-                        className="text-[10px] text-purple-300 hover:text-white flex items-center space-x-1"
-                      >
-                        <Copy className="w-3 h-3" />
-                        <span>Copy Phrase</span>
-                      </button>
-                    </div>
-                    <div className="bg-slate-950 p-2 rounded-lg border border-purple-500/30 text-center">
-                      <code className="text-purple-300 font-mono font-bold text-sm tracking-wider">{generatedPhrase}</code>
-                    </div>
-                    <p className="text-[10px] text-slate-400 leading-snug">
-                      ⚠️ Please copy and keep this phrase safe! This recovery code is strictly for password reset if you ever forget your password and don't want to use OTP. It cannot be used to verify registration.
-                    </p>
-                  </div>
-                )}
-
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1">
                     Enter 6-Digit Email Verification Code (OTP) *
