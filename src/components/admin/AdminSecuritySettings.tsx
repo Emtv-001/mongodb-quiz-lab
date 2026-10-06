@@ -277,19 +277,19 @@ export const AdminSecuritySettings: React.FC = () => {
             <label className="block text-slate-300 font-semibold">
               Test Real-Time Email Delivery
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 type="email"
                 value={testEmailAddress}
                 onChange={(e) => setTestEmailAddress(e.target.value)}
                 placeholder="Enter recipient email..."
                 required
-                className="flex-1 bg-slate-900 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs font-mono"
+                className="flex-1 bg-slate-900 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs font-mono w-full"
               />
               <button
                 type="submit"
                 disabled={isSendingTestEmail || testEmailCooldown > 0}
-                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold rounded-xl flex items-center space-x-1.5 flex-shrink-0"
+                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold rounded-xl flex items-center justify-center space-x-1.5 flex-shrink-0 w-full sm:w-auto"
               >
                 {testEmailCooldown > 0 ? (
                   <>
@@ -306,11 +306,11 @@ export const AdminSecuritySettings: React.FC = () => {
             </div>
 
             {testEmailResult && (
-              <div className={`p-2.5 rounded-lg border text-[11px] flex items-center space-x-1.5 animate-fadeIn ${
+              <div className={`p-3 rounded-xl border text-xs flex items-start space-x-2 animate-fadeIn ${
                 testEmailResult.isError ? 'bg-red-500/10 border-red-500/30 text-red-300' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
               }`}>
-                {testEmailResult.isError ? <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /> : <Check className="w-3.5 h-3.5 flex-shrink-0" />}
-                <span>{testEmailResult.text}</span>
+                {testEmailResult.isError ? <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" /> : <Check className="w-4 h-4 mt-0.5 flex-shrink-0" />}
+                <span className="leading-relaxed">{testEmailResult.text}</span>
               </div>
             )}
           </form>
@@ -320,9 +320,9 @@ export const AdminSecuritySettings: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowConfigDetails(!showConfigDetails)}
-              className="text-xs text-slate-400 hover:text-white flex items-center space-x-1 font-semibold"
+              className="text-xs text-slate-400 hover:text-white flex items-start sm:items-center space-x-2 font-semibold text-left w-full"
             >
-              <Sliders className="w-3.5 h-3.5 text-purple-400" />
+              <Sliders className="w-4 h-4 mt-0.5 sm:mt-0 text-purple-400 flex-shrink-0" />
               <span>{showConfigDetails ? 'Hide' : 'Configure'} Gateway Credentials (Resend / Brevo / EmailJS / Webhook)</span>
             </button>
 
