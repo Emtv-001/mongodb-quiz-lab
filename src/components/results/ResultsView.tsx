@@ -126,28 +126,41 @@ export const ResultsView: React.FC<ResultsViewProps> = ({
         </div>
 
         {/* Big Percentage & Grade */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 py-4">
-          <div className="bg-slate-950 border border-slate-800 rounded-2xl px-8 py-5 shadow-inner">
-            <span className="text-4xl sm:text-5xl font-black font-mono text-emerald-400">
-              {percentage}%
-            </span>
-            <span className="block text-xs font-semibold text-slate-400 mt-1">
-              Score: {totalScore} / {totalMax} pts
-            </span>
-          </div>
+        {session.mode !== 'practice' ? (
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 py-4">
+            <div className="bg-slate-950 border border-slate-800 rounded-2xl px-8 py-5 shadow-inner">
+              <span className="text-4xl sm:text-5xl font-black font-mono text-emerald-400">
+                {percentage}%
+              </span>
+              <span className="block text-xs font-semibold text-slate-400 mt-1">
+                Score: {totalScore} / {totalMax} pts
+              </span>
+            </div>
 
-          <div className="flex flex-col items-center sm:items-start space-y-1.5">
-            <span className={`px-4 py-1.5 rounded-xl text-sm font-black uppercase tracking-wider border ${gradeColor}`}>
-              {grade}
-            </span>
-            <span className="text-xs font-semibold text-slate-300">
-              Status: {badgeTitle}
-            </span>
-            <span className="text-[11px] text-slate-400 font-mono">
-              Mode: {session.mode.toUpperCase()}
-            </span>
+            <div className="flex flex-col items-center sm:items-start space-y-1.5">
+              <span className={`px-4 py-1.5 rounded-xl text-sm font-black uppercase tracking-wider border ${gradeColor}`}>
+                {grade}
+              </span>
+              <span className="text-xs font-semibold text-slate-300">
+                Status: {badgeTitle}
+              </span>
+              <span className="text-[11px] text-slate-400 font-mono">
+                Mode: {session.mode.toUpperCase()}
+              </span>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 py-4">
+            <div className="bg-slate-950 border border-slate-800 rounded-2xl px-8 py-5 shadow-inner">
+              <span className="text-2xl sm:text-3xl font-black font-mono text-emerald-400">
+                Practice Session
+              </span>
+              <span className="block text-xs font-semibold text-slate-400 mt-1">
+                Points and Grades are disabled in practice mode
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-3 gap-3 max-w-lg mx-auto pt-2">

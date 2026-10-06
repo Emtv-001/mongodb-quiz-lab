@@ -162,24 +162,26 @@ export function recordQuestionAttempt(
     };
   }
 
-  const scoreToRecord = (mode === 'quiz' || mode === 'mock-test')
+  const actualScore = (mode === 'quiz' || mode === 'mock-test')
     ? attempt.firstAttemptScore
     : attempt.currentScore;
 
-  const maxPoints = attempt.result.maxScore;
+  const scoreToRecord = mode === 'practice' ? 0 : actualScore;
+  const maxPointsToRecord = mode === 'practice' ? 0 : attempt.result.maxScore;
+  const maxPoints = attempt.result.maxScore; // Real max points for pass calculation
 
   progress.questionsAttempted += 1;
   progress.activityHistory[today].questionsAttempted += 1;
 
-  if (scoreToRecord >= maxPoints * 0.95) {
+  if (actualScore >= maxPoints * 0.95) {
     progress.questionsCorrect += 1;
     progress.activityHistory[today].questionsCorrect += 1;
-  } else if (scoreToRecord > 0) {
+  } else if (actualScore > 0) {
     progress.questionsPartial += 1;
   }
 
   progress.totalScore += scoreToRecord;
-  progress.totalMaxScore += maxPoints;
+  progress.totalMaxScore += maxPointsToRecord;
   progress.activityHistory[today].earnedPoints += scoreToRecord;
 
   // Meaningful activity requirement (at least 3 questions in a day qualifies for streak check)
@@ -190,16 +192,16 @@ export function recordQuestionAttempt(
   // Topic specific stats
   if (progress.topicStats[topic]) {
     progress.topicStats[topic].attempted += 1;
-    if (scoreToRecord >= maxPoints * 0.95) {
+    if (actualScore >= maxPoints * 0.95) {
       progress.topicStats[topic].correct += 1;
     }
     progress.topicStats[topic].earnedPoints += scoreToRecord;
-    progress.topicStats[topic].totalPoints += maxPoints;
+    progress.topicStats[topic].totalPoints += maxPointsToRecord;
   }
 
   // Spaced Repetition (SuperMemo SM-2 inspired algorithm)
   const qId = attempt.questionId;
-  const isPass = scoreToRecord >= maxPoints * 0.7;
+  const isPass = actualScore >= maxPoints * 0.7;
   const existingSR: SpacedRepetitionItem = progress.spacedRepetition[qId] || {
     questionId: qId,
     intervalDays: 1,
