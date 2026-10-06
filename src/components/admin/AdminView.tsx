@@ -9,7 +9,8 @@ import {
   completePasswordReset,
   resetAdminPasswordWithRecoveryPhrase,
   acceptAdminInvitation,
-  getFreshAdminUser
+  getFreshAdminUser,
+  getDeletionStatements
 } from '../../services/adminService';
 import { AdminDashboardOverview } from './AdminDashboardOverview';
 import { AdminBrandingConfig } from './AdminBrandingConfig';
@@ -201,17 +202,28 @@ export const AdminView: React.FC = () => {
   const allQuestions = [...DEFAULT_QUESTIONS, ...customQuestions];
 
   const [unreadFeedbackCount, setUnreadFeedbackCount] = useState(0);
+  const [unreadStatementsCount, setUnreadStatementsCount] = useState(0);
 
   useEffect(() => {
     if (currentUser?.role === 'super-admin') {
       const totalFeedbacks = getFeedbackEntries().length;
-      const lastSeenCount = Number(localStorage.getItem('mongo_quiz_last_seen_feedback_count') || '0');
+      const lastSeenFBCount = Number(localStorage.getItem('mongo_quiz_last_seen_feedback_count') || '0');
       
       if (currentAdminTab === 'feedback') {
         localStorage.setItem('mongo_quiz_last_seen_feedback_count', totalFeedbacks.toString());
         setUnreadFeedbackCount(0);
       } else {
-        setUnreadFeedbackCount(Math.max(0, totalFeedbacks - lastSeenCount));
+        setUnreadFeedbackCount(Math.max(0, totalFeedbacks - lastSeenFBCount));
+      }
+
+      const totalStatements = getDeletionStatements().length;
+      const lastSeenStatementsCount = Number(localStorage.getItem('mongo_quiz_last_seen_statements_count') || '0');
+
+      if (currentAdminTab === 'statements') {
+        localStorage.setItem('mongo_quiz_last_seen_statements_count', totalStatements.toString());
+        setUnreadStatementsCount(0);
+      } else {
+        setUnreadStatementsCount(Math.max(0, totalStatements - lastSeenStatementsCount));
       }
     }
   }, [currentAdminTab, currentUser]);
@@ -224,6 +236,19 @@ export const AdminView: React.FC = () => {
       sessionStorage.setItem('mongo_quiz_logged_admin_user', JSON.stringify(res.user));
       setAuthError(null);
       setPasswordInput('');
+
+      if (res.user.id === 'admin_master_1') {
+        const newFB = Math.max(0, getFeedbackEntries().length - Number(localStorage.getItem('mongo_quiz_last_seen_feedback_count') || '0'));
+        const newStatements = Math.max(0, getDeletionStatements().length - Number(localStorage.getItem('mongo_quiz_last_seen_statements_count') || '0'));
+
+        let msg = `Welcome back, ${res.user.displayName}!`;
+        if (newFB > 0 || newStatements > 0) {
+          msg += `\n\nNotifications:`;
+          if (newFB > 0) msg += `\n- ${newFB} new Learner Feedback/Complaints`;
+          if (newStatements > 0) msg += `\n- ${newStatements} new Account Deletion Statements`;
+        }
+        window.alert(msg);
+      }
     } else {
       setAuthError(res.error || 'Invalid credentials. Please verify and try again.');
     }
@@ -871,7 +896,7 @@ export const AdminView: React.FC = () => {
     { id: 'share', label: 'Share & Export Hub', icon: Share2, perm: 'canExportData' },
     { id: 'feedback', label: 'Learner Feedback', icon: MessageSquare, badge: currentUser.role === 'super-admin' && unreadFeedbackCount > 0 ? `${unreadFeedbackCount} New` : undefined },
     { id: 'security', label: 'Security & Audit Logs', icon: Lock, perm: 'canResetSystem' },
-    { id: 'statements', label: 'Statements Board', icon: FileText }
+    { id: 'statements', label: 'Statements Board', icon: FileText, badge: currentUser.role === 'super-admin' && unreadStatementsCount > 0 ? `${unreadStatementsCount} New` : undefined }
   ];
   const adminNavTabs = allAdminNavTabs.filter(t => canAccessTab(t.id));
 
