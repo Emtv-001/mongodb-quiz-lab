@@ -300,19 +300,24 @@ export function toggleFlashcardMastery(flashcardId: string): boolean {
   return isMastered;
 }
 
-export function loadCustomQuestions(): Question[] {
+export async function loadCustomQuestions(): Promise<Question[]> {
   try {
-    const raw = localStorage.getItem(CUSTOM_QUESTIONS_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const res = await fetch('/api/questions');
+    if (!res.ok) return [];
+    return await res.json();
   } catch (err) {
     console.error("Failed to load custom questions", err);
     return [];
   }
 }
 
-export function saveCustomQuestions(questions: Question[]): void {
+export async function saveCustomQuestions(questions: Question[]): Promise<void> {
   try {
-    localStorage.setItem(CUSTOM_QUESTIONS_KEY, JSON.stringify(questions));
+    await fetch('/api/questions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(questions)
+    });
   } catch (err) {
     console.error("Failed to save custom questions", err);
   }

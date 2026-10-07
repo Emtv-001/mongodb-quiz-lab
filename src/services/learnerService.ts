@@ -273,12 +273,12 @@ export function logoutLearner(): void {
 /**
  * Permanently deletes a registered learner account and records a statement for the Super Admin board.
  */
-export function deleteLearnerAccount(
+export async function deleteLearnerAccount(
   accountId: string,
   reasonCategory: string,
   statement: string,
   passwordPlain: string
-): { success: boolean; message: string } {
+): Promise<{ success: boolean; message: string }> {
   // Check if the Admin is deleting the Local Browser Progress
   const currentProgress = loadProgress();
   const localId = currentProgress.learnerId.fingerprintHash.slice(0, 10);
@@ -288,18 +288,16 @@ export function deleteLearnerAccount(
     localStorage.removeItem('mongo_quiz_learner_id_v2'); // Also delete the persistent fingerprint!
     sessionStorage.removeItem('mongo_quiz_active_learner_session_v2'); // Just in case
     
-    const doc: any = {
-      id: 'del_' + Date.now(),
-      type: 'learner',
-      targetEmail: currentProgress.learnerId.pseudonym + ' (Local Device)',
-      category: reasonCategory,
+    await recordDeletionStatement({
+      accountType: 'user',
+      accountId: 'local_' + Date.now(),
+      username: 'local_device',
+      displayName: currentProgress.learnerId.pseudonym + ' (Local Device)',
+      role: 'learner',
+      reasonCategory,
       statement,
-      timestamp: new Date().toISOString()
-    };
-    
-    const existing = JSON.parse(localStorage.getItem('mongo_quiz_deletion_statements') || '[]');
-    existing.push(doc);
-    localStorage.setItem('mongo_quiz_deletion_statements', JSON.stringify(existing));
+      deletedBy: 'Admin (Local Reset)'
+    });
 
     return { success: true, message: "Local student progress and device fingerprint deleted permanently." };
   }
@@ -332,7 +330,7 @@ export function deleteLearnerAccount(
   window.dispatchEvent(new CustomEvent('learner_account_updated', { detail: null }));
 
   // Record statement to the Statements Board
-  recordDeletionStatement({
+  await recordDeletionStatement({
     accountType: 'user',
     accountId: account.id,
     username: account.username,

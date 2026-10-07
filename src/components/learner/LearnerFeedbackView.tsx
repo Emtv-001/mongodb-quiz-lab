@@ -8,11 +8,11 @@ export const LearnerFeedbackView: React.FC = () => {
   const [message, setMessage] = useState('');
   const [statusMsg, setStatusMsg] = useState<{ text: string; isError: boolean } | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const progress = loadProgress();
     
-    const res = submitFeedback(
+    const res = await submitFeedback(
       feedbackType,
       message,
       progress.learnerId.fingerprintHash,

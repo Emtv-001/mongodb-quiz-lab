@@ -53,9 +53,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       } else {
         const errData = await response.json().catch(() => ({}));
+        const keyPrefix = activeResendKey ? activeResendKey.substring(0, 6) + '...' : 'none';
         return res.status(200).json({ 
           success: false, 
-          error: errData?.message || 'Resend API rejection' 
+          error: `${errData?.message || 'Resend API rejection'} (Using Key: ${keyPrefix})` 
         });
       }
     } catch (err: any) {

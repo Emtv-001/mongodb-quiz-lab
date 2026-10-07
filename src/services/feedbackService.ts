@@ -1,46 +1,45 @@
 import { FeedbackEntry } from '../types';
 
-const FEEDBACK_KEY = 'mongo_quiz_feedback';
-
-export function getFeedbackEntries(): FeedbackEntry[] {
+export async function getFeedbackEntries(): Promise<FeedbackEntry[]> {
   try {
-    const raw = localStorage.getItem(FEEDBACK_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
+    const res = await fetch('/api/feedback');
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (err) {
+    console.error("Failed to fetch feedback", err);
     return [];
   }
 }
 
-export function saveFeedbackEntries(entries: FeedbackEntry[]): void {
-  try {
-    localStorage.setItem(FEEDBACK_KEY, JSON.stringify(entries));
-  } catch (err) {
-    console.error("Failed to save feedback", err);
-  }
-}
-
-export function submitFeedback(
+export async function submitFeedback(
   type: 'complaint' | 'suggestion',
   message: string,
   senderFingerprint: string,
   senderPseudonym: string
-): { success: boolean; message: string } {
+): Promise<{ success: boolean; message: string }> {
   if (!message || message.trim().length < 10) {
     return { success: false, message: 'Message must be at least 10 characters long.' };
   }
 
-  const entries = getFeedbackEntries();
-  const newEntry: FeedbackEntry = {
-    id: 'fb_' + Date.now(),
-    type,
-    message: message.trim(),
-    senderFingerprint,
-    senderPseudonym,
-    createdAt: new Date().toISOString()
-  };
+  try {
+    const res = await fetch('/api/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type,
+        message: message.trim(),
+        senderFingerprint,
+        senderPseudonym
+      })
+    });
 
-  entries.unshift(newEntry);
-  saveFeedbackEntries(entries);
+    if (!res.ok) {
+      return { success: false, message: 'Failed to submit feedback.' };
+    }
 
-  return { success: true, message: 'Your feedback has been submitted successfully. Thank you!' };
+    return { success: true, message: 'Your feedback has been submitted successfully. Thank you!' };
+  } catch (err) {
+    console.error("Failed to submit feedback", err);
+    return { success: false, message: 'An error occurred while submitting feedback.' };
+  }
 }

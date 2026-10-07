@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   CheckCircle,
@@ -18,7 +18,8 @@ import {
   getAdminInvitations,
   getDatabaseCollections,
   getAuditLogs,
-  getSiteCustomization
+  getSiteCustomization,
+  DEFAULT_SITE_CONFIG
 } from '../../services/adminService';
 import { loadProgress } from '../../services/storage';
 
@@ -33,7 +34,11 @@ export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({ 
   const databases = getDatabaseCollections();
   const logs = getAuditLogs().slice(0, 6);
   const progress = loadProgress();
-  const siteConfig = getSiteCustomization();
+  const [siteConfig, setSiteConfig] = useState(DEFAULT_SITE_CONFIG);
+
+  useEffect(() => {
+    getSiteCustomization().then(setSiteConfig);
+  }, []);
 
   // Real-time calculations directly from live student progress
   const totalQuestionsSolved = progress.questionsAttempted;

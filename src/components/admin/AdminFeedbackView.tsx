@@ -11,7 +11,7 @@ export const AdminFeedbackView: React.FC<AdminFeedbackViewProps> = ({ isSuperAdm
   const [entries, setEntries] = useState<FeedbackEntry[]>([]);
 
   useEffect(() => {
-    setEntries(getFeedbackEntries());
+    getFeedbackEntries().then(setEntries);
   }, []);
 
   if (entries.length === 0) {

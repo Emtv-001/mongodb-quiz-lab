@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SiteCustomization } from '../../types/admin';
-import { getSiteCustomization, saveSiteCustomization } from '../../services/adminService';
+import { getSiteCustomization, saveSiteCustomization, DEFAULT_SITE_CONFIG } from '../../services/adminService';
 import {
   Palette,
   Check,
@@ -18,17 +18,21 @@ interface AdminBrandingConfigProps {
 }
 
 export const AdminBrandingConfig: React.FC<AdminBrandingConfigProps> = ({ currentAdminUsername }) => {
-  const [config, setConfig] = useState<SiteCustomization>(() => getSiteCustomization());
+  const [config, setConfig] = useState<SiteCustomization>(DEFAULT_SITE_CONFIG);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    getSiteCustomization().then(setConfig);
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    saveSiteCustomization(config, currentAdminUsername);
+    await saveSiteCustomization(config, currentAdminUsername);
     setStatusMessage("Site branding & navigation configuration saved successfully! (Changes live)");
     setTimeout(() => setStatusMessage(null), 3500);
   };
 
-  const handleResetDefaults = () => {
+  const handleResetDefaults = async () => {
     if (confirm("Reset all branding and tab customizations to system defaults?")) {
       const defaults = {
         siteName: "MongoDB Quiz Lab",
@@ -69,7 +73,7 @@ export const AdminBrandingConfig: React.FC<AdminBrandingConfigProps> = ({ curren
         footerText: "EMTVTech Learning Hub • Practical Assessment Platform"
       };
       setConfig(defaults);
-      saveSiteCustomization(defaults, currentAdminUsername);
+      await saveSiteCustomization(defaults, currentAdminUsername);
       setStatusMessage("Reset to defaults.");
       setTimeout(() => setStatusMessage(null), 3000);
     }

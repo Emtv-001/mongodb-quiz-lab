@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getSiteCustomization } from '../../services/adminService';
+import { getSiteCustomization, DEFAULT_SITE_CONFIG } from '../../services/adminService';
 import { SiteCustomization } from '../../types/admin';
 import {
   LayoutDashboard,
@@ -49,14 +49,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   onClose
 }) => {
-  const [siteConfig, setSiteConfig] = useState<SiteCustomization>(() => getSiteCustomization());
+  const [siteConfig, setSiteConfig] = useState<SiteCustomization>(DEFAULT_SITE_CONFIG);
 
   useEffect(() => {
+    getSiteCustomization().then(setSiteConfig);
+
     const handleUpdate = (e: any) => {
       if (e.detail) {
         setSiteConfig(e.detail);
       } else {
-        setSiteConfig(getSiteCustomization());
+        getSiteCustomization().then(setSiteConfig);
       }
     };
     window.addEventListener('site_branding_updated', handleUpdate);

@@ -20,18 +20,24 @@ export const AdminShareHub: React.FC = () => {
   const collections = getDatabaseCollections();
   const selectedCol = collections[selectedColIndex] || collections[0];
 
-  const currentReport = generateShareableReport(
-    reportType,
-    reportType === 'database-dump' ? selectedCol : undefined
-  );
+  const [currentReport, setCurrentReport] = useState<{ title: string; content: string; filename: string; mimeType: string } | null>(null);
+
+  React.useEffect(() => {
+    generateShareableReport(
+      reportType,
+      reportType === 'database-dump' ? selectedCol : undefined
+    ).then(setCurrentReport);
+  }, [reportType, selectedCol]);
 
   const handleCopy = () => {
+    if (!currentReport) return;
     navigator.clipboard.writeText(currentReport.content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };
 
   const handleDownload = () => {
+    if (!currentReport) return;
     const blob = new Blob([currentReport.content], { type: currentReport.mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -41,6 +47,10 @@ export const AdminShareHub: React.FC = () => {
     a.click();
     document.body.removeChild(a);
   };
+
+  if (!currentReport) {
+    return <div className="p-8 text-center text-slate-400">Loading report...</div>;
+  }
 
   return (
     <div className="space-y-6 animate-fadeIn">

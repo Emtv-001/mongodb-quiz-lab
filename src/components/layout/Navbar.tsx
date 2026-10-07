@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getSiteCustomization } from '../../services/adminService';
+import { getSiteCustomization, DEFAULT_SITE_CONFIG } from '../../services/adminService';
 import { SiteCustomization } from '../../types/admin';
 import { Database, Flame, Menu, Award, Server, Terminal, Sparkles, Coins, Trophy, UserCheck } from 'lucide-react';
 import { getRegisteredLearnerAccount } from '../../services/learnerService';
@@ -20,15 +20,17 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleSidebar,
   onNavigateTab
 }) => {
-  const [siteConfig, setSiteConfig] = useState<SiteCustomization>(() => getSiteCustomization());
+  const [siteConfig, setSiteConfig] = useState<SiteCustomization>(DEFAULT_SITE_CONFIG);
   const [learnerAccount, setLearnerAccount] = useState<RegisteredLearnerAccount | null>(() => getRegisteredLearnerAccount());
 
   useEffect(() => {
+    getSiteCustomization().then(setSiteConfig);
+
     const handleUpdate = (e: any) => {
       if (e.detail) {
         setSiteConfig(e.detail);
       } else {
-        setSiteConfig(getSiteCustomization());
+        getSiteCustomization().then(setSiteConfig);
       }
     };
 

@@ -510,37 +510,36 @@ export async function updateSubAdmin(
 /**
  * ACCOUNT DELETION STATEMENTS & STATEMENTS BOARD (FOR SUPER ADMIN)
  */
-export function getDeletionStatements(): DeletionStatement[] {
+export async function getDeletionStatements(): Promise<DeletionStatement[]> {
   try {
-    const raw = localStorage.getItem(DELETION_STATEMENTS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
+    const res = await fetch('/api/admin/statements');
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (err) {
+    console.error("Failed to fetch deletion statements", err);
     return [];
   }
 }
 
-export function saveDeletionStatements(statements: DeletionStatement[]): void {
-  try {
-    localStorage.setItem(DELETION_STATEMENTS_KEY, JSON.stringify(statements));
-    window.dispatchEvent(new CustomEvent('deletion_statements_updated', { detail: statements }));
-  } catch (err) {
-    console.error("Failed to save deletion statements", err);
-  }
+export async function saveDeletionStatements(statements: DeletionStatement[]): Promise<void> {
+  // Now no-op since API handles storage, but keeping it async if needed.
 }
 
-export function recordDeletionStatement(
+export async function recordDeletionStatement(
   data: Omit<DeletionStatement, 'id' | 'deletedAt'>
-): DeletionStatement {
-  const statements = getDeletionStatements();
-  const newStmt: DeletionStatement = {
-    ...data,
-    id: 'stmt_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-    deletedAt: new Date().toISOString()
-  };
-  statements.unshift(newStmt);
-  if (statements.length > 200) statements.pop();
-  saveDeletionStatements(statements);
-  return newStmt;
+): Promise<DeletionStatement | null> {
+  try {
+    const res = await fetch('/api/admin/statements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.error("Failed to record deletion statement", err);
+    return null;
+  }
 }
 
 export function clearDeletionStatements(executorUsername: string = 'admin'): { success: boolean; message: string } {
@@ -557,12 +556,27 @@ export async function deleteSubAdmin(
   reasonCategory: string = 'administrative-removal',
   statement: string = 'Administrator account removed.'
 ): Promise<{ success: boolean; message: string }> {
+  let targetUser = getFreshAdminUser(id);
+  
   try {
     const res = await fetch(`/api/admin/admins?id=${id}`, { method: 'DELETE' });
     const data = await res.json();
     if (!data.success) return { success: false, message: data.message };
   } catch (e: any) {
     return { success: false, message: e.message };
+  }
+
+  if (targetUser) {
+    await recordDeletionStatement({
+      accountId: targetUser.id,
+      accountType: 'admin',
+      username: targetUser.username,
+      displayName: targetUser.firstName ? `${targetUser.firstName} ${targetUser.lastName}` : targetUser.username,
+      role: targetUser.role,
+      reasonCategory,
+      statement,
+      deletedBy: executorUsername
+    });
   }
 
   addAuditLog(
@@ -845,11 +859,11 @@ export const completePhoneResetPassword = completePasswordReset;
 /**
  * Site Branding & Navigation Customization
  */
-export function getSiteCustomization(): SiteCustomization {
+export async function getSiteCustomization(): Promise<SiteCustomization> {
   try {
-    const raw = localStorage.getItem(SITE_CONFIG_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
+    const res = await fetch('/api/config');
+    if (res.ok) {
+      const parsed = await res.json();
       return {
         ...DEFAULT_SITE_CONFIG,
         ...parsed,
@@ -861,11 +875,17 @@ export function getSiteCustomization(): SiteCustomization {
   return DEFAULT_SITE_CONFIG;
 }
 
-export function saveSiteCustomization(config: SiteCustomization, executorUsername: string = 'admin'): void {
+export async function saveSiteCustomization(config: SiteCustomization, executorUsername: string = 'admin'): Promise<void> {
   try {
-    localStorage.setItem(SITE_CONFIG_KEY, JSON.stringify(config));
-    window.dispatchEvent(new CustomEvent('site_branding_updated', { detail: config }));
-    addAuditLog(executorUsername, 'Update Site Branding', 'branding', `Updated site title to "${config.siteName}", color: ${config.accentColor}`);
+    const res = await fetch('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config)
+    });
+    if (res.ok) {
+      window.dispatchEvent(new CustomEvent('site_branding_updated', { detail: config }));
+      addAuditLog(executorUsername, 'Update Site Branding', 'branding', `Updated site title to "${config.siteName}", color: ${config.accentColor}`);
+    }
   } catch (err) {
     console.error("Failed to save site customization", err);
   }
@@ -1068,11 +1088,11 @@ export function getRealtimeLearnerProfiles(): LearnerProfile[] {
   return profiles;
 }
 
-export function generateShareableReport(
+export async function generateShareableReport(
   type: 'cohort-summary' | 'curriculum-mastery' | 'database-dump',
   dataPayload?: any
-): { title: string; content: string; filename: string; mimeType: string } {
-  const branding = getSiteCustomization();
+): Promise<{ title: string; content: string; filename: string; mimeType: string }> {
+  const branding = await getSiteCustomization();
   const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
   if (type === 'cohort-summary') {

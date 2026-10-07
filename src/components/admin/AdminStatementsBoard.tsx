@@ -12,7 +12,7 @@ export const AdminStatementsBoard: React.FC<AdminStatementsBoardProps> = ({ curr
   const [filterType, setFilterType] = useState<'all' | 'user' | 'admin'>('all');
 
   useEffect(() => {
-    setStatements(getDeletionStatements());
+    getDeletionStatements().then(setStatements);
   }, []);
 
   const filteredStatements = statements.filter(

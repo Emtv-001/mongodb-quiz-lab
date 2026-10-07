@@ -4,6 +4,7 @@ import {
   authenticateAdminUser,
   getAdminUsers,
   getSiteCustomization,
+  DEFAULT_SITE_CONFIG,
   requestPasswordResetOtp,
   verifyPasswordResetOtp,
   completePasswordReset,
@@ -178,7 +179,10 @@ export const AdminView: React.FC = () => {
   const [acceptedInviteDetails, setAcceptedInviteDetails] = useState<{ recoveryPhrase: string; role: string } | null>(null);
 
   // Question Management state
-  const [customQuestions, setCustomQuestions] = useState<Question[]>(() => loadCustomQuestions());
+  const [customQuestions, setCustomQuestions] = useState<Question[]>([]);
+  useEffect(() => {
+    loadCustomQuestions().then(setCustomQuestions);
+  }, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTopic, setSelectedTopic] = useState<string>('All');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -200,7 +204,10 @@ export const AdminView: React.FC = () => {
   const [newConceptFocus, setNewConceptFocus] = useState('');
   const [newPoints, setNewPoints] = useState(10);
 
-  const siteConfig = getSiteCustomization();
+  const [siteConfig, setSiteConfig] = useState(DEFAULT_SITE_CONFIG);
+  useEffect(() => {
+    getSiteCustomization().then(setSiteConfig);
+  }, []);
   const allQuestions = [...DEFAULT_QUESTIONS, ...customQuestions];
 
   const [unreadFeedbackCount, setUnreadFeedbackCount] = useState(0);

@@ -35,8 +35,8 @@ export function App() {
     setProgress(loadProgress());
   }, [currentTab, activeSession]);
 
-  const handleStartQuiz = (mode: QuizMode, topic?: MongoTopic, mockExamId?: string, extraOptions?: Partial<QuizSetupOptions>) => {
-    const session = createSession({
+  const handleStartQuiz = async (mode: QuizMode, topic?: MongoTopic, mockExamId?: string, extraOptions?: Partial<QuizSetupOptions>) => {
+    const session = await createSession({
       mode,
       selectedTopic: topic,
       mockExamId,
@@ -73,9 +73,9 @@ export function App() {
     setCurrentTab(tab);
   };
 
-  const handleRestartQuiz = () => {
+  const handleRestartQuiz = async () => {
     if (!activeSession) return;
-    const newSession = createSession({
+    const newSession = await createSession({
       mode: activeSession.mode,
       selectedTopic: activeSession.selectedTopic,
       mockExamId: activeSession.mockExamId,

@@ -29,8 +29,8 @@ export function shuffleArray<T>(array: T[]): T[] {
 /**
  * Fetches all available questions (built-in + instructor custom questions)
  */
-export function getAllQuestions(): Question[] {
-  const custom = loadCustomQuestions();
+export async function getAllQuestions(): Promise<Question[]> {
+  const custom = await loadCustomQuestions();
   return [...DEFAULT_QUESTIONS, ...custom];
 }
 
@@ -69,7 +69,7 @@ export function prepareQuestionForSession(q: Question): Question {
 /**
  * Generates questions tailored for user-customized count, hardness, topic, and AI mode
  */
-export function generateQuizQuestions(options: QuizSetupOptions): Question[] {
+export async function generateQuizQuestions(options: QuizSetupOptions): Promise<Question[]> {
   const {
     mode,
     selectedTopic,
@@ -80,7 +80,7 @@ export function generateQuizQuestions(options: QuizSetupOptions): Question[] {
     useAiGeneration = false
   } = options;
 
-  let all = getAllQuestions();
+  let all = await getAllQuestions();
   const progress = loadProgress();
 
   // If user requested real-time AI dynamic generation
@@ -194,8 +194,8 @@ export function generateQuizQuestions(options: QuizSetupOptions): Question[] {
 /**
  * Creates a new quiz or mock exam session with customized setup
  */
-export function createSession(options: QuizSetupOptions): QuizSession {
-  const questions = generateQuizQuestions(options);
+export async function createSession(options: QuizSetupOptions): Promise<QuizSession> {
+  const questions = await generateQuizQuestions(options);
 
   let duration: number | undefined;
 
