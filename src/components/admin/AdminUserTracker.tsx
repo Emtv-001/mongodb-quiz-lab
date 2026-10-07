@@ -16,22 +16,55 @@ import {
 import { deleteLearnerAccount } from '../../services/learnerService';
 
 export const AdminUserTracker: React.FC = () => {
-  const [learners, setLearners] = useState<LearnerProfile[]>(() => getRealtimeLearnerProfiles());
+  const [learners, setLearners] = useState<LearnerProfile[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLearner, setSelectedLearner] = useState<LearnerProfile | null>(null);
 
   const progress = loadProgress();
 
-  const handleDeleteUser = (learner: LearnerProfile) => {
+  React.useEffect(() => {
+    fetch('/api/admin/users')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.users) {
+          const mapped = data.users.map((u: any) => ({
+            id: u._id || u.id,
+            pseudonym: u.displayName || u.username,
+            fingerprintHash: u.email,
+            firstJoined: u.createdAt,
+            lastActive: u.lastActive || u.createdAt,
+            currentStreak: 0,
+            questionsAttempted: 0,
+            questionsCorrect: 0,
+            accuracy: 0,
+            bestMockScore: 0,
+            weakTopics: [],
+            flaggedCount: 0,
+            status: u.verified ? 'Active' : 'Dormant'
+          }));
+          setLearners(mapped);
+        }
+        setIsLoading(false);
+      })
+      .catch(() => setIsLoading(false));
+  }, []);
+
+  const handleDeleteUser = async (learner: LearnerProfile) => {
     if (window.confirm(`Are you sure you want to permanently delete learner ${learner.pseudonym}?`)) {
       const statement = window.prompt("Reason for deletion (optional):", "Administrative Removal");
       if (statement !== null) {
-        const res = deleteLearnerAccount(learner.id, 'Administrative Removal', statement || 'Administrative Removal', '');
-        if (res.success) {
-          setLearners(getRealtimeLearnerProfiles());
-          setSelectedLearner(null);
-        } else {
-          alert(res.message);
+        try {
+          const res = await fetch(`/api/admin/users?id=${learner.id}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (data.success) {
+            setLearners(prev => prev.filter(l => l.id !== learner.id));
+            setSelectedLearner(null);
+          } else {
+            alert(data.message);
+          }
+        } catch (err: any) {
+          alert('Failed to delete user');
         }
       }
     }
