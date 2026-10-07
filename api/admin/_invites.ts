@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import connectToDatabase from '../utils/db.js';
-import AdminInvite from '../models/AdminInvite.js';
+import connectToDatabase from '../_utils/db.js';
+import AdminInvite from '../_models/AdminInvite.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {

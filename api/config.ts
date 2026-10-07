@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import connectToDatabase from './utils/db.js';
-import SiteConfig from './models/SiteConfig.js';
+import connectToDatabase from './_utils/db.js';
+import SiteConfig from './_models/SiteConfig.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
