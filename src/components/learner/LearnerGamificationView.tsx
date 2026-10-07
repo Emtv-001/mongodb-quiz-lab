@@ -11,7 +11,9 @@ import {
   deleteLearnerAccount,
   requestLearnerPasswordResetOtp,
   verifyLearnerPasswordResetOtp,
-  completeLearnerPasswordReset
+  completeLearnerPasswordReset,
+  syncProgressToAtlas,
+  fetchProgressFromAtlas
 } from '../../services/learnerService';
 import { sha256Sync } from '../../services/security';
 import {
@@ -140,6 +142,22 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
     window.addEventListener('learner_account_updated', handleUpdate);
     return () => window.removeEventListener('learner_account_updated', handleUpdate);
   }, [progress]);
+
+  // Initial cloud sync
+  useEffect(() => {
+    if (account?.id) {
+      fetchProgressFromAtlas(account.id).then(() => {
+        refreshAccountState();
+      });
+    }
+  }, [account?.id]);
+
+  // Background progress sync
+  useEffect(() => {
+    const handleSync = () => syncProgressToAtlas();
+    window.addEventListener('mongo_quiz_progress_saved', handleSync);
+    return () => window.removeEventListener('mongo_quiz_progress_saved', handleSync);
+  }, []);
 
   // Handle Register Step 1: Request OTP and dispatch real-time email
   const handleRequestRegistrationOtp = async (e?: React.FormEvent) => {

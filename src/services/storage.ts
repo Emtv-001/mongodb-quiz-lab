@@ -104,6 +104,11 @@ export function saveProgress(progress: StudentProgress): void {
   try {
     progress.checksum = computeProgressDigest(progress);
     localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(progress));
+    
+    // Dispatch event to trigger MongoDB Atlas background sync without circular dependencies
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('mongo_quiz_progress_saved'));
+    }
   } catch (err) {
     console.error("Failed to save progress to localStorage", err);
   }

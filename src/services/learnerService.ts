@@ -658,3 +658,48 @@ export function getLearnerGamificationStats(progress: StudentProgress) {
     userEntry
   };
 }
+
+
+/**
+ * Synchronizes local progress with MongoDB Atlas (Background Fire-and-Forget)
+ */
+export async function syncProgressToAtlas(): Promise<void> {
+  const account = getRegisteredLearnerAccount();
+  if (!account || !account.id) return;
+  
+  const progress = loadProgress();
+  try {
+    fetch('/api/learners/progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        learnerId: account.id,
+        progressData: progress
+      })
+    }).catch(() => {});
+  } catch (err) {}
+}
+
+/**
+ * Pulls progress from MongoDB Atlas and merges it locally
+ */
+export async function fetchProgressFromAtlas(accountId: string): Promise<void> {
+  try {
+    const res = await fetch('/api/learners/progress?learnerId=' + accountId);
+    const data = await res.json();
+    if (data.success && data.progress) {
+      const p = data.progress;
+      const local = loadProgress();
+      
+      local.questionsAttempted = p.questionsAttempted || local.questionsAttempted;
+      local.questionsCorrect = p.questionsCorrect || local.questionsCorrect;
+      local.questionsPartial = p.questionsPartial || local.questionsPartial;
+      local.totalScore = p.totalScore || local.totalScore;
+      local.totalMaxScore = p.totalMaxScore || local.totalMaxScore;
+      local.currentStreak = p.currentStreak || local.currentStreak;
+      local.longestStreak = p.longestStreak || local.longestStreak;
+      
+      saveProgress(local);
+    }
+  } catch (err) {}
+}
