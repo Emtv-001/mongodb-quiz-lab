@@ -230,9 +230,9 @@ export const AdminView: React.FC = () => {
     }
   }, [currentAdminTab, currentUser]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = authenticateAdminUser(usernameOrEmail, passwordInput);
+    const res = await authenticateAdminUser(usernameOrEmail, passwordInput);
     if (res.success && res.user) {
       setCurrentUser(res.user);
       sessionStorage.setItem('mongo_quiz_logged_admin_user', JSON.stringify(res.user));
