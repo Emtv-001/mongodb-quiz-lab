@@ -2,7 +2,6 @@ import { MongoTopic, Question, QuestionAttempt, QuizMode, StudentProgress, Space
 import { getOrCreateLearnerIdentity, computeProgressDigest, verifyProgressIntegrity } from './security';
 
 const PROGRESS_STORAGE_KEY = 'mongo_quiz_student_progress_v2';
-const CUSTOM_QUESTIONS_KEY = 'mongo_quiz_custom_questions_v2';
 
 export const ALL_TOPICS: MongoTopic[] = [
   'MongoDB Fundamentals',
@@ -325,5 +324,4 @@ export async function saveCustomQuestions(questions: Question[]): Promise<void> 
 
 export function resetAllData(): void {
   localStorage.removeItem(PROGRESS_STORAGE_KEY);
-  localStorage.removeItem(CUSTOM_QUESTIONS_KEY);
 }

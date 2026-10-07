@@ -22,11 +22,10 @@ export const MASTER_ADMIN_PHONE = '09018537763';
 
 const ADMIN_USERS_KEY = 'mongo_quiz_admin_users_v3';
 const ADMIN_INVITES_KEY = 'mongo_quiz_admin_invites_v3';
-const SITE_CONFIG_KEY = 'mongo_quiz_site_customization_v3';
 const GENERIC_DATABASES_KEY = 'mongo_quiz_generic_databases_v3';
 const AUDIT_LOGS_KEY = 'mongo_quiz_admin_audit_logs_v3';
 const RESET_OTP_KEY = 'mongo_quiz_reset_otp_session_v3';
-const DELETION_STATEMENTS_KEY = 'mongo_quiz_deletion_statements_v1';
+
 
 export const FULL_PERMISSIONS: AdminPermissions = {
   canEditBranding: true,
