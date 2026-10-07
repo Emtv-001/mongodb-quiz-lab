@@ -166,11 +166,14 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
   };
 
   // Handle Register Step 2: Verify OTP
-  const handleVerifyOtp = (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setRegError(null);
+    setIsSendingEmail(true);
 
-    const res = verifyLearnerRegistrationOtp(otpCodeInput);
+    const res = await verifyLearnerRegistrationOtp(otpCodeInput);
+    setIsSendingEmail(false);
+    
     if (res.success && res.account) {
       refreshAccountState();
       setShowRegisterModal(false);
@@ -189,11 +192,11 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
   };
 
   // Handle Login
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
 
-    const res = loginLearner(loginIdentifier, loginPassword);
+    const res = await loginLearner(loginIdentifier, loginPassword);
     if (res.success && res.account) {
       refreshAccountState();
       setShowLoginModal(false);

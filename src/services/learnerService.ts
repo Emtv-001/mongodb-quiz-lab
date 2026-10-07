@@ -158,9 +158,9 @@ export async function requestLearnerRegistrationOtp(
 /**
  * Verifies OTP and completes registration (Strictly requires OTP code)
  */
-export function verifyLearnerRegistrationOtp(
+export async function verifyLearnerRegistrationOtp(
   otpCodeInput: string
-): { success: boolean; message: string; account?: RegisteredLearnerAccount } {
+): Promise<{ success: boolean; message: string; account?: RegisteredLearnerAccount }> {
   try {
     const raw = sessionStorage.getItem(LEARNER_OTP_SESSION_KEY);
     if (!raw) {
@@ -186,20 +186,28 @@ export function verifyLearnerRegistrationOtp(
     const progress = loadProgress();
     const stats = getLearnerGamificationStats(progress);
 
+    // Call MongoDB Atlas Backend
+    const response = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: session.email,
+        username: session.username,
+        displayName: session.displayName,
+        passwordHash: sha256Sync(session.passwordPlain),
+        recoveryPhrase: session.recoveryPhrase
+      })
+    });
+
+    const data = await response.json();
+
+    if (!data.success) {
+      return { success: false, message: data.message || "An error occurred during registration." };
+    }
+
     const newAccount: RegisteredLearnerAccount = {
-      id: 'learner_' + Date.now(),
-      email: session.email,
-      username: session.username,
-      displayName: session.displayName,
-      passwordHash: sha256Sync(session.passwordPlain),
-      recoveryPhrase: session.recoveryPhrase,
-      createdAt: new Date().toISOString(),
-      verified: true,
-      coins: stats.coins + 100, // +100 welcome registration MongoCoins bonus!
-      xp: stats.xp + 250,       // +250 welcome XP!
-      tier: stats.tier as LearnerTier,
-      rankNumber: stats.rank,
-      unlockedBadges: ['badge_welcome']
+      ...data.user,
+      id: data.user._id || data.user.id
     };
 
     saveRegisteredLearnerAccount(newAccount);
@@ -214,36 +222,45 @@ export function verifyLearnerRegistrationOtp(
       message: `Welcome @${newAccount.username}! Your Gamification Profile has been activated with +100 MongoCoins bonus!\n\nIMPORTANT: Your account recovery phrase is ${newAccount.recoveryPhrase}. Please save this securely!`,
       account: newAccount
     };
-  } catch {
-    return { success: false, message: "An error occurred during verification." };
+  } catch (err: any) {
+    return { success: false, message: "An error occurred during verification: " + err.message };
   }
 }
 
 /**
  * Learner login
  */
-export function loginLearner(
+export async function loginLearner(
   emailOrUsername: string,
   passwordPlain: string
-): { success: boolean; message: string; account?: RegisteredLearnerAccount } {
-  const dir = getLearnerAccountsDirectory();
-  const accounts = Object.values(dir);
-  
-  if (accounts.length === 0) {
-    return { success: false, message: "No registered accounts found on this device. Please create a new profile." };
+): Promise<{ success: boolean; message: string; account?: RegisteredLearnerAccount }> {
+  try {
+    const inputHash = sha256Sync(passwordPlain.trim());
+
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        emailOrUsername: emailOrUsername.trim(),
+        passwordHash: inputHash
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.success && data.user) {
+      const account: RegisteredLearnerAccount = {
+        ...data.user,
+        id: data.user._id || data.user.id
+      };
+      saveRegisteredLearnerAccount(account);
+      return { success: true, message: `Welcome back, ${account.displayName}!`, account };
+    }
+
+    return { success: false, message: data.message || "Invalid email/username or password." };
+  } catch (err: any) {
+    return { success: false, message: "Login failed: " + err.message };
   }
-
-  const clean = emailOrUsername.trim().toLowerCase();
-  const inputHash = sha256Sync(passwordPlain.trim());
-
-  const account = accounts.find(a => a.email.toLowerCase() === clean || a.username.toLowerCase() === clean);
-  
-  if (account && account.passwordHash === inputHash) {
-    saveRegisteredLearnerAccount(account);
-    return { success: true, message: `Welcome back, ${account.displayName}!`, account };
-  }
-
-  return { success: false, message: "Invalid email/username or password." };
 }
 
 /**
