@@ -14,7 +14,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     brevoApiKey,
     customWebhookUrl,
     senderName = 'MongoDB Quiz Lab',
-    senderEmail = 'notifications@emtvtech.com'
+    senderEmail = 'monodbquizlab@emtvtech.com'
   } = req.body || {};
 
   const cleanTo = (to || '').trim().toLowerCase();
