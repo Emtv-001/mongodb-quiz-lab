@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          from: `${senderName} <${senderEmail.includes('@resend.dev') ? senderEmail : 'onboarding@resend.dev'}>`,
+          from: `${senderName} <${senderEmail}>`,
           to: [cleanTo],
           subject: subject || 'MongoDB Quiz Lab Notification',
           html: html || `<p>${(text || '').replace(/\n/g, '<br/>')}</p>`,
