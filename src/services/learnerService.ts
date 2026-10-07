@@ -9,7 +9,7 @@ import {
 import { generateRecoveryPhrase, recordDeletionStatement, addAuditLog } from './adminService';
 import { sha256Sync } from './security';
 import { loadProgress, saveProgress } from './storage';
-import { sendOtpRegistrationEmail } from './emailService';
+import { sendOtpRegistrationEmail, sendPasswordResetEmail } from './emailService';
 
 const LEARNER_ACCOUNTS_DIR_KEY = 'mongo_quiz_learner_accounts_directory_v2';
 const ACTIVE_LEARNER_SESSION_KEY = 'mongo_quiz_active_learner_session_v2';
@@ -373,7 +373,7 @@ export async function requestLearnerPasswordResetOtp(emailOrUsername: string): P
     sessionStorage.setItem(LEARNER_RESET_OTP_KEY, JSON.stringify(session));
   } catch {}
 
-  const emailResult = await sendOtpRegistrationEmail(account.email, account.displayName, code, account.recoveryPhrase);
+  const emailResult = await sendPasswordResetEmail(account.email, code, account.displayName);
 
   if (!emailResult.success) {
     // Refund coins if email fails

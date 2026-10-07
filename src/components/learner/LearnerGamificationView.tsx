@@ -369,7 +369,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                       setRegStep(1);
                       setRegError(null);
                     }}
-                    className="flex items-center space-x-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all"
+                    className="flex items-center space-x-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02] active:scale-95 hover:shadow-emerald-500/40 relative overflow-hidden"
                   >
                     <UserPlus className="w-4 h-4" />
                     <span>Register / Claim Profile (Free)</span>
@@ -796,7 +796,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                   <button
                     type="submit"
                     disabled={isSendingEmail || emailCooldown > 0}
-                    className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 shadow-md shadow-emerald-500/20 flex items-center space-x-2"
+                    className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 shadow-md shadow-emerald-500/20 flex items-center space-x-2 transition-all duration-300 hover:scale-[1.02] active:scale-95 hover:shadow-emerald-500/40 relative overflow-hidden"
                   >
                     {isSendingEmail ? (
                       <>
@@ -880,7 +880,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                     </button>
                     <button
                       type="submit"
-                      className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
+                      className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02] active:scale-95 hover:shadow-emerald-500/40 relative overflow-hidden"
                     >
                       Verify & Claim Profile (+100 🪙)
                     </button>
@@ -963,7 +963,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
+                  className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02] active:scale-95 hover:shadow-emerald-500/40 relative overflow-hidden"
                 >
                   Sign In
                 </button>

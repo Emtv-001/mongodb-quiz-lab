@@ -192,7 +192,7 @@ export const AdminSecuritySettings: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSendingOtp}
-                className="w-full py-2.5 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center space-x-2"
+                className="w-full py-2.5 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center space-x-2 transition-all duration-300 hover:scale-[1.02] active:scale-95 hover:shadow-emerald-500/40 relative overflow-hidden"
               >
                 <Send className={`w-4 h-4 ${isSendingOtp ? 'animate-pulse' : ''}`} />
                 <span>{isSendingOtp ? 'Dispatching Real Email...' : 'Send 6-Digit Verification Code'}</span>
@@ -244,7 +244,7 @@ export const AdminSecuritySettings: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
+                  className="flex-1 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02] active:scale-95 hover:shadow-emerald-500/40 relative overflow-hidden"
                 >
                   Confirm & Update
                 </button>
@@ -289,7 +289,7 @@ export const AdminSecuritySettings: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSendingTestEmail || testEmailCooldown > 0}
-                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold rounded-xl flex items-center justify-center space-x-1.5 flex-shrink-0 w-full sm:w-auto"
+                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-bold rounded-xl flex items-center justify-center space-x-1.5 flex-shrink-0 w-full sm:w-auto transition-all duration-300 hover:scale-[1.02] active:scale-95 hover:shadow-emerald-500/40 relative overflow-hidden"
               >
                 {testEmailCooldown > 0 ? (
                   <>

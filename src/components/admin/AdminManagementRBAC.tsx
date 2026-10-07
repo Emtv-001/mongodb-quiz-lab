@@ -277,7 +277,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
               setShowInviteModal(true);
               setLastCreatedInvite(null);
             }}
-            className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition-all"
+            className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02] active:scale-95 hover:shadow-emerald-500/40 relative overflow-hidden"
           >
             <KeyRound className="w-4 h-4" />
             <span>Generate Admin Invite</span>
@@ -575,7 +575,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                       setLastCreatedInvite(null);
                       setModalError(null);
                     }}
-                    className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl shadow-md shadow-emerald-500/20"
+                    className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl shadow-md shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02] active:scale-95 hover:shadow-emerald-500/40 relative overflow-hidden"
                   >
                     Done
                   </button>
@@ -640,7 +640,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                   <button
                     type="submit"
                     disabled={isSendingInvite || inviteCooldown > 0}
-                    className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 shadow-md shadow-emerald-500/20 transition-all flex items-center space-x-1.5"
+                    className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 shadow-md shadow-emerald-500/20 transition-all flex items-center space-x-1.5 transition-all duration-300 hover:scale-[1.02] active:scale-95 hover:shadow-emerald-500/40 relative overflow-hidden"
                   >
                     {inviteCooldown > 0 ? (
                       <>
@@ -749,7 +749,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
+                  className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02] active:scale-95 hover:shadow-emerald-500/40 relative overflow-hidden"
                 >
                   Activate Account
                 </button>
