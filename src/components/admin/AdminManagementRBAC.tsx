@@ -39,8 +39,8 @@ const ROLE_ACCESS_SUMMARY: Record<AdminRole, string> = {
 };
 
 export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ currentAdmin }) => {
-  const [adminList, setAdminList] = useState<AdminUser[]>(() => getAdminUsers());
-  const [invitations, setInvitations] = useState<AdminInvitation[]>(() => getAdminInvitations());
+  const [adminList, setAdminList] = useState<AdminUser[]>([]);
+  const [invitations, setInvitations] = useState<AdminInvitation[]>([]);
   const [statusMsg, setStatusMsg] = useState<{ text: string; isError: boolean } | null>(null);
 
   // Invite Admin Modal state
@@ -77,10 +77,36 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
   const [acceptDisplayName, setAcceptDisplayName] = useState('');
   const [acceptPassword, setAcceptPassword] = useState('');
 
-  const refreshData = () => {
-    setAdminList(getAdminUsers());
-    setInvitations(getAdminInvitations());
+  const refreshData = async () => {
+    try {
+      const [adminsRes, invitesRes] = await Promise.all([
+        fetch('/api/admin/admins'),
+        fetch('/api/admin/invites')
+      ]);
+      
+      if (adminsRes.ok) {
+        const data = await adminsRes.json();
+        if (data.success) {
+          const mapped = data.admins.map((a: any) => ({ ...a, id: a._id || a.id }));
+          setAdminList(mapped);
+        }
+      }
+      
+      if (invitesRes.ok) {
+        const data = await invitesRes.json();
+        if (data.success) {
+          const mapped = data.invites.map((i: any) => ({ ...i, id: i._id || i.id }));
+          setInvitations(mapped);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to refresh data', err);
+    }
   };
+
+  useEffect(() => {
+    refreshData();
+  }, []);
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
