@@ -86,8 +86,8 @@ export async function sendRealtimeEmail(payload: EmailDispatchPayload): Promise<
         html: payload.html,
         category: payload.category,
         resendApiKey: config.resendApiKey,
-        senderName: config.senderName,
-        senderEmail: config.senderEmail || 'onboarding@resend.dev'
+        senderName: config.senderName || undefined,
+        senderEmail: config.senderEmail || undefined
       })
     });
 
