@@ -100,22 +100,22 @@ export async function sendRealtimeEmail(payload: EmailDispatchPayload): Promise<
           providerUsed: data.provider || 'Resend API',
           timestamp
         };
-      } else if (data.error && config.resendApiKey) {
-        // If Resend was explicitly provided and failed, surface the error
+      } else if (data.error) {
+        // If the server explicitly returns an error, surface it
         return {
           success: false,
-          message: `Resend Error: ${data.error}`,
-          providerUsed: 'Resend API',
+          message: `Delivery Error: ${data.error}`,
+          providerUsed: 'Server API',
           timestamp
         };
       }
     } else {
       const errData = await apiRes.json().catch(() => ({}));
-      if (errData.error && config.resendApiKey) {
+      if (errData.error) {
         return {
           success: false,
-          message: `Resend Error: ${errData.error}`,
-          providerUsed: 'Resend API',
+          message: `Delivery Error: ${errData.error}`,
+          providerUsed: 'Server API',
           timestamp
         };
       }

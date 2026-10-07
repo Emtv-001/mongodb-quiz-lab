@@ -51,9 +51,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           provider: 'Resend API',
           data
         });
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        return res.status(200).json({ 
+          success: false, 
+          error: errData?.message || 'Resend API rejection' 
+        });
       }
     } catch (err: any) {
       console.error('Server Resend dispatch error:', err);
+      return res.status(200).json({ success: false, error: err.message });
     }
   }
 
