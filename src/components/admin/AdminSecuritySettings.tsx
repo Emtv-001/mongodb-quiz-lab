@@ -57,7 +57,16 @@ export const AdminSecuritySettings: React.FC = () => {
     return () => clearInterval(timer);
   }, [otpCooldown, testEmailCooldown]);
 
-  const logs = getAuditLogs();
+  const [logs, setLogs] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/admin/logs')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.logs) setLogs(data.logs);
+      })
+      .catch(console.error);
+  }, []);
 
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -150,9 +150,9 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
     }
   };
 
-  const handleAcceptInvite = (e: React.FormEvent) => {
+  const handleAcceptInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = acceptAdminInvitation(acceptCode, {
+    const res = await acceptAdminInvitation(acceptCode, {
       username: acceptUsername,
       email: acceptEmail,
       displayName: acceptDisplayName,
@@ -173,15 +173,15 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
     }
   };
 
-  const handleCancelInvite = (id: string) => {
-    const res = cancelAdminInvitation(id, currentAdmin.username);
+  const handleCancelInvite = async (id: string) => {
+    const res = await cancelAdminInvitation(id, currentAdmin.username);
     if (res.success) {
       setStatusMsg({ text: res.message, isError: false });
       refreshData();
     }
   };
 
-  const handleTogglePermission = (adminId: string, permKey: keyof AdminPermissions) => {
+  const handleTogglePermission = async (adminId: string, permKey: keyof AdminPermissions) => {
     const target = adminList.find(a => a.id === adminId);
     if (!target) return;
     if (target.role === 'super-admin') {
@@ -194,16 +194,16 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
       [permKey]: !target.permissions[permKey]
     };
 
-    const res = updateSubAdmin(adminId, { permissions: updatedPermissions }, currentAdmin.username);
+    const res = await updateSubAdmin(adminId, { permissions: updatedPermissions }, currentAdmin.username);
     if (!res.success) alert(res.message);
     refreshData();
   };
 
-  const handleToggleStatus = (adminId: string) => {
+  const handleToggleStatus = async (adminId: string) => {
     const target = adminList.find(a => a.id === adminId);
     if (!target) return;
     const newStatus = target.status === 'active' ? 'suspended' : 'active';
-    const res = updateSubAdmin(adminId, { status: newStatus }, currentAdmin.username);
+    const res = await updateSubAdmin(adminId, { status: newStatus }, currentAdmin.username);
     if (res.success) {
       refreshData();
     } else {
@@ -211,7 +211,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
     }
   };
 
-  const handleChangeRole = (adminId: string, newRole: AdminRole) => {
+  const handleChangeRole = async (adminId: string, newRole: AdminRole) => {
     const target = adminList.find(a => a.id === adminId);
     if (!target || target.role === newRole) return;
     const ok = window.confirm(
@@ -223,7 +223,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
       refreshData(); // revert the dropdown
       return;
     }
-    const res = updateSubAdmin(adminId, { role: newRole }, currentAdmin.username);
+    const res = await updateSubAdmin(adminId, { role: newRole }, currentAdmin.username);
     if (res.success) {
       refreshData();
     } else {
@@ -238,11 +238,11 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
     setDeleteAdminError(null);
   };
 
-  const handleConfirmAdminDelete = (e: React.FormEvent) => {
+  const handleConfirmAdminDelete = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!deleteTargetAdmin) return;
     const isSelf = deleteTargetAdmin.id === currentAdmin.id;
-    const res = deleteSubAdmin(
+    const res = await deleteSubAdmin(
       deleteTargetAdmin.id,
       currentAdmin.username,
       deleteAdminReason,

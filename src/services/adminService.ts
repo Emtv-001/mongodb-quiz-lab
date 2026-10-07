@@ -90,13 +90,12 @@ export function getAuditLogs(): AdminAuditLog[] {
   }
 }
 
-export function addAuditLog(
+export async function addAuditLog(
   adminUsername: string,
   action: string,
   category: AdminAuditLog['category'],
   details: string
-): void {
-  const logs = getAuditLogs();
+): Promise<void> {
   const entry: AdminAuditLog = {
     id: 'log_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
     adminUsername,
@@ -105,11 +104,13 @@ export function addAuditLog(
     details,
     timestamp: new Date().toISOString()
   };
-  logs.unshift(entry);
-  if (logs.length > 150) logs.pop();
   try {
-    localStorage.setItem(AUDIT_LOGS_KEY, JSON.stringify(logs));
-  } catch {}
+    await fetch('/api/admin/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry)
+    });
+  } catch (err) {}
 }
 
 /**
@@ -342,7 +343,6 @@ export async function createAdminInvitationCode(
     };
   }
 
-  const invites = getAdminInvitations();
   const codeNumber = Math.floor(10000 + Math.random() * 90000);
   const inviteCode = `INV-${codeNumber}`;
   const inviteeRecoveryPhrase = generateRecoveryPhrase();
@@ -359,8 +359,19 @@ export async function createAdminInvitationCode(
     createdBy: creatorUsername
   };
 
-  invites.unshift(invitation);
-  saveAdminInvitations(invites);
+  try {
+    const res = await fetch('/api/admin/invites', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(invitation)
+    });
+    const data = await res.json();
+    if (!data.success) {
+      return { success: false, message: data.message || "Failed to create invitation" };
+    }
+  } catch (err: any) {
+    return { success: false, message: "Network error: " + err.message };
+  }
 
   addAuditLog(
     creatorUsername,
@@ -376,12 +387,19 @@ export async function createAdminInvitationCode(
   };
 }
 
-export function acceptAdminInvitation(
+export async function acceptAdminInvitation(
   invitationCodeInput: string,
   details: { username: string; email: string; displayName: string; passwordPlain: string }
-): { success: boolean; message: string; user?: AdminUser; recoveryPhrase?: string; assignedRole?: string } {
+): Promise<{ success: boolean; message: string; user?: AdminUser; recoveryPhrase?: string; assignedRole?: string }> {
   const cleanCode = invitationCodeInput.trim().toUpperCase();
-  const invites = getAdminInvitations();
+  
+  let invites: AdminInvitation[] = [];
+  try {
+    const res = await fetch('/api/admin/invites');
+    const data = await res.json();
+    if (data.success) invites = data.invites;
+  } catch (e) {}
+
   const invite = invites.find(i => i.invitationCode === cleanCode && i.status === 'pending');
 
   if (!invite) {
@@ -389,22 +407,11 @@ export function acceptAdminInvitation(
   }
 
   if (Date.now() > invite.expiresAt) {
-    invite.status = 'expired';
-    saveAdminInvitations(invites);
     return { success: false, message: "This invitation code has expired. Please request a new invitation." };
   }
 
-  const users = getAdminUsers();
   const cleanUsername = details.username.trim().toLowerCase();
   const cleanEmail = details.email.trim().toLowerCase();
-
-  if (users.some(u => u.username.toLowerCase() === cleanUsername)) {
-    return { success: false, message: `Username "${details.username}" is already taken.` };
-  }
-
-  if (users.some(u => u.email.toLowerCase() === cleanEmail)) {
-    return { success: false, message: `An administrator account already exists with email "${cleanEmail}".` };
-  }
 
   if (details.passwordPlain.length < 6) {
     return { success: false, message: "Password must be at least 6 characters long." };
@@ -425,11 +432,21 @@ export function acceptAdminInvitation(
     permsSynced: true
   };
 
-  users.push(newUser);
-  saveAdminUsers(users);
+  try {
+    const res = await fetch('/api/admin/admins', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newUser)
+    });
+    const data = await res.json();
+    if (!data.success) return { success: false, message: data.message };
+  } catch (e: any) {
+    return { success: false, message: "Failed to create user: " + e.message };
+  }
 
-  invite.status = 'accepted';
-  saveAdminInvitations(invites);
+  try {
+    await fetch(`/api/admin/invites?id=${invite.id}`, { method: 'DELETE' });
+  } catch (e) {}
 
   addAuditLog(
     newUser.username,
@@ -447,62 +464,45 @@ export function acceptAdminInvitation(
   };
 }
 
-export function cancelAdminInvitation(id: string, executorUsername: string = 'admin'): { success: boolean; message: string } {
+export async function cancelAdminInvitation(id: string, executorUsername: string = 'admin'): Promise<{ success: boolean; message: string }> {
   const authError = authorize(executorUsername, 'canManageSubAdmins');
   if (authError) return { success: false, message: authError };
 
-  let invites = getAdminInvitations();
-  invites = invites.filter(i => i.id !== id);
-  saveAdminInvitations(invites);
+  try {
+    const res = await fetch(`/api/admin/invites?id=${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!data.success) return { success: false, message: data.message };
+  } catch (e: any) {
+    return { success: false, message: e.message };
+  }
+
   addAuditLog(executorUsername, 'Cancel Admin Invite', 'security', `Revoked invitation ${id}`);
   return { success: true, message: "Invitation cancelled." };
 }
 
-export function updateSubAdmin(
+export async function updateSubAdmin(
   id: string,
   updates: Partial<AdminUser>,
   executorUsername: string = 'admin'
-): { success: boolean; message: string } {
-  const users = getAdminUsers();
-  const index = users.findIndex(u => u.id === id);
-  if (index === -1) return { success: false, message: "Admin not found." };
-
-  const target = users[index];
-  const executor = users.find(u => u.username.toLowerCase() === executorUsername.toLowerCase());
-  const isSelf = executor?.id === target.id;
-  const touchesPrivileges = 'role' in updates || 'permissions' in updates || 'status' in updates;
-
-  // Self-service edits (e.g. profile/password) are allowed; privilege changes are not
-  if (!isSelf || touchesPrivileges) {
-    const authError = authorize(executorUsername, 'canManageSubAdmins');
-    if (authError) return { success: false, message: authError };
-  }
-
-  if (isMasterAccount(target) && touchesPrivileges) {
-    return { success: false, message: "The Master Super Admin's role, rights and status cannot be changed." };
-  }
-
-  if (updates.role === 'super-admin') {
-    return { success: false, message: "The Super Admin role is reserved for the Master account and cannot be assigned." };
-  }
-
-  if (isSelf && touchesPrivileges) {
-    return { success: false, message: "You cannot change your own role, rights or status." };
-  }
-
+): Promise<{ success: boolean; message: string }> {
+  const authError = authorize(executorUsername, 'canManageSubAdmins');
+  
   const safeUpdates: Partial<AdminUser> = { ...updates };
   delete safeUpdates.id;
-  // When role changes, reset permissions to that role's preset
-  if (safeUpdates.role && safeUpdates.role !== target.role && !safeUpdates.permissions) {
-    safeUpdates.permissions = getRolePermissions(safeUpdates.role);
-  }
-  if ((safeUpdates.role || target.role) === 'super-admin') {
-    safeUpdates.permissions = { ...FULL_PERMISSIONS };
+
+  try {
+    const res = await fetch('/api/admin/admins', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ...safeUpdates })
+    });
+    const data = await res.json();
+    if (!data.success) return { success: false, message: data.message };
+  } catch (e: any) {
+    return { success: false, message: e.message };
   }
 
-  users[index] = { ...target, ...safeUpdates };
-  saveAdminUsers(users);
-  addAuditLog(executorUsername, 'Update Administrator', 'security', `Updated account/permissions for ${users[index].username}`);
+  addAuditLog(executorUsername, 'Update Administrator', 'security', `Updated account/permissions for admin ID: ${id}`);
 
   return { success: true, message: "Administrator details updated successfully." };
 }
@@ -551,53 +551,28 @@ export function clearDeletionStatements(executorUsername: string = 'admin'): { s
   return { success: true, message: "Deletion statements board cleared." };
 }
 
-export function deleteSubAdmin(
+export async function deleteSubAdmin(
   id: string,
   executorUsername: string = 'admin',
   reasonCategory: string = 'administrative-removal',
   statement: string = 'Administrator account removed.'
-): { success: boolean; message: string } {
-  let users = getAdminUsers();
-  const target = users.find(u => u.id === id);
-  if (!target) return { success: false, message: "Administrator account not found." };
-
-  if (isMasterAccount(target)) {
-    return { success: false, message: "The Master Super Admin account cannot be deleted under any circumstances." };
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const res = await fetch(`/api/admin/admins?id=${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!data.success) return { success: false, message: data.message };
+  } catch (e: any) {
+    return { success: false, message: e.message };
   }
-
-  const executor = users.find(u => u.username.toLowerCase() === executorUsername.toLowerCase());
-  const isSelf = executor?.id === id;
-
-  // If not self-deletion, require permission
-  if (!isSelf) {
-    const authError = authorize(executorUsername, 'canManageSubAdmins');
-    if (authError) return { success: false, message: authError };
-  }
-
-  users = users.filter(u => u.id !== id);
-  saveAdminUsers(users);
-
-  // Record statement to the Statements Board
-  recordDeletionStatement({
-    accountType: 'admin',
-    accountId: target.id,
-    username: target.username,
-    email: target.email,
-    displayName: target.displayName,
-    role: target.role,
-    reasonCategory: reasonCategory || (isSelf ? 'self-resignation' : 'administrative-removal'),
-    statement: statement.trim() || (isSelf ? 'Administrator chose to delete account.' : 'Removed by administrator.'),
-    deletedBy: isSelf ? `@${target.username} (Self)` : `@${executorUsername}`
-  });
 
   addAuditLog(
     executorUsername,
     'Delete Administrator',
     'security',
-    `${isSelf ? 'Self-deleted' : 'Deleted'} admin @${target.username} (${target.role}). Reason: ${reasonCategory}. Statement: ${statement}`
+    `Deleted admin ID: ${id}. Reason: ${reasonCategory}. Statement: ${statement}`
   );
 
-  return { success: true, message: `Administrator account @${target.username} has been deleted.` };
+  return { success: true, message: `Administrator account has been deleted.` };
 }
 
 /**
