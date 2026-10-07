@@ -141,7 +141,11 @@ export async function requestLearnerRegistrationOtp(
   } catch {}
 
   // Dispatch real email in real-time
-  await sendOtpRegistrationEmail(cleanEmail, session.displayName, otpCode, recoveryPhrase);
+  const emailResult = await sendOtpRegistrationEmail(cleanEmail, session.displayName, otpCode, recoveryPhrase);
+  
+  if (!emailResult.success) {
+    return { success: false, message: `Email Dispatch Failed: ${emailResult.message}` };
+  }
 
   return {
     success: true,
@@ -369,7 +373,17 @@ export async function requestLearnerPasswordResetOtp(emailOrUsername: string): P
     sessionStorage.setItem(LEARNER_RESET_OTP_KEY, JSON.stringify(session));
   } catch {}
 
-  await sendOtpRegistrationEmail(account.email, account.displayName, code, account.recoveryPhrase);
+  const emailResult = await sendOtpRegistrationEmail(account.email, account.displayName, code, account.recoveryPhrase);
+
+  if (!emailResult.success) {
+    // Refund coins if email fails
+    account.coins += 50;
+    dir[account.id] = account;
+    try {
+      localStorage.setItem(LEARNER_ACCOUNTS_DIR_KEY, JSON.stringify(dir));
+    } catch {}
+    return { success: false, message: `Email Dispatch Failed: ${emailResult.message}` };
+  }
 
   return { success: true, message: `OTP dispatched to ${account.email}. 50 MongoCoins have been deducted.` };
 }
