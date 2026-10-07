@@ -214,27 +214,32 @@ export const AdminView: React.FC = () => {
   const [unreadStatementsCount, setUnreadStatementsCount] = useState(0);
 
   useEffect(() => {
-    if (currentUser?.role === 'super-admin') {
-      const totalFeedbacks = getFeedbackEntries().length;
-      const lastSeenFBCount = Number(localStorage.getItem('mongo_quiz_last_seen_feedback_count') || '0');
-      
-      if (currentAdminTab === 'feedback') {
-        localStorage.setItem('mongo_quiz_last_seen_feedback_count', totalFeedbacks.toString());
-        setUnreadFeedbackCount(0);
-      } else {
-        setUnreadFeedbackCount(Math.max(0, totalFeedbacks - lastSeenFBCount));
-      }
+    const fetchCounts = async () => {
+      if (currentUser?.role === 'super-admin') {
+        const feedbacks = await getFeedbackEntries();
+        const totalFeedbacks = feedbacks.length;
+        const lastSeenFBCount = Number(localStorage.getItem('mongo_quiz_last_seen_feedback_count') || '0');
+        
+        if (currentAdminTab === 'feedback') {
+          localStorage.setItem('mongo_quiz_last_seen_feedback_count', totalFeedbacks.toString());
+          setUnreadFeedbackCount(0);
+        } else {
+          setUnreadFeedbackCount(Math.max(0, totalFeedbacks - lastSeenFBCount));
+        }
 
-      const totalStatements = getDeletionStatements().length;
-      const lastSeenStatementsCount = Number(localStorage.getItem('mongo_quiz_last_seen_statements_count') || '0');
+        const statements = await getDeletionStatements();
+        const totalStatements = statements.length;
+        const lastSeenStatementsCount = Number(localStorage.getItem('mongo_quiz_last_seen_statements_count') || '0');
 
-      if (currentAdminTab === 'statements') {
-        localStorage.setItem('mongo_quiz_last_seen_statements_count', totalStatements.toString());
-        setUnreadStatementsCount(0);
-      } else {
-        setUnreadStatementsCount(Math.max(0, totalStatements - lastSeenStatementsCount));
+        if (currentAdminTab === 'statements') {
+          localStorage.setItem('mongo_quiz_last_seen_statements_count', totalStatements.toString());
+          setUnreadStatementsCount(0);
+        } else {
+          setUnreadStatementsCount(Math.max(0, totalStatements - lastSeenStatementsCount));
+        }
       }
-    }
+    };
+    fetchCounts();
   }, [currentAdminTab, currentUser]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -247,8 +252,10 @@ export const AdminView: React.FC = () => {
       setPasswordInput('');
 
       if (res.user.id === 'admin_master_1') {
-        const newFB = Math.max(0, getFeedbackEntries().length - Number(localStorage.getItem('mongo_quiz_last_seen_feedback_count') || '0'));
-        const newStatements = Math.max(0, getDeletionStatements().length - Number(localStorage.getItem('mongo_quiz_last_seen_statements_count') || '0'));
+        const feedbacks = await getFeedbackEntries();
+        const statements = await getDeletionStatements();
+        const newFB = Math.max(0, feedbacks.length - Number(localStorage.getItem('mongo_quiz_last_seen_feedback_count') || '0'));
+        const newStatements = Math.max(0, statements.length - Number(localStorage.getItem('mongo_quiz_last_seen_statements_count') || '0'));
 
         let msg = `Welcome back, ${res.user.displayName}!`;
         if (newFB > 0 || newStatements > 0) {
