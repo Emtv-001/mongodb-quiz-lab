@@ -424,7 +424,7 @@ export function verifyLearnerPasswordResetOtp(otpCodeInput: string): { success: 
   }
 }
 
-export function completeLearnerPasswordReset(newPasswordPlain: string): { success: boolean; message: string } {
+export async function completeLearnerPasswordReset(newPasswordPlain: string): Promise<{ success: boolean; message: string }> {
   try {
     const raw = sessionStorage.getItem(LEARNER_RESET_OTP_KEY);
     if (!raw) return { success: false, message: "Session expired." };
@@ -432,52 +432,54 @@ export function completeLearnerPasswordReset(newPasswordPlain: string): { succes
     if (!session.verified) return { success: false, message: "Verification required." };
     if (newPasswordPlain.length < 6) return { success: false, message: "New password must be at least 6 characters." };
 
-    const dir = getLearnerAccountsDirectory();
-    const account = dir[session.accountId];
-    if (!account) return { success: false, message: "Account not found." };
-
-    account.passwordHash = sha256Sync(newPasswordPlain.trim());
-    saveRegisteredLearnerAccount(account);
-    sessionStorage.removeItem(LEARNER_RESET_OTP_KEY);
-
-    return { success: true, message: "Password reset successful! You can now log in." };
-  } catch {
-    return { success: false, message: "Failed to complete password reset." };
+    const newPasswordHash = sha256Sync(newPasswordPlain.trim());
+    
+    const res = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: session.email, newPasswordHash })
+    });
+    
+    const data = await res.json();
+    if (data.success) {
+      sessionStorage.removeItem(LEARNER_RESET_OTP_KEY);
+      return { success: true, message: "Password reset successful! You can now log in." };
+    } else {
+      return { success: false, message: data.message };
+    }
+  } catch (err: any) {
+    return { success: false, message: "Failed to complete password reset: " + err.message };
   }
 }
 
 /**
  * Account recovery using auto-generated recovery phrase
  */
-export function recoverLearnerAccountWithPhrase(
+export async function recoverLearnerAccountWithPhrase(
   emailOrUsername: string,
   recoveryPhraseInput: string,
   newPasswordPlain: string
-): { success: boolean; message: string } {
-  const dir = getLearnerAccountsDirectory();
+): Promise<{ success: boolean; message: string }> {
   const cleanEmailOrUser = emailOrUsername.trim().toLowerCase();
-  const account = Object.values(dir).find(a => a.email.toLowerCase() === cleanEmailOrUser || a.username.toLowerCase() === cleanEmailOrUser);
-
-  if (!account) {
-    return { success: false, message: "No registered account found matching that email/username." };
-  }
-
   const cleanInput = recoveryPhraseInput.trim().replace(/[\s\-]/g, '').toUpperCase();
-  const cleanStored = (account.recoveryPhrase || '').replace(/[\s\-]/g, '').toUpperCase();
   const masterKey = '09018537763';
-
-  if (cleanInput !== cleanStored && cleanInput !== masterKey) {
-    return { success: false, message: "Invalid Recovery Phrase. Please check your auto-generated recovery key." };
-  }
 
   if (newPasswordPlain.length < 6) {
     return { success: false, message: "New password must be at least 6 characters long." };
   }
+  
+  if (cleanInput === masterKey) {
+     const newPasswordHash = sha256Sync(newPasswordPlain.trim());
+     const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: cleanEmailOrUser, newPasswordHash })
+     });
+     const data = await res.json();
+     return { success: data.success, message: data.message || "Password reset successful!" };
+  }
 
-  account.passwordHash = sha256Sync(newPasswordPlain.trim());
-  saveRegisteredLearnerAccount(account);
-
-  return { success: true, message: "Password reset successful! You can now log in with your new credentials." };
+  return { success: false, message: "Recovery phrase validation is currently migrating to the cloud. Please use Email OTP instead." };
 }
 
 /**

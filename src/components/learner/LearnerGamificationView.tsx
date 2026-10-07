@@ -296,7 +296,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
     }
   };
 
-  const handleRecoverSubmit = (e: React.FormEvent) => {
+  const handleRecoverSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setRecoverMsg(null);
 
@@ -306,7 +306,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
         setRecoverMsg({ text: vRes.message, isError: true });
         return;
       }
-      const cRes = completeLearnerPasswordReset(recoverNewPassword);
+      const cRes = await completeLearnerPasswordReset(recoverNewPassword);
       if (cRes.success) {
         setRecoverMsg({ text: cRes.message, isError: false });
         setTimeout(() => {
