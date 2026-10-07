@@ -292,6 +292,7 @@ export async function deleteLearnerAccount(
       accountType: 'user',
       accountId: 'local_' + Date.now(),
       username: 'local_device',
+      email: 'local@device.local',
       displayName: currentProgress.learnerId.pseudonym + ' (Local Device)',
       role: 'learner',
       reasonCategory,

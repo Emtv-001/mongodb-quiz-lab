@@ -234,14 +234,14 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
   };
 
   // Handle Account Deletion
-  const handleDeleteAccountSubmit = (e: React.FormEvent) => {
+  const handleDeleteAccountSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!account) return;
     setDeleteError(null);
     setIsDeletingAccount(true);
 
     try {
-      const res = deleteLearnerAccount(account.id, deleteReasonCategory, deleteStatement, deletePassword);
+      const res = await deleteLearnerAccount(account.id, deleteReasonCategory, deleteStatement, deletePassword);
       if (res.success) {
         setShowDeleteModal(false);
         setDeleteStatement('');
@@ -321,7 +321,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
         setRecoverMsg({ text: cRes.message, isError: true });
       }
     } else {
-      const res = recoverLearnerAccountWithPhrase(recoverIdentifier, recoverPhrase, recoverNewPassword);
+      const res = await recoverLearnerAccountWithPhrase(recoverIdentifier, recoverPhrase, recoverNewPassword);
       if (res.success) {
         setRecoverMsg({ text: res.message, isError: false });
         setTimeout(() => {

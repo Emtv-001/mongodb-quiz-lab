@@ -275,7 +275,7 @@ export const AdminView: React.FC = () => {
     sessionStorage.removeItem('mongo_quiz_logged_admin_user');
   };
 
-  const handleSelfDelete = () => {
+  const handleSelfDelete = async () => {
     if (!currentUser) return;
     if (isMasterAccount(currentUser)) {
       alert("The Master Super Admin account cannot be deleted.");
@@ -283,7 +283,7 @@ export const AdminView: React.FC = () => {
     }
     
     if (window.confirm("Are you absolutely sure you want to permanently delete your administrator account? This action cannot be undone.")) {
-      const res = deleteSubAdmin(currentUser.id, currentUser.username, 'self-resignation', 'Administrator chose to delete account.');
+      const res = await deleteSubAdmin(currentUser.id, currentUser.username, 'self-resignation', 'Administrator chose to delete account.');
       if (res.success) {
         alert("Your account has been successfully deleted.");
         handleLogout();
@@ -364,9 +364,9 @@ export const AdminView: React.FC = () => {
     }
   };
 
-  const handleAcceptLoginInvite = (e: React.FormEvent) => {
+  const handleAcceptLoginInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = acceptAdminInvitation(inviteCodeInput, {
+    const res = await acceptAdminInvitation(inviteCodeInput, {
       username: inviteUsername,
       email: inviteEmail,
       displayName: inviteDisplayName,
