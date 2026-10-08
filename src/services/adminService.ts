@@ -80,7 +80,14 @@ export const DEFAULT_SITE_CONFIG: SiteCustomization = {
 /**
  * Audit Logging
  */
-
+export function getAuditLogs(): AdminAuditLog[] {
+  try {
+    const raw = localStorage.getItem(AUDIT_LOGS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
 
 export async function addAuditLog(
   adminUsername: string,
@@ -108,7 +115,196 @@ export async function addAuditLog(
 /**
  * Admin User Store & Management
  */
+export function getAdminUsers(): AdminUser[] {
+  let users: AdminUser[] = [];
+  try {
+    const raw = localStorage.getItem(ADMIN_USERS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) users = parsed;
+    }
+  } catch {}
 
+  // Check legacy storage keys if empty or to merge older admin entries
+  if (users.length === 0) {
+    try {
+      const raw2 = localStorage.getItem('mongo_quiz_admin_users_v2') || localStorage.getItem('mongo_quiz_admin_users');
+      if (raw2) {
+        const parsed2 = JSON.parse(raw2);
+        if (Array.isArray(parsed2)) users = parsed2;
+      }
+    } catch {}
+  }
+
+  // Ensure master admin is always present and fully populated
+  const masterIndex = users.findIndex(u => u.id === 'admin_master_1' || u.username.toLowerCase() === 'admin');
+  if (masterIndex === -1) {
+    const masterAdmin: AdminUser = {
+      id: 'admin_master_1',
+      username: 'admin',
+      displayName: 'Chief Administrator (EMTV)',
+      email: MASTER_ADMIN_EMAIL,
+      phone: MASTER_ADMIN_PHONE,
+      recoveryPhrase: MASTER_RECOVERY_PHRASE,
+      role: 'super-admin',
+      permissions: FULL_PERMISSIONS,
+      passwordHash: sha256Sync('AdminEMTV'),
+      status: 'active',
+      createdAt: '2026-09-01T00:00:00.000Z',
+      createdBy: 'system'
+    };
+    users.unshift(masterAdmin);
+    saveAdminUsers(users);
+  } else {
+    // Repair any missing properties on master admin
+    let updated = false;
+    if (!users[masterIndex].email) { users[masterIndex].email = MASTER_ADMIN_EMAIL; updated = true; }
+    if (!users[masterIndex].phone) { users[masterIndex].phone = MASTER_ADMIN_PHONE; updated = true; }
+    if (!users[masterIndex].recoveryPhrase) { users[masterIndex].recoveryPhrase = MASTER_RECOVERY_PHRASE; updated = true; }
+    if (updated) saveAdminUsers(users);
+  }
+
+  // Ensure all other sub-admins have a recovery phrase
+  let hasRepaired = false;
+
+  // One-time removal of admin accounts requested by the Master Super Admin
+  const PURGE_FLAG = 'mongo_quiz_admin_purge_v1';
+  const PURGED_EMAILS = ['uzooejims@gmail.com'];
+  if (!localStorage.getItem(PURGE_FLAG)) {
+    const before = users.length;
+    users = users.filter(u => isMasterAccount(u) || !PURGED_EMAILS.includes((u.email || '').trim().toLowerCase()));
+    if (users.length !== before) {
+      hasRepaired = true;
+      addAuditLog('admin', 'Delete Administrator', 'security', `Removed admin account(s): ${PURGED_EMAILS.join(', ')}`);
+    }
+    try { localStorage.setItem(PURGE_FLAG, '1'); } catch {}
+  }
+
+  users.forEach(u => {
+    // The master account is the only Super Admin
+    if (!isMasterAccount(u) && u.role === 'super-admin') {
+      u.role = 'sub-admin';
+      u.permissions = getRolePermissions('sub-admin');
+      hasRepaired = true;
+    }
+    if (!u.recoveryPhrase) {
+      u.recoveryPhrase = generateRecoveryPhrase();
+      hasRepaired = true;
+    }
+    // One-time migration: sync permissions with the assigned role
+    if (!u.permsSynced) {
+      u.permissions = getRolePermissions(u.role);
+      u.permsSynced = true;
+      hasRepaired = true;
+    }
+    // Super admins always retain full rights
+    if (u.role === 'super-admin' && Object.values(u.permissions).some(v => !v)) {
+      u.permissions = { ...FULL_PERMISSIONS };
+      hasRepaired = true;
+    }
+  });
+  if (hasRepaired) saveAdminUsers(users);
+
+  return users;
+}
+
+export function isMasterAccount(u: Pick<AdminUser, 'id' | 'username'>): boolean {
+  return u.id === 'admin_master_1' || u.username.toLowerCase() === 'admin';
+}
+
+/**
+ * ROLE-BASED PERMISSION PRESETS
+ */
+export const ROLE_PERMISSIONS: Record<AdminRole, AdminPermissions> = {
+  'super-admin': {
+    canEditBranding: true, canManageTabs: true, canManageDatabases: true, canManageQuestions: true,
+    canViewLearnerData: true, canExportData: true, canManageSubAdmins: true, canResetSystem: true
+  },
+  'sub-admin': {
+    canEditBranding: true, canManageTabs: true, canManageDatabases: true, canManageQuestions: true,
+    canViewLearnerData: true, canExportData: true, canManageSubAdmins: false, canResetSystem: false
+  },
+  'examiner': {
+    canEditBranding: false, canManageTabs: false, canManageDatabases: false, canManageQuestions: true,
+    canViewLearnerData: true, canExportData: false, canManageSubAdmins: false, canResetSystem: false
+  },
+  'moderator': {
+    canEditBranding: false, canManageTabs: false, canManageDatabases: false, canManageQuestions: false,
+    canViewLearnerData: true, canExportData: false, canManageSubAdmins: false, canResetSystem: false
+  }
+};
+
+export function getRolePermissions(role: AdminRole): AdminPermissions {
+  return { ...(ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS['moderator']) };
+}
+
+/** Returns the fresh stored record for an admin (or null if deleted). */
+export function getFreshAdminUser(id: string): AdminUser | null {
+  return getAdminUsers().find(u => u.id === id) || null;
+}
+
+/** Verifies that the executor is an active admin holding the given permission. */
+function authorize(executorUsername: string, perm: keyof AdminPermissions): string | null {
+  const executor = getAdminUsers().find(u => u.username.toLowerCase() === executorUsername.toLowerCase());
+  if (!executor || executor.status !== 'active') return "Unauthorized: your admin session is invalid.";
+  if (executor.role !== 'super-admin' && !executor.permissions[perm]) {
+    return "Access denied: your role does not have permission to perform this action.";
+  }
+  return null;
+}
+
+export function saveAdminUsers(users: AdminUser[]): void {
+  try {
+    localStorage.setItem(ADMIN_USERS_KEY, JSON.stringify(users));
+  } catch (err) {
+    console.error("Failed to save admin users", err);
+  }
+}
+
+export async function authenticateAdminUser(usernameOrEmail: string, passwordCandidate: string): Promise<{ success: boolean; user?: AdminUser; error?: string }> {
+  try {
+    const passHash = sha256Sync(passwordCandidate.trim());
+    const res = await fetch('/api/admin/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: usernameOrEmail.trim(), passwordHash: passHash })
+    });
+    
+    const data = await res.json();
+    if (data.success && data.user) {
+      const user = data.user;
+      user.id = user._id || user.id;
+      
+      const users = getAdminUsers();
+      if (!users.find((u: AdminUser) => u.username === user.username)) {
+        users.push(user);
+      } else {
+        const idx = users.findIndex((u: AdminUser) => u.username === user.username);
+        users[idx] = user;
+      }
+      saveAdminUsers(users);
+      
+      // We don't await addAuditLog so it doesn't block login
+      addAuditLog(user.username, 'Admin Login', 'auth', 'Successful authentication from web portal (Cloud)');
+      return { success: true, user };
+    }
+    return { success: false, error: data.message || "Invalid username/email or password." };
+  } catch (err: any) {
+    return { success: false, error: "Login failed: " + err.message };
+  }
+}
+
+/**
+ * EMAIL-BASED ADMIN INVITATIONS WORKFLOW
+ */
+export function getAdminInvitations(): AdminInvitation[] {
+  try {
+    const raw = localStorage.getItem(ADMIN_INVITES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
 
 export function saveAdminInvitations(invites: AdminInvitation[]): void {
   try {
