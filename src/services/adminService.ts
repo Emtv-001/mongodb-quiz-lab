@@ -514,7 +514,20 @@ export async function getDeletionStatements(): Promise<DeletionStatement[]> {
     const res = await fetch('/api/admin/statements');
     if (!res.ok) return [];
     const data = await res.json();
-    return data.statements || [];
+    if (!data.statements) return [];
+    
+    return data.statements.map((s: any) => ({
+      id: s._id || s.id,
+      accountId: s.accountId || 'unknown',
+      accountType: s.accountType || 'user',
+      username: s.username || 'unknown',
+      displayName: s.displayName || 'unknown',
+      role: s.role || '',
+      reasonCategory: s.reasonCategory || 'other',
+      statement: s.statement || 'No statement provided.',
+      deletedAt: s.deletedAt || new Date().toISOString(),
+      deletedBy: s.deletedBy || 'unknown'
+    }));
   } catch (err) {
     console.error("Failed to fetch deletion statements", err);
     return [];
