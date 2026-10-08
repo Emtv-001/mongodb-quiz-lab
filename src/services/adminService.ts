@@ -513,7 +513,8 @@ export async function getDeletionStatements(): Promise<DeletionStatement[]> {
   try {
     const res = await fetch('/api/admin/statements');
     if (!res.ok) return [];
-    return await res.json();
+    const data = await res.json();
+    return data.statements || [];
   } catch (err) {
     console.error("Failed to fetch deletion statements", err);
     return [];
@@ -863,7 +864,8 @@ export async function getSiteCustomization(): Promise<SiteCustomization> {
   try {
     const res = await fetch('/api/config');
     if (res.ok) {
-      const parsed = await res.json();
+      const data = await res.json();
+      const parsed = data.config || {};
       return {
         ...DEFAULT_SITE_CONFIG,
         ...parsed,

@@ -4,7 +4,8 @@ export async function getFeedbackEntries(): Promise<FeedbackEntry[]> {
   try {
     const res = await fetch('/api/feedback');
     if (!res.ok) return [];
-    return await res.json();
+    const data = await res.json();
+    return data.feedback || [];
   } catch (err) {
     console.error("Failed to fetch feedback", err);
     return [];
