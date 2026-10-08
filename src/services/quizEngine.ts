@@ -85,7 +85,7 @@ export async function generateQuizQuestions(options: QuizSetupOptions): Promise<
 
   // If user requested real-time AI dynamic generation
   if (useAiGeneration) {
-    const aiQuestions = generateAiDynamicQuestions({
+    const aiQuestions = await generateAiDynamicQuestions({
       topic: selectedTopic,
       level: level === 'All' ? 3 : (level as CurriculumLevel),
       difficulty: difficulty === 'All' ? 'Medium' : (difficulty as DifficultyLevel),
