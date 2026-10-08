@@ -24,6 +24,7 @@ const ProgressSchema = new mongoose.Schema({
   bestMockScore: { type: Number, default: 0 },
   currentStreak: { type: Number, default: 0 },
   longestStreak: { type: Number, default: 0 },
+  lastActiveDate: { type: String },
   activityHistory: { type: Map, of: ActivityRecordSchema, default: {} },
   topicStats: { type: Map, of: TopicStatsSchema, default: {} },
   completedSessions: [{ type: mongoose.Schema.Types.Mixed }],

@@ -22,6 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           bestMockScore: 0,
           currentStreak: 0,
           longestStreak: 0,
+          lastActiveDate: '',
           activityHistory: {},
           topicStats: {},
           completedSessions: [],

@@ -689,6 +689,7 @@ export async function fetchProgressFromAtlas(accountId: string): Promise<void> {
       local.totalMaxScore = p.totalMaxScore || local.totalMaxScore;
       local.currentStreak = p.currentStreak || local.currentStreak;
       local.longestStreak = p.longestStreak || local.longestStreak;
+        if (p.lastActiveDate) local.lastActiveDate = p.lastActiveDate;
       
       saveProgress(local);
     }

@@ -43,8 +43,8 @@ function getInitialProgress(): StudentProgress {
     totalScore: 0,
     totalMaxScore: 0,
     bestMockScore: 0,
-    currentStreak: 1,
-    longestStreak: 1,
+    currentStreak: 0,
+    longestStreak: 0,
     lastActiveDate: today,
     activityHistory: {},
     topicStats: initialTopicStats,
@@ -78,7 +78,7 @@ export function loadProgress(): StudentProgress {
     }
 
     if (!parsed.longestStreak) {
-      parsed.longestStreak = parsed.currentStreak || 1;
+      parsed.longestStreak = parsed.currentStreak || 0;
     }
 
     if (!parsed.spacedRepetition) {
@@ -121,7 +121,12 @@ function updateStreakLogic(progress: StudentProgress): void {
   const lastActive = progress.lastActiveDate;
 
   if (lastActive === today) {
-    // Already active today; do not duplicate streak increment
+    if (progress.currentStreak === 0) {
+      progress.currentStreak = 1;
+      if (progress.currentStreak > progress.longestStreak) {
+        progress.longestStreak = progress.currentStreak;
+      }
+    }
     return;
   }
 
