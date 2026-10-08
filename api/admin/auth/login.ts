@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import connectToDatabase from '../../utils/db.js';
-import Admin from '../../models/Admin.js';
+import connectToDatabase from '../../_utils/db.js';
+import Admin from '../../_models/Admin.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ success: false, message: 'Method Not Allowed' });
