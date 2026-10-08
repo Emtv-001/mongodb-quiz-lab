@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StudentProgress, RegisteredLearnerAccount } from '../../types';
+import { GlobalNotificationPopup } from '../common/GlobalNotificationPopup';
 import {
   getRegisteredLearnerAccount,
   requestLearnerRegistrationOtp,
@@ -1302,6 +1303,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
           </div>
         </div>
       )}
+      <GlobalNotificationPopup audience="learners" />
     </div>
   );
 };

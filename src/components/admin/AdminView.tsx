@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AdminUser } from '../../types/admin';
+import { GlobalNotificationPopup } from '../common/GlobalNotificationPopup';
 import {
   authenticateAdminUser,
   getAdminUsers,
@@ -22,6 +23,7 @@ import { AdminUserTracker } from './AdminUserTracker';
 import { AdminManagementRBAC } from './AdminManagementRBAC';
 import { AdminShareHub } from './AdminShareHub';
 import { AdminSecuritySettings } from './AdminSecuritySettings';
+import { AdminBroadcasts } from './AdminBroadcasts';
 import { AdminFeedbackView } from './AdminFeedbackView';
 import { AdminStatementsBoard } from './AdminStatementsBoard';
 import { DEFAULT_QUESTIONS } from '../../data/questions';
@@ -55,7 +57,8 @@ import {
   RefreshCw,
   MessageSquare,
   X,
-  FileText
+  FileText,
+  Radio
 } from 'lucide-react';
 
 type AdminTab =
@@ -68,7 +71,8 @@ type AdminTab =
   | 'share'
   | 'security'
   | 'feedback'
-  | 'statements';
+  | 'statements'
+  | 'broadcasts';
 
 export const AdminView: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(() => {
@@ -130,7 +134,7 @@ export const AdminView: React.FC = () => {
   const canAccessTab = (tab: AdminTab): boolean => {
     if (!currentUser) return false;
     if (currentUser.role === 'super-admin') return true;
-    if (tab === 'statements') return false;
+    if (tab === 'statements' || tab === 'broadcasts') return false;
     const perm = TAB_PERMISSIONS[tab];
     return !perm || Boolean(currentUser.permissions?.[perm]);
   };
@@ -930,7 +934,8 @@ export const AdminView: React.FC = () => {
     { id: 'share', label: 'Share & Export Hub', icon: Share2, perm: 'canExportData' },
     { id: 'feedback', label: 'Learner Feedback', icon: MessageSquare, badge: currentUser.role === 'super-admin' && unreadFeedbackCount > 0 ? `${unreadFeedbackCount} New` : undefined },
     { id: 'security', label: 'Security & Audit Logs', icon: Lock, perm: 'canResetSystem' },
-    { id: 'statements', label: 'Statements Board', icon: FileText, badge: currentUser.role === 'super-admin' && unreadStatementsCount > 0 ? `${unreadStatementsCount} New` : undefined }
+    { id: 'statements', label: 'Statements Board', icon: FileText, badge: currentUser.role === 'super-admin' && unreadStatementsCount > 0 ? `${unreadStatementsCount} New` : undefined },
+    { id: 'broadcasts', label: 'Broadcasts', icon: Radio }
   ];
   const adminNavTabs = allAdminNavTabs.filter(t => canAccessTab(t.id));
 
@@ -1125,6 +1130,10 @@ export const AdminView: React.FC = () => {
 
       {canAccessTab(currentAdminTab) && currentAdminTab === 'statements' && (
         <AdminStatementsBoard currentAdmin={currentUser} />
+      )}
+
+      {canAccessTab(currentAdminTab) && currentAdminTab === 'broadcasts' && (
+        <AdminBroadcasts />
       )}
 
       {/* Question Bank Directory */}
@@ -1456,6 +1465,7 @@ export const AdminView: React.FC = () => {
           </div>
         </div>
       )}
+      <GlobalNotificationPopup audience="admins" />
     </div>
   );
 };
