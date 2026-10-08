@@ -85,13 +85,19 @@ export async function generateQuizQuestions(options: QuizSetupOptions): Promise<
 
   // If user requested dynamic AI dynamic generation
   if (useAiGeneration) {
-    const aiQuestions = await generateAiDynamicQuestions({
-      topic: selectedTopic,
-      level: level === 'All' ? 3 : (level as CurriculumLevel),
-      difficulty: difficulty === 'All' ? 'Medium' : (difficulty as DifficultyLevel),
-      count: questionCount
-    });
-    return aiQuestions.map(prepareQuestionForSession);
+    try {
+      const aiQuestions = await generateAiDynamicQuestions({
+        topic: selectedTopic,
+        level: level === 'All' ? 3 : (level as CurriculumLevel),
+        difficulty: difficulty === 'All' ? 'Medium' : (difficulty as DifficultyLevel),
+        count: questionCount
+      });
+      if (aiQuestions && aiQuestions.length > 0) {
+        return aiQuestions.map(prepareQuestionForSession);
+      }
+    } catch (err) {
+      console.warn('AI generation failed or skipped. Falling back to default questions.', err);
+    }
   }
 
   // Filter by topic if specified

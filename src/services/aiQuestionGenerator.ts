@@ -32,7 +32,7 @@ export async function generateAiDynamicQuestions(options: GenerationOptions = {}
     return [];
   } catch (error) {
     console.error('AI Generation Error:', error);
-    alert('AI Generation Failed: Please ensure GEMINI_API_KEY is configured in Vercel. Falling back to default questions.');
+    // alert removed for seamless fallback
     throw error;
   }
 }

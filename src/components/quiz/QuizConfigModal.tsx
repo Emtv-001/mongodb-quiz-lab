@@ -29,7 +29,7 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
   const [questionCount, setQuestionCount] = useState<number>(10);
   const [difficulty, setDifficulty] = useState<DifficultyLevel | 'All'>('All');
   const [level, setLevel] = useState<CurriculumLevel | 'All'>('All');
-  const [useAiGeneration, setUseAiGeneration] = useState<boolean>(false);
+  const [useAiGeneration, setUseAiGeneration] = useState<boolean>(true);
 
   if (!isOpen) return null;
 
