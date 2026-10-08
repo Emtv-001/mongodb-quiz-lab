@@ -252,7 +252,7 @@ export interface StudentDocument {
   Misc: number[];
 }
 
-export type LearnerTier = 'Bronze' | 'Silver' | 'Gold' | 'Platinum' | 'Diamond' | 'MongoDB Master';
+export type LearnerTier = string;
 
 export interface RegisteredLearnerAccount {
   id: string;

@@ -505,40 +505,30 @@ export function getLearnerGamificationStats(progress: StudentProgress) {
   if (bestMock >= 85) computedCoins += 150;
   if (account?.coins && account.coins > computedCoins) computedCoins = account.coins;
 
-  // Tier classification
-  let tier: LearnerTier = 'Bronze';
-  let nextTierXp = 250;
-  let levelTitle = 'Beginner Explorer';
+  // Infinite Tier & Ranking Formula
+  const rank = Math.floor(Math.sqrt(computedXp / 100)) + 1;
+  const nextTierXp = Math.pow(rank, 2) * 100;
 
-  if (computedXp >= 2500 || totalAttempted >= 40 || bestMock >= 85) {
-    tier = 'MongoDB Master';
-    nextTierXp = 5000;
-    levelTitle = 'Level 9 — Master Architect';
-  } else if (computedXp >= 1600 || totalAttempted >= 30 || bestMock >= 75) {
-    tier = 'Diamond';
-    nextTierXp = 2500;
-    levelTitle = 'Level 7 — Production Administrator';
-  } else if (computedXp >= 900 || totalAttempted >= 20 || bestMock >= 65) {
-    tier = 'Platinum';
-    nextTierXp = 1600;
-    levelTitle = 'Level 5 — Aggregation Specialist';
-  } else if (computedXp >= 450 || totalAttempted >= 10) {
-    tier = 'Gold';
-    nextTierXp = 900;
-    levelTitle = 'Level 3 — CRUD Developer';
-  } else if (computedXp >= 150) {
-    tier = 'Silver';
-    nextTierXp = 450;
-    levelTitle = 'Level 2 — Query Apprentice';
-  }
+  const TIER_NAMES = [
+    "Bronze", "Silver", "Gold", "Platinum", "Diamond", 
+    "Master", "Grandmaster", "Mythic", "Celestial", "Galactic", 
+    "Cosmic", "Astral", "Ascendant", "Ethereal", "Omniscient"
+  ];
+  
+  const TITLES = [
+    "Beginner Explorer", "Query Apprentice", "CRUD Developer", 
+    "Index Technician", "Aggregation Specialist", "Schema Architect", 
+    "Production Administrator", "Database Engineer", "Master Architect", 
+    "Data Scientist", "MongoDB Champion", "Cluster Overlord"
+  ];
 
-  // Rank position (Personal Mastery Level)
-  let rank = 1;
-  if (tier === 'MongoDB Master') rank = 9;
-  else if (tier === 'Diamond') rank = 7;
-  else if (tier === 'Platinum') rank = 5;
-  else if (tier === 'Gold') rank = 3;
-  else if (tier === 'Silver') rank = 2;
+  const tierIndex = (rank - 1) % TIER_NAMES.length;
+  const prestige = Math.floor((rank - 1) / TIER_NAMES.length);
+  const baseTier = TIER_NAMES[tierIndex];
+  const tier = prestige > 0 ? `${baseTier} ${prestige + 1}` : baseTier;
+
+  const titleIndex = (rank - 1) % TITLES.length;
+  const levelTitle = `Level ${rank} — ${TITLES[titleIndex]}`;
 
   // Accuracy
   const accuracy = totalAttempted > 0 ? Math.round((totalCorrect / totalAttempted) * 100) : 0;

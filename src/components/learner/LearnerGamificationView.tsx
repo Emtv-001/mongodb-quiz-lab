@@ -338,16 +338,29 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
     }
   };
 
-  const tierColors: Record<string, { bg: string; text: string; border: string }> = {
-    'MongoDB Master': { bg: 'bg-purple-500/15', text: 'text-purple-300', border: 'border-purple-500/40' },
-    'Diamond': { bg: 'bg-cyan-500/15', text: 'text-cyan-300', border: 'border-cyan-500/40' },
-    'Platinum': { bg: 'bg-emerald-500/15', text: 'text-emerald-300', border: 'border-emerald-500/40' },
-    'Gold': { bg: 'bg-amber-500/15', text: 'text-amber-300', border: 'border-amber-500/40' },
-    'Silver': { bg: 'bg-slate-400/15', text: 'text-slate-200', border: 'border-slate-400/40' },
-    'Bronze': { bg: 'bg-orange-600/15', text: 'text-orange-300', border: 'border-orange-500/40' }
+  const getTierStyle = (tierName: string) => {
+    const base = tierName.replace(/[0-9 ]/g, '').trim();
+    const map: Record<string, { bg: string; text: string; border: string }> = {
+      'Master': { bg: 'bg-purple-500/15', text: 'text-purple-300', border: 'border-purple-500/40' },
+      'Grandmaster': { bg: 'bg-fuchsia-500/15', text: 'text-fuchsia-300', border: 'border-fuchsia-500/40' },
+      'Mythic': { bg: 'bg-pink-500/15', text: 'text-pink-300', border: 'border-pink-500/40' },
+      'Celestial': { bg: 'bg-indigo-500/15', text: 'text-indigo-300', border: 'border-indigo-500/40' },
+      'Galactic': { bg: 'bg-blue-500/15', text: 'text-blue-300', border: 'border-blue-500/40' },
+      'Cosmic': { bg: 'bg-cyan-500/15', text: 'text-cyan-300', border: 'border-cyan-500/40' },
+      'Astral': { bg: 'bg-teal-500/15', text: 'text-teal-300', border: 'border-teal-500/40' },
+      'Ascendant': { bg: 'bg-emerald-500/15', text: 'text-emerald-300', border: 'border-emerald-500/40' },
+      'Ethereal': { bg: 'bg-rose-500/15', text: 'text-rose-300', border: 'border-rose-500/40' },
+      'Omniscient': { bg: 'bg-amber-600/15', text: 'text-amber-400', border: 'border-amber-600/40' },
+      'Diamond': { bg: 'bg-cyan-500/15', text: 'text-cyan-300', border: 'border-cyan-500/40' },
+      'Platinum': { bg: 'bg-emerald-500/15', text: 'text-emerald-300', border: 'border-emerald-500/40' },
+      'Gold': { bg: 'bg-amber-500/15', text: 'text-amber-300', border: 'border-amber-500/40' },
+      'Silver': { bg: 'bg-slate-400/15', text: 'text-slate-200', border: 'border-slate-400/40' },
+      'Bronze': { bg: 'bg-orange-600/15', text: 'text-orange-300', border: 'border-orange-500/40' }
+    };
+    return map[base] || map['Bronze'];
   };
 
-  const activeTierStyle = tierColors[stats.tier] || tierColors['Bronze'];
+  const activeTierStyle = getTierStyle(stats.tier);
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 py-4 animate-fadeIn w-full max-w-full min-w-0">
