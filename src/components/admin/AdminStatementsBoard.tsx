@@ -26,13 +26,13 @@ export const AdminStatementsBoard: React.FC<AdminStatementsBoardProps> = ({ curr
         <div>
           <div className="flex items-center space-x-2 text-red-400 text-xs font-bold uppercase tracking-wider mb-1">
             <FileText className="w-4 h-4" />
-            <span>Account Deletion Archive</span>
+            <span>Statements & Activity Archive</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-white">
-            Exit Statements Board
+            Statements & Activity Board
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            View exit surveys and statements from users and administrators who have deleted their accounts or been removed.
+            View exit surveys, account deletions, and AI-identified learner misconceptions (Error Reports).
           </p>
         </div>
 
@@ -115,18 +115,28 @@ export const AdminStatementsBoard: React.FC<AdminStatementsBoardProps> = ({ curr
                   </div>
                   
                   <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">
-                    <div className="text-[10px] uppercase text-slate-500 font-bold mb-1">Statement:</div>
-                    <p className="text-slate-300 italic whitespace-pre-wrap">
-                      "{stmt.statement}"
-                    </p>
-                  </div>
+                      <div className="text-[10px] uppercase text-slate-500 font-bold mb-1">Statement / Report:</div>
+                      <p className="text-slate-300 italic whitespace-pre-wrap">
+                        "{stmt.statement}"
+                      </p>
+                    </div>
+                    {stmt.tip && (
+                      <div className="bg-amber-950/20 p-3 rounded-xl border border-amber-500/20 mt-2">
+                        <div className="text-[10px] uppercase text-amber-500 font-bold mb-1 flex items-center space-x-1">
+                          <span>💡 Teaching Tip / Fix</span>
+                        </div>
+                        <p className="text-amber-200/80 text-xs whitespace-pre-wrap">
+                          {stmt.tip}
+                        </p>
+                      </div>
+                    )}
                 </div>
               </div>
 
               <div className="pt-3 border-t border-slate-800 flex flex-col gap-1 text-[10px] text-slate-500 font-mono">
                 <div className="flex items-center space-x-1.5">
                   <Calendar className="w-3 h-3" />
-                  <span>Deleted: {new Date(stmt.deletedAt).toLocaleString()}</span>
+                  <span>Logged: {new Date(stmt.deletedAt).toLocaleString()}</span>
                 </div>
                 <div className="flex items-center space-x-1.5">
                   <User className="w-3 h-3" />

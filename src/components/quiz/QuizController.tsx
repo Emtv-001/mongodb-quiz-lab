@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { getRegisteredLearnerAccount } from '../../services/learnerService';
 import { Question, QuestionAttempt, QuizMode, QuizSession } from '../../types';
 import { evaluateAnswer } from '../../services/evaluator';
 import { recordQuestionAttempt, recordCompletedSession, toggleBookmark, loadProgress } from '../../services/storage';
+import { recordDeletionStatement } from '../../services/adminService';
 import { ProgressBar } from './ProgressBar';
 import { QuestionCard } from './QuestionCard';
 import { FeedbackPanel } from './FeedbackPanel';
@@ -273,19 +275,45 @@ export const QuizController: React.FC<QuizControllerProps> = ({
       const preset = MOCK_EXAM_PRESETS.find(p => p.id === session.mockExamId);
 
       recordCompletedSession(
-        session.id,
-        session.mode,
-        totalEarned,
-        totalMax,
-        session.selectedTopic,
-        preset?.title
-      );
+          session.id,
+          session.mode,
+          totalEarned,
+          totalMax,
+          session.selectedTopic,
+          preset?.title
+        );
 
-      setSession((prev) => ({
-        ...prev,
-        completed: true,
-        endTime: Date.now()
-      }));
+        // Auto-generate error report for the Statements Board if score is low
+        const percentage = totalMax > 0 ? (totalEarned / totalMax) * 100 : 0;
+        if (percentage < 70) {
+          const missedAttempts = Object.values(session.attempts).filter(a => a.result.score < a.result.maxScore);
+          if (missedAttempts.length > 0) {
+            const worstQuestionId = missedAttempts[0].questionId;
+            const worstQuestion = session.questions.find(q => q.id === worstQuestionId);
+            const account = getRegisteredLearnerAccount();
+            
+            if (worstQuestion && account) {
+              const statementData = {
+                accountType: 'learner' as const,
+                accountId: account.id,
+                username: account.username,
+                email: account.email,
+                displayName: account.displayName,
+                reasonCategory: 'Learning Error: ' + worstQuestion.topic,
+                statement: `Learner completed a quiz but scored low (${Math.round(percentage)}%). They specifically struggled with this scenario:\n\n"${worstQuestion.scenario}"\n\nTheir incorrect answer was likely due to a misconception about this topic.`,
+                tip: worstQuestion.misconception || `Review ${worstQuestion.topic} syntax and common pitfalls.`,
+                deletedBy: 'System Auto-Report'
+              };
+              recordDeletionStatement(statementData).catch(e => console.error('Failed to log error report', e));
+            }
+          }
+        }
+
+        setSession((prev) => ({
+          ...prev,
+          completed: true,
+          endTime: Date.now()
+        }));
     } else {
       setSession((prev) => ({
         ...prev,

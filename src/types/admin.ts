@@ -130,7 +130,7 @@ export interface EmailServiceConfig {
 
 export interface DeletionStatement {
   id: string;
-  accountType: 'user' | 'admin';
+  accountType: 'user' | 'admin' | 'learner';
   accountId: string;
   username: string;
   email: string;
@@ -138,6 +138,7 @@ export interface DeletionStatement {
   role?: string;
   reasonCategory: string;
   statement: string;
+  tip?: string;
   deletedAt: string;
   deletedBy: string;
 }
