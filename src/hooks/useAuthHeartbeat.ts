@@ -9,7 +9,7 @@ export function useAuthHeartbeat() {
         // Check Learner
         const learnerId = sessionStorage.getItem('mongo_quiz_active_learner_session_v2');
         if (learnerId) {
-          const res = await fetch(`/api/auth/verify?id=${learnerId}&role=learner`);
+          const res = await fetch(`/api/auth/verify?id=${learnerId}&role=learner&_t=${Date.now()}`);
           if (res.ok) {
             const data = await res.json();
             if (!data.valid) {
@@ -36,7 +36,7 @@ export function useAuthHeartbeat() {
         if (adminSessionRaw) {
           const session = JSON.parse(adminSessionRaw);
           if (session.id !== 'admin_master_1') {
-            const res = await fetch(`/api/auth/verify?id=${session.id}&role=admin`);
+            const res = await fetch(`/api/auth/verify?id=${session.id}&role=admin&_t=${Date.now()}`);
             if (res.ok) {
               const data = await res.json();
               if (!data.valid) {

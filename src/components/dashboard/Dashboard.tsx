@@ -24,7 +24,7 @@ import {
   Coins,
   Crown
 } from 'lucide-react';
-import { getLearnerGamificationStats } from '../../services/learnerService';
+import { getLearnerGamificationStats, getRegisteredLearnerAccount } from '../../services/learnerService';
 
 interface DashboardProps {
   progress: StudentProgress;
@@ -42,6 +42,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onOpenSeedData
 }) => {
   const gamification = getLearnerGamificationStats(progress);
+  const account = getRegisteredLearnerAccount();
 
   const accuracy =
     progress.questionsAttempted > 0
@@ -111,7 +112,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[11px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center space-x-1.5">
               <UserCheck className="w-3 h-3 text-emerald-400" />
-              <span>{progress.learnerId?.pseudonym || 'MongoLearner-PRO'}</span>
+              <span>{account ? account.displayName : (progress.learnerId?.pseudonym || 'MongoLearner-PRO')}</span>
             </span>
 
             <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center space-x-1.5 shadow-sm">
