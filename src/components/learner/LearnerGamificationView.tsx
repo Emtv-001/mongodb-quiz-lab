@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StudentProgress, RegisteredLearnerAccount } from '../../types';
 import { GlobalNotificationPopup } from '../common/GlobalNotificationPopup';
+import { EMTVLoader } from '../common/EMTVLoader';
 import {
   getRegisteredLearnerAccount,
   requestLearnerRegistrationOtp,
@@ -101,6 +102,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
   const [loginIdentifier, setLoginIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   // Recovery Form State
   const [recoverMode, setRecoverMode] = useState<'email_otp' | 'recovery_phrase'>('email_otp');
@@ -215,7 +217,9 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
     e.preventDefault();
     setLoginError(null);
 
+    setIsAuthenticating(true);
     const res = await loginLearner(loginIdentifier, loginPassword);
+    setIsAuthenticating(false);
     if (res.success && res.account) {
       refreshAccountState();
       setShowLoginModal(false);
