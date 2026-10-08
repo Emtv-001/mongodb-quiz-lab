@@ -8,7 +8,7 @@ const CustomQuestionSchema = new mongoose.Schema({
   type: { type: String, required: true },
   title: { type: String, required: true },
   scenario: { type: String },
-  dataset: { type: String },
+  datasetName: { type: String },
   expectedCommand: { type: String },
   options: [{ type: String }],
   correctOptionIndex: { type: Number },
@@ -17,6 +17,6 @@ const CustomQuestionSchema = new mongoose.Schema({
   conceptFocus: { type: String },
   points: { type: Number, required: true },
   createdAt: { type: Date, default: Date.now }
-});
+}, { strict: false }); // Allow all flexible fields from frontend Question interface
 
 export default mongoose.models.CustomQuestion || mongoose.model('CustomQuestion', CustomQuestionSchema);
