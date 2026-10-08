@@ -62,7 +62,7 @@ Note: For multiple-choice questions, "options" must be an array of exactly 4 str
       difficulty: difficulty || 'Medium',
       datasetName: datasetName || 'Custom',
       type: q.type === 'multiple-choice' || q.type === 'write-command' ? q.type : 'write-command',
-      tags: ['ai-generated', 'real-time', 'gemini-2.5']
+      tags: ['ai-generated', 'dynamic', 'gemini-2.5']
     }));
 
     return res.status(200).json({ success: true, questions });

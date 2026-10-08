@@ -40,7 +40,7 @@ export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({ 
     getSiteCustomization().then(setSiteConfig);
   }, []);
 
-  // Real-time calculations directly from live student progress
+  // Dynamic calculations directly from live student progress
   const totalQuestionsSolved = progress.questionsAttempted;
   const totalCorrect = progress.questionsCorrect;
   const accuracyPercent = totalQuestionsSolved > 0 ? Math.round((totalCorrect / totalQuestionsSolved) * 100) : 0;
@@ -60,7 +60,7 @@ export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({ 
         <div className="space-y-1.5 max-w-2xl">
           <div className="flex items-center space-x-2">
             <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              Live Real-Time Governance Center
+              Live Dynamic Governance Center
             </span>
             <span className="text-xs text-slate-400 font-mono">
               Live Network Active
@@ -100,7 +100,7 @@ export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({ 
         </div>
       </div>
 
-      {/* Real-time KPI Stats Grid */}
+      {/* Dynamic KPI Stats Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-2 shadow-sm">
           <div className="flex items-center justify-between text-slate-400">
@@ -155,9 +155,9 @@ export const AdminDashboardOverview: React.FC<AdminDashboardOverviewProps> = ({ 
         </div>
       </div>
 
-      {/* Real-time Learner Table & Live Audit Logs */}
+      {/* Dynamic Learner Table & Live Audit Logs */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Real-Time Learner Activity Roster */}
+        {/* Dynamic Learner Activity Roster */}
         <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl">
           <div className="flex items-center justify-between pb-3 border-b border-slate-800">
             <div className="flex items-center space-x-2">

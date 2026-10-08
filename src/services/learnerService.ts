@@ -74,7 +74,7 @@ export function saveRegisteredLearnerAccount(account: RegisteredLearnerAccount |
 
 /**
  * Initiates learner registration by generating an OTP and an auto-generated recovery phrase,
- * and dispatching a real email in real-time to the learner.
+ * and dispatching a real email instantly to the learner.
  */
 export async function requestLearnerRegistrationOtp(
   email: string,
@@ -140,7 +140,7 @@ export async function requestLearnerRegistrationOtp(
     sessionStorage.setItem(LEARNER_OTP_SESSION_KEY, JSON.stringify(session));
   } catch {}
 
-  // Dispatch real email in real-time
+  // Dispatch real email instantly
   const emailResult = await sendOtpRegistrationEmail(cleanEmail, session.displayName, otpCode, recoveryPhrase);
   
   if (!emailResult.success) {
@@ -482,7 +482,7 @@ export async function recoverLearnerAccountWithPhrase(
 }
 
 /**
- * Calculates real-time dynamic Gamification metrics (Points, MongoCoins, Tier, Badges, Leaderboard)
+ * Calculates dynamic dynamic Gamification metrics (Points, MongoCoins, Tier, Badges, Leaderboard)
  */
 export function getLearnerGamificationStats(progress: StudentProgress) {
   const account = getRegisteredLearnerAccount();

@@ -696,14 +696,14 @@ export async function requestPasswordResetOtp(emailOrPhoneInput: string): Promis
     sessionStorage.setItem(RESET_OTP_KEY, JSON.stringify(session));
   } catch {}
 
-  addAuditLog(user.username, 'Request Password Reset OTP', 'auth', `One-time reset code dispatched in real-time to ${targetEmail}`);
+  addAuditLog(user.username, 'Request Password Reset OTP', 'auth', `One-time reset code dispatched instantly to ${targetEmail}`);
 
-  // Dispatch real email in real-time
+  // Dispatch real email instantly
   await sendPasswordResetEmail(targetEmail, code, user.displayName || user.username);
 
   return {
     success: true,
-    message: `A 6-digit verification code has been dispatched in real-time to ${targetEmail}. (Valid for 5 minutes)`
+    message: `A 6-digit verification code has been dispatched instantly to ${targetEmail}. (Valid for 5 minutes)`
   };
 }
 
@@ -1045,7 +1045,7 @@ export function getRealtimeLearnerProfiles(): LearnerProfile[] {
       Object.values(dir).forEach((acc: any) => {
         const isCurrentlyActive = acc.id === activeRegisteredAccountId;
         
-        // If this registered account is currently playing, show their real real-time progress stats!
+        // If this registered account is currently playing, show their real dynamic progress stats!
         const attempts = isCurrentlyActive ? currentProgress.questionsAttempted : (acc.xp || 0);
         const corrects = isCurrentlyActive ? currentProgress.questionsCorrect : (acc.coins || 0);
         const accuracy = attempts > 0 ? Math.round((corrects / attempts) * 100) : 100;

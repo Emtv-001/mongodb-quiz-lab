@@ -83,7 +83,7 @@ export async function generateQuizQuestions(options: QuizSetupOptions): Promise<
   let all = await getAllQuestions();
   const progress = loadProgress();
 
-  // If user requested real-time AI dynamic generation
+  // If user requested dynamic AI dynamic generation
   if (useAiGeneration) {
     const aiQuestions = await generateAiDynamicQuestions({
       topic: selectedTopic,

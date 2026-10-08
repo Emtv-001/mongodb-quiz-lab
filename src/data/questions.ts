@@ -521,7 +521,7 @@ export const DEFAULT_QUESTIONS: Question[] = [
     level: 9,
     difficulty: "Hard",
     type: "scenario",
-    title: "Hospital Bed & Ward Real-Time Availability",
+    title: "Hospital Bed & Ward Dynamic Availability",
     scenario: "In a Hospital Management System, patients are admitted to wards. Nurses must allocate an empty bed without double-booking, even under simultaneous requests. What MongoDB pattern ensures an atomic bed reservation?",
     options: [
       "Use findOneAndUpdate({ _id: wardId, 'beds.number': 14, 'beds.occupied': false }, { $set: { 'beds.$.occupied': true, 'beds.$.patientId': patientId } })",

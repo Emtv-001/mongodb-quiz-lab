@@ -577,7 +577,7 @@ export const AdminView: React.FC = () => {
                           className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none"
                         />
                         <p className="text-[10px] text-slate-500 mt-1">
-                          A real-time 6-digit OTP will be dispatched immediately to your mailbox.
+                          A dynamic 6-digit OTP will be dispatched immediately to your mailbox.
                         </p>
                       </div>
 
@@ -612,7 +612,7 @@ export const AdminView: React.FC = () => {
                     <form onSubmit={handleCompleteLoginReset} className="space-y-3.5 text-xs">
                       <div className="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-xl text-xs text-emerald-300 flex items-start space-x-2">
                         <Mail className="w-4 h-4 flex-shrink-0 mt-0.5 text-emerald-400" />
-                        <span>A real-time 6-digit verification code has been dispatched to <strong>{resetIdentifier}</strong>. Please check your inbox and spam folder.</span>
+                        <span>A dynamic 6-digit verification code has been dispatched to <strong>{resetIdentifier}</strong>. Please check your inbox and spam folder.</span>
                       </div>
                       <div>
                         <label className="block text-slate-300 font-semibold mb-1">

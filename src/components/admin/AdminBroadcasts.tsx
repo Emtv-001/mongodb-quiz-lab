@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Megaphone, Trash2, Send, Plus, RefreshCw, Mail, Bell } from 'lucide-react';
 import { sendRealtimeEmail } from '../../services/emailService';
 
-interface Notification {
+interface AppNotification {
   _id: string;
   title: string;
   message: string;
@@ -14,7 +14,7 @@ interface Notification {
 }
 
 export const AdminBroadcasts: React.FC = () => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');

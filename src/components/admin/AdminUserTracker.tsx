@@ -114,7 +114,7 @@ export const AdminUserTracker: React.FC = () => {
             Student & Learner Activity Tracker
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Real-time tracking of student streaks, accuracy rates, and identified misconceptions.
+            Dynamic tracking of student streaks, accuracy rates, and identified misconceptions.
           </p>
         </div>
 
@@ -129,7 +129,7 @@ export const AdminUserTracker: React.FC = () => {
         </div>
       </div>
 
-      {/* Cohort Real-time Summary Metrics */}
+      {/* Cohort Dynamic Summary Metrics */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
           <span className="text-slate-400 font-semibold block">Total Active Learners</span>

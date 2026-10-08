@@ -148,26 +148,26 @@ export const AdminSecuritySettings: React.FC = () => {
             <span>Security & Authentication Governance</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-white">
-            Real-Time Email OTP & Notification Gateway
+            Dynamic Email OTP & Notification Gateway
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Real-time transactional email dispatch for OTP verifications, role authorizations, and audit tracking.
+            Dynamic transactional email dispatch for OTP verifications, role authorizations, and audit tracking.
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Real-Time Email OTP Password Reset Card */}
+        {/* Dynamic Email OTP Password Reset Card */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
           <div className="flex items-center space-x-2 pb-3 border-b border-slate-800">
             <Mail className="w-5 h-5 text-emerald-400" />
             <h3 className="text-sm font-bold text-white">
-              Real-Time Password Reset (Email / Phone)
+              Dynamic Password Reset (Email / Phone)
             </h3>
           </div>
 
           <p className="text-xs text-slate-400 leading-relaxed">
-            Dispatch a secure 6-digit one-time code directly to your registered administrator email address in real-time.
+            Dispatch a secure 6-digit one-time code directly to your registered administrator email address instantly.
           </p>
 
           {resetMessage && (
@@ -211,7 +211,7 @@ export const AdminSecuritySettings: React.FC = () => {
             <form onSubmit={handleCompleteReset} className="space-y-3 text-xs animate-fadeIn">
               <div className="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-xl text-xs text-emerald-300 flex items-start space-x-2">
                 <Mail className="w-4 h-4 flex-shrink-0 mt-0.5 text-emerald-400" />
-                <span>A 6-digit code has been sent in real-time to <strong>{identifierInput}</strong>. Please check your inbox or spam folder.</span>
+                <span>A 6-digit code has been sent instantly to <strong>{identifierInput}</strong>. Please check your inbox or spam folder.</span>
               </div>
 
               <div>
@@ -262,7 +262,7 @@ export const AdminSecuritySettings: React.FC = () => {
           )}
         </div>
 
-        {/* Live Real-Time Email Delivery Gateway & Test Hub */}
+        {/* Live Dynamic Email Delivery Gateway & Test Hub */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
           <div className="flex items-center justify-between pb-3 border-b border-slate-800">
             <div className="flex items-center space-x-2">
@@ -273,18 +273,18 @@ export const AdminSecuritySettings: React.FC = () => {
             </div>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center space-x-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-              <span>Real-Time Active</span>
+              <span>Live System Active</span>
             </span>
           </div>
 
           <p className="text-xs text-slate-400 leading-relaxed">
-            Transactional emails (Learner OTPs, recovery phrases, admin invitations, password resets) are dispatched in real-time to recipient email inboxes.
+            Transactional emails (Learner OTPs, recovery phrases, admin invitations, password resets) are dispatched instantly to recipient email inboxes.
           </p>
 
           {/* Test Live Email Form */}
           <form onSubmit={handleSendTestEmail} className="space-y-3 text-xs p-3.5 bg-slate-950 rounded-xl border border-slate-800">
             <label className="block text-slate-300 font-semibold">
-              Test Real-Time Email Delivery
+              Test Dynamic Email Delivery
             </label>
             <div className="flex flex-col sm:flex-row gap-2">
               <input

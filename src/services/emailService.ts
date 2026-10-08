@@ -58,7 +58,7 @@ export interface EmailDispatchResult {
 }
 
 /**
- * Dispatches a real email in real-time across the configured or auto-detected delivery gateway
+ * Dispatches a real email instantly across the configured or auto-detected delivery gateway
  */
 export async function sendRealtimeEmail(payload: EmailDispatchPayload): Promise<EmailDispatchResult> {
   const config = getEmailConfig();
@@ -96,7 +96,7 @@ export async function sendRealtimeEmail(payload: EmailDispatchPayload): Promise<
       if (data.success) {
         return {
           success: true,
-          message: `Email dispatched in real-time to ${cleanTo} via ${data.provider || 'Resend'}.`,
+          message: `Email dispatched instantly to ${cleanTo} via ${data.provider || 'Resend'}.`,
           providerUsed: data.provider || 'Resend API',
           timestamp
         };
@@ -143,7 +143,7 @@ export async function sendRealtimeEmail(payload: EmailDispatchPayload): Promise<
       if (res.ok) {
         return {
           success: true,
-          message: `Email dispatched in real-time to ${cleanTo} via Resend.`,
+          message: `Email dispatched instantly to ${cleanTo} via Resend.`,
           providerUsed: 'Resend Cloud',
           timestamp
         };
@@ -187,7 +187,7 @@ export async function sendRealtimeEmail(payload: EmailDispatchPayload): Promise<
       if (res.ok) {
         return {
           success: true,
-          message: `Email dispatched in real-time to ${cleanTo} via Brevo.`,
+          message: `Email dispatched instantly to ${cleanTo} via Brevo.`,
           providerUsed: 'Brevo API',
           timestamp
         };
@@ -226,7 +226,7 @@ export async function sendRealtimeEmail(payload: EmailDispatchPayload): Promise<
       if (res.ok) {
         return {
           success: true,
-          message: `Email dispatched in real-time to ${cleanTo} via EmailJS.`,
+          message: `Email dispatched instantly to ${cleanTo} via EmailJS.`,
           providerUsed: 'EmailJS REST',
           timestamp
         };
@@ -256,7 +256,7 @@ export async function sendRealtimeEmail(payload: EmailDispatchPayload): Promise<
       if (res.ok) {
         return {
           success: true,
-          message: `Email dispatched in real-time to ${cleanTo} via Custom Webhook.`,
+          message: `Email dispatched instantly to ${cleanTo} via Custom Webhook.`,
           providerUsed: 'Custom Webhook',
           timestamp
         };
@@ -427,10 +427,10 @@ export async function sendPasswordResetEmail(
  * Sends a live test email to verify gateway connectivity
  */
 export async function sendLiveTestEmail(toEmail: string): Promise<EmailDispatchResult> {
-  const subject = `MongoDB Quiz Lab — Real-Time Email Delivery Test`;
+  const subject = `MongoDB Quiz Lab — Dynamic Email Delivery Test`;
   const timestamp = new Date().toLocaleTimeString();
 
-  const text = `This is a live test email sent from your MongoDB Quiz Lab system at ${timestamp}.\n\nReal-time email delivery is active and working properly!`;
+  const text = `This is a live test email sent from your MongoDB Quiz Lab system at ${timestamp}.\n\nDynamic email delivery is active and working properly!`;
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; background-color: #0f172a; color: #f8fafc; border: 1px solid #1e293b; border-radius: 16px; overflow: hidden; padding: 28px;">
@@ -439,7 +439,7 @@ export async function sendLiveTestEmail(toEmail: string): Promise<EmailDispatchR
         <h1 style="color: #ffffff; font-size: 22px; margin: 8px 0 4px 0; font-weight: 800;">Email Gateway is Online</h1>
       </div>
       <p style="color: #e2e8f0; font-size: 14px; line-height: 1.6;">
-        This email confirms that your MongoDB Quiz Lab real-time mail dispatch pipeline is operational at <strong>${timestamp}</strong>.
+        This email confirms that your MongoDB Quiz Lab dynamic mail dispatch pipeline is operational at <strong>${timestamp}</strong>.
       </p>
       <div style="border-top: 1px solid #334155; padding-top: 16px; font-size: 11px; color: #64748b;">
         EMTVTech • MongoDB Quiz Lab

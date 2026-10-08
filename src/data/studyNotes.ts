@@ -204,7 +204,7 @@ export const STUDY_NOTES: StudyNoteSection[] = [
       },
       {
         name: "Change Streams (watch())",
-        description: "Listen to real-time database modifications using the replica set oplog without polling.",
+        description: "Listen to dynamic database modifications using the replica set oplog without polling.",
         example: 'const changeStream = db.orders.watch([{ $match: { "operationType": "insert" } }]);'
       }
     ],

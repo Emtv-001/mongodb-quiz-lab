@@ -160,7 +160,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
     return () => window.removeEventListener('mongo_quiz_progress_saved', handleSync);
   }, []);
 
-  // Handle Register Step 1: Request OTP and dispatch real-time email
+  // Handle Register Step 1: Request OTP and dispatch dynamic email
   const handleRequestRegistrationOtp = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (emailCooldown > 0) return;
@@ -838,15 +838,15 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
               </form>
             ) : (
               <form onSubmit={handleVerifyOtp} className="space-y-3.5 text-xs animate-fadeIn">
-                {/* Real-time Email Dispatch Notification */}
+                {/* Dynamic Email Dispatch Notification */}
                 <div className="p-4 bg-emerald-950/40 border border-emerald-500/40 rounded-xl space-y-2.5">
                   <div className="flex items-center space-x-2 text-emerald-400 font-bold text-sm">
                     <Mail className="w-4 h-4" />
-                    <span>Real-Time Email Dispatched!</span>
+                    <span>Dynamic Email Dispatched!</span>
                   </div>
 
                   <p className="text-slate-300 text-xs leading-relaxed">
-                    A 6-digit verification code (OTP) has been dispatched in real-time to <strong className="text-white font-mono">{regEmail}</strong>.
+                    A 6-digit verification code (OTP) has been dispatched instantly to <strong className="text-white font-mono">{regEmail}</strong>.
                   </p>
 
                   <div className="p-3 bg-slate-950/80 rounded-lg border border-slate-800 text-[11px] text-slate-400 space-y-1">

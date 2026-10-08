@@ -156,7 +156,7 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
             </select>
           </div>
 
-          {/* AI Real-Time Generator Mode Toggle */}
+          {/* AI Dynamic Generator Mode Toggle */}
           <div
             onClick={() => setUseAiGeneration(!useAiGeneration)}
             className={`p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${
@@ -170,7 +170,7 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                 <Sparkles className="w-4 h-4" />
               </div>
               <div>
-                <span className="font-bold text-xs text-white block">Real-Time AI Question Agent</span>
+                <span className="font-bold text-xs text-white block">Dynamic AI Question Agent</span>
                 <span className="text-[11px] text-slate-400 block">Synthesize unique, dynamic practical questions on the fly</span>
               </div>
             </div>

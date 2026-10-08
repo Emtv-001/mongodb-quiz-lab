@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, Info, AlertTriangle, CheckCircle, Bell } from 'lucide-react';
 
-interface Notification {
+interface AppNotification {
   _id: string;
   title: string;
   message: string;
@@ -12,7 +12,7 @@ interface Notification {
 }
 
 export const GlobalNotificationPopup: React.FC<{ audience: 'learners' | 'admins' }> = ({ audience }) => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
@@ -25,7 +25,7 @@ export const GlobalNotificationPopup: React.FC<{ audience: 'learners' | 'admins'
         
         const dismissed = JSON.parse(localStorage.getItem('dismissed_notifications') || '[]');
         
-        const unseen = data.notifications.filter((n: Notification) => n.showPopup && !dismissed.includes(n._id));
+        const unseen = data.notifications.filter((n: AppNotification) => n.showPopup && !dismissed.includes(n._id));
         setNotifications(unseen);
       } catch (error) {
         console.error('Failed to fetch notifications', error);
