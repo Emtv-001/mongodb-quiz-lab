@@ -94,7 +94,13 @@ export const AdminView: React.FC = () => {
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
-  const [currentAdminTab, setCurrentAdminTab] = useState<AdminTab>('overview');
+  const [currentAdminTab, setCurrentAdminTab] = useState<AdminTab>(() => {
+    return (localStorage.getItem('mongo_quiz_admin_last_tab') as AdminTab) || 'overview';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('mongo_quiz_admin_last_tab', currentAdminTab);
+  }, [currentAdminTab]);
 
   // Keep the session in sync with the stored admin record (role/permission/status changes)
   useEffect(() => {

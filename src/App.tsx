@@ -23,13 +23,36 @@ import { useAuthHeartbeat } from './hooks/useAuthHeartbeat';
 
 export function App() {
   useAuthHeartbeat();
-  const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
+  const [currentTab, setCurrentTab] = useState<NavTab>(() => {
+    return (localStorage.getItem('mongo_quiz_last_tab') as NavTab) || 'dashboard';
+  });
+
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSeedDataOpen, setIsSeedDataOpen] = useState(false);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [configModalMode, setConfigModalMode] = useState<QuizMode>('practice');
   const [configModalTopic, setConfigModalTopic] = useState<MongoTopic | undefined>(undefined);
-  const [activeSession, setActiveSession] = useState<QuizSession | null>(null);
+  const [activeSession, setActiveSession] = useState<QuizSession | null>(() => {
+    try {
+      const saved = localStorage.getItem('mongo_quiz_active_session');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('mongo_quiz_last_tab', currentTab);
+  }, [currentTab]);
+
+  useEffect(() => {
+    if (activeSession) {
+      localStorage.setItem('mongo_quiz_active_session', JSON.stringify(activeSession));
+    } else {
+      localStorage.removeItem('mongo_quiz_active_session');
+    }
+  }, [activeSession]);
   const [progress, setProgress] = useState(loadProgress());
 
   // Reload progress when tabs or quiz completes
