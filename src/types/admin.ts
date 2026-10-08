@@ -70,6 +70,7 @@ export interface SiteCustomization {
   accentColor: 'emerald' | 'blue' | 'purple' | 'amber' | 'rose' | 'cyan';
   enabledTabs: Record<string, boolean>;
   customTabLabels: Record<string, string>;
+    maintenanceMode?: boolean;
   footerText: string;
 }
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getSiteCustomization, DEFAULT_SITE_CONFIG } from './services/adminService';
 import { MongoTopic, QuizMode, QuizSession } from './types';
 import { createSession } from './services/quizEngine';
 import { loadProgress } from './services/storage';
@@ -23,6 +24,15 @@ import { useAuthHeartbeat } from './hooks/useAuthHeartbeat';
 
 export function App() {
   useAuthHeartbeat();
+  const [globalSiteConfig, setGlobalSiteConfig] = useState(DEFAULT_SITE_CONFIG);
+
+  useEffect(() => {
+    getSiteCustomization().then(setGlobalSiteConfig);
+    const handleConfigUpdate = () => getSiteCustomization().then(setGlobalSiteConfig);
+    window.addEventListener('site_config_updated', handleConfigUpdate);
+    return () => window.removeEventListener('site_config_updated', handleConfigUpdate);
+  }, []);
+
   const [currentTab, setCurrentTab] = useState<NavTab>(() => {
     return (localStorage.getItem('mongo_quiz_last_tab') as NavTab) || 'dashboard';
   });
