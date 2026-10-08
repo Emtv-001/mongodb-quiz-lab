@@ -34,13 +34,15 @@ export const AdminUserTracker: React.FC = () => {
             fingerprintHash: u.email,
             firstJoined: u.createdAt,
             lastActive: u.lastActive || u.createdAt,
-            currentStreak: 0,
-            questionsAttempted: 0,
-            questionsCorrect: 0,
-            accuracy: 0,
-            bestMockScore: 0,
-            weakTopics: [],
-            flaggedCount: 0,
+            longestStreak: u.xp > 0 ? 1 : 0,
+              currentStreak: u.xp > 0 ? 1 : 0,
+              questionsAttempted: u.xp || 0,
+              questionsCorrect: u.coins || 0,
+              accuracy: (u.xp || 0) > 0 ? Math.round(((u.coins || 0) / (u.xp || 1)) * 100) : 100,
+              bestMockScore: 0,
+              weakTopics: [],
+              masteredTopics: u.unlockedBadges || [],
+              flaggedCount: 0,
             status: u.verified ? 'Active' : 'Dormant'
           }));
           setLearners(mapped);
