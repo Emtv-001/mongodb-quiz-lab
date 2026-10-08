@@ -22,7 +22,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (admin.status === 'suspended') {
           return res.status(200).json({ valid: false, reason: 'suspended', message: 'Your admin account has been suspended.' });
         }
-        return res.status(200).json({ valid: true });
+        // Return latest admin data so frontend can sync
+        return res.status(200).json({ valid: true, user: admin });
       } 
       else if (role === 'learner') {
         const learner = await Learner.findById(id);
@@ -32,7 +33,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (learner.verified === false) {
           return res.status(200).json({ valid: false, reason: 'suspended', message: 'Your learner account has been suspended or deactivated.' });
         }
-        return res.status(200).json({ valid: true });
+        // Return latest learner data so frontend can sync
+        return res.status(200).json({ valid: true, user: learner });
       }
 
       return res.status(400).json({ valid: false, message: 'Invalid role' });
