@@ -19,8 +19,10 @@ import { DEFAULT_QUESTIONS } from './data/questions';
 
 import { QuizConfigModal } from './components/quiz/QuizConfigModal';
 import { QuizSetupOptions } from './services/quizEngine';
+import { useAuthHeartbeat } from './hooks/useAuthHeartbeat';
 
 export function App() {
+  useAuthHeartbeat();
   const [currentTab, setCurrentTab] = useState<NavTab>('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSeedDataOpen, setIsSeedDataOpen] = useState(false);
