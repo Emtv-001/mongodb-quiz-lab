@@ -28,23 +28,28 @@ export const AdminUserTracker: React.FC = () => {
       .then(res => res.json())
       .then(data => {
         if (data.success && data.users) {
-          const mapped = data.users.map((u: any) => ({
-            id: u._id || u.id,
-            pseudonym: u.displayName || u.username,
-            fingerprintHash: u.email,
-            firstJoined: u.createdAt,
-            lastActive: u.lastActive || u.createdAt,
-            longestStreak: u.xp > 0 ? 1 : 0,
-              currentStreak: u.xp > 0 ? 1 : 0,
-              questionsAttempted: u.xp || 0,
-              questionsCorrect: u.coins || 0,
-              accuracy: (u.xp || 0) > 0 ? Math.round(((u.coins || 0) / (u.xp || 1)) * 100) : 100,
-              bestMockScore: 0,
+          const mapped = data.users.map((u: any) => {
+            const prog = u.progressData || {};
+            const qA = prog.questionsAttempted || 0;
+            const qC = prog.questionsCorrect || 0;
+            return {
+              id: u._id || u.id,
+              pseudonym: u.displayName || u.username,
+              fingerprintHash: u.email,
+              firstJoined: u.createdAt,
+              lastActive: u.lastActive || prog.lastActiveDate || u.createdAt,
+              longestStreak: prog.longestStreak || 0,
+              currentStreak: prog.currentStreak || 0,
+              questionsAttempted: qA,
+              questionsCorrect: qC,
+              accuracy: qA > 0 ? Math.round((qC / qA) * 100) : 100,
+              bestMockScore: prog.bestMockScore || 0,
               weakTopics: [],
               masteredTopics: u.unlockedBadges || [],
-              flaggedCount: 0,
-            status: u.verified ? 'Active' : 'Dormant'
-          }));
+              flaggedCount: (prog.flaggedQuestionIds || []).length,
+              status: u.verified ? 'Active' : 'Dormant'
+            };
+          });
           setLearners(mapped);
         }
         setIsLoading(false);

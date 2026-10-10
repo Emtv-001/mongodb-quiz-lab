@@ -7,8 +7,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await connectToDatabase();
     
     if (req.method === 'GET') {
-      const users = await Learner.find({}, '-passwordHash').sort({ xp: -1 });
-      return res.status(200).json({ success: true, users });
+      const usersRaw = await Learner.aggregate([
+        {
+          $lookup: {
+            from: "progresses",
+            localField: "_id",
+            foreignField: "learnerId",
+            as: "progressData"
+          }
+        },
+        {
+          $unwind: {
+            path: "$progressData",
+            preserveNullAndEmptyArrays: true
+          }
+        },
+        { $sort: { xp: -1 } },
+        { $project: { passwordHash: 0, recoveryPhrase: 0 } }
+      ]);
+      
+      return res.status(200).json({ success: true, users: usersRaw });
     }
     
     if (req.method === 'DELETE') {
