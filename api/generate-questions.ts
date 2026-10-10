@@ -1,14 +1,31 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+export const config = {
+  runtime: 'edge'
+};
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
+export default async function handler(req: Request) {
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ message: 'Method not allowed' }), { 
+      status: 405, 
+      headers: { 'Content-Type': 'application/json' } 
+    });
+  }
   
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ success: false, message: 'GEMINI_API_KEY not configured in Vercel environment variables.' });
+    return new Response(JSON.stringify({ success: false, message: 'GEMINI_API_KEY not configured in Vercel environment variables.' }), { 
+      status: 500, 
+      headers: { 'Content-Type': 'application/json' } 
+    });
   }
   
-  const { topic, level, difficulty, count = 3, datasetName } = req.body;
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    body = {};
+  }
+  
+  const { topic, level, difficulty, count = 3, datasetName } = body;
 
   const prompt = `Generate ${count} advanced MongoDB practical questions. 
 Topic: ${topic || 'General MongoDB'}
@@ -77,9 +94,15 @@ Note: For multiple-choice questions, "options" must be an array of exactly 4 str
       tags: ['ai-generated', 'dynamic', 'gemini-2.5']
     }));
 
-    return res.status(200).json({ success: true, questions });
+    return new Response(JSON.stringify({ success: true, questions }), { 
+      status: 200, 
+      headers: { 'Content-Type': 'application/json' } 
+    });
   } catch (error: any) {
     console.error("AI Generation Error:", error);
-    return res.status(500).json({ success: false, message: error.message || 'Unknown Server Error' });
+    return new Response(JSON.stringify({ success: false, message: error.message || 'Unknown Server Error' }), { 
+      status: 500, 
+      headers: { 'Content-Type': 'application/json' } 
+    });
   }
 }
