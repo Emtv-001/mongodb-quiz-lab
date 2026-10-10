@@ -21,8 +21,15 @@ export async function generateAiDynamicQuestions(options: GenerationOptions = {}
     });
 
     if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.message || 'Failed to generate AI questions.');
+      let errText = await response.text().catch(() => '');
+      let msg = `Failed (HTTP ${response.status})`;
+      try {
+        const errJson = JSON.parse(errText);
+        if (errJson.message) msg = errJson.message;
+      } catch {
+        if (errText) msg += ' - ' + errText.substring(0, 100);
+      }
+      throw new Error(msg);
     }
 
     const data = await response.json();
