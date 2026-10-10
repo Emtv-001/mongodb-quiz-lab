@@ -20,6 +20,7 @@ import { DEFAULT_QUESTIONS } from './data/questions';
 
 import { QuizConfigModal } from './components/quiz/QuizConfigModal';
 import { QuizSetupOptions } from './services/quizEngine';
+import { EMTVLoader } from './components/common/EMTVLoader';
 import { useAuthHeartbeat } from './hooks/useAuthHeartbeat';
 
 export function App() {
@@ -32,6 +33,9 @@ export function App() {
     window.addEventListener('site_config_updated', handleConfigUpdate);
     return () => window.removeEventListener('site_config_updated', handleConfigUpdate);
   }, []);
+
+  const [isAppLoading, setIsAppLoading] = useState(false);
+  const [appLoadingMessage, setAppLoadingMessage] = useState('Synthesizing AI Questions...');
 
   const [currentTab, setCurrentTab] = useState<NavTab>(() => {
     return (localStorage.getItem('mongo_quiz_last_tab') as NavTab) || 'dashboard';
@@ -71,13 +75,24 @@ export function App() {
   }, [currentTab, activeSession]);
 
   const handleStartQuiz = async (mode: QuizMode, topic?: MongoTopic, mockExamId?: string, extraOptions?: Partial<QuizSetupOptions>) => {
-    const session = await createSession({
-      mode,
-      selectedTopic: topic,
-      mockExamId,
-      ...extraOptions
-    });
-    setActiveSession(session);
+    setIsAppLoading(true);
+    if (extraOptions?.useAiGeneration) {
+      setAppLoadingMessage('Synthesizing AI Questions...');
+    } else {
+      setAppLoadingMessage('Loading quiz environment...');
+    }
+    
+    try {
+      const session = await createSession({
+        mode,
+        selectedTopic: topic,
+        mockExamId,
+        ...extraOptions
+      });
+      setActiveSession(session);
+    } finally {
+      setIsAppLoading(false);
+    }
   };
 
   const handleOpenConfigModal = (mode: QuizMode = 'practice', topic?: MongoTopic) => {
@@ -125,6 +140,23 @@ export function App() {
   };
 
   const renderContent = () => {
+    if (globalSiteConfig.maintenanceMode && currentTab !== 'admin') {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[70vh] text-center p-8 bg-slate-900 border border-slate-800 rounded-3xl shadow-xl max-w-2xl mx-auto mt-10">
+          <div className="w-24 h-24 rounded-full bg-amber-500/10 flex items-center justify-center mb-6 border border-amber-500/20">
+            <span className="text-5xl">🛠️</span>
+          </div>
+          <h2 className="text-3xl font-black text-white mb-4 tracking-tight">Under Maintenance</h2>
+          <p className="text-slate-300 text-lg leading-relaxed">
+            The {globalSiteConfig.siteName} platform is currently offline for scheduled upgrades and maintenance by our administrators.
+          </p>
+          <p className="text-slate-400 mt-4 text-sm">
+            Please check back shortly! Learner progress tracking and leaderboards are temporarily paused to prevent data loss.
+          </p>
+        </div>
+      );
+    }
+
     // If there is an ongoing or just-completed quiz session
     if (activeSession) {
       return (
@@ -221,6 +253,7 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans w-full max-w-full overflow-x-hidden">
+      {isAppLoading && <EMTVLoader message={appLoadingMessage} />}
       {/* Top Navbar */}
       <Navbar
         currentStreak={progress.currentStreak}

@@ -11,7 +11,7 @@ interface AppNotification {
   createdAt: string;
 }
 
-export const GlobalNotificationPopup: React.FC<{ audience: 'learners' | 'admins' }> = ({ audience }) => {
+export const GlobalNotificationPopup: React.FC<{ audience: 'learners' | 'admins', userCreatedAt?: string }> = ({ audience, userCreatedAt }) => {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -25,7 +25,18 @@ export const GlobalNotificationPopup: React.FC<{ audience: 'learners' | 'admins'
         
         const dismissed = JSON.parse(localStorage.getItem('dismissed_notifications') || '[]');
         
-        const unseen = data.notifications.filter((n: AppNotification) => n.showPopup && !dismissed.includes(n._id));
+        const unseen = data.notifications.filter((n: AppNotification) => {
+          if (!n.showPopup) return false;
+          if (dismissed.includes(n._id)) return false;
+          
+          if (userCreatedAt) {
+            const userDate = new Date(userCreatedAt).getTime() - 60000; // 1 minute slack
+            const notifDate = new Date(n.createdAt).getTime();
+            if (notifDate < userDate) return false;
+          }
+          
+          return true;
+        });
         setNotifications(unseen);
       } catch (error) {
         console.error('Failed to fetch notifications', error);

@@ -116,7 +116,7 @@ export async function generateQuizQuestions(options: QuizSetupOptions): Promise<
   // Filter by level if specified
   if (level && level !== 'All') {
     const filteredByLevel = all.filter(q => q.level === level);
-    if (filteredByLevel.length >= 3) {
+    if (filteredByLevel.length >= questionCount) {
       all = filteredByLevel;
     }
   }

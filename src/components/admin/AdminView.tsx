@@ -1471,7 +1471,7 @@ export const AdminView: React.FC = () => {
           </div>
         </div>
       )}
-      <GlobalNotificationPopup audience="admins" />
+      <GlobalNotificationPopup audience="admins" userCreatedAt={currentUser?.createdAt} />
     </div>
   );
 };

@@ -1320,7 +1320,8 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
           </div>
         </div>
       )}
-      <GlobalNotificationPopup audience="learners" />
+      {/* Use account or guest creation date to filter out old broadcast notifications */}
+      <GlobalNotificationPopup audience="learners" userCreatedAt={account?.createdAt || progress?.learnerId?.createdAt} />
     </div>
   );
 };
