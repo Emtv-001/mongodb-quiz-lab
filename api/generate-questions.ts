@@ -1,7 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenAI } from '@google/genai';
 
-export const maxDuration = 60; // Max allowed for Vercel Hobby plan
+export const maxDuration = 60;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
@@ -10,8 +9,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!apiKey) {
     return res.status(500).json({ success: false, message: 'GEMINI_API_KEY not configured in Vercel environment variables.' });
   }
-
-  const ai = new GoogleGenAI({ apiKey });
   
   const { topic, level, difficulty, count = 3, datasetName } = req.body;
 
@@ -37,19 +34,34 @@ Return a JSON array of objects. Each object MUST exactly match this structure:
 Note: For multiple-choice questions, "options" must be an array of exactly 4 strings, and "correctOptionIndex" must be a number between 0 and 3. For write-command questions, leave options empty and provide expectedCommand.`;
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-      }
+    const url = \`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=\${apiKey}\`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: 'application/json'
+        }
+      })
     });
 
-    if (!response.text) {
-      throw new Error("No response from AI");
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(\`Gemini API Error (\${response.status}): \${errText.substring(0, 200)}\`);
     }
 
-    let questions = JSON.parse(response.text);
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    if (!text) {
+      throw new Error("Empty or invalid response from Gemini API");
+    }
+
+    let questions = JSON.parse(text);
     
     // Validate and post-process
     if (!Array.isArray(questions)) {
@@ -70,6 +82,6 @@ Note: For multiple-choice questions, "options" must be an array of exactly 4 str
     return res.status(200).json({ success: true, questions });
   } catch (error: any) {
     console.error("AI Generation Error:", error);
-    return res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message || 'Unknown Server Error' });
   }
 }
