@@ -89,6 +89,10 @@ export function App() {
         mockExamId,
         ...extraOptions
       });
+      if (session.questions.length === 0) {
+        alert("No questions found matching your customized criteria! Please broaden your filters.");
+        return;
+      }
       setActiveSession(session);
     } finally {
       setIsAppLoading(false);

@@ -107,18 +107,12 @@ export async function generateQuizQuestions(options: QuizSetupOptions): Promise<
 
   // Filter by difficulty if specified
   if (difficulty && difficulty !== 'All') {
-    const filteredByDiff = all.filter(q => q.difficulty === difficulty);
-    if (filteredByDiff.length >= questionCount) {
-      all = filteredByDiff;
-    }
+    all = all.filter(q => q.difficulty === difficulty);
   }
 
   // Filter by level if specified
   if (level && level !== 'All') {
-    const filteredByLevel = all.filter(q => q.level === level);
-    if (filteredByLevel.length >= questionCount) {
-      all = filteredByLevel;
-    }
+    all = all.filter(q => q.level === level);
   }
 
   if (mode === 'topic-practice' && selectedTopic) {
@@ -130,9 +124,7 @@ export async function generateQuizQuestions(options: QuizSetupOptions): Promise<
     const matchingTopics = preset.topics;
 
     let pool = all.filter(q => matchingTopics.includes(q.topic));
-    if (pool.length < (questionCount || preset.questionCount)) {
-      pool = all;
-    }
+    if (pool.length === 0) pool = all; // Only fallback if totally empty
 
     const targetCount = questionCount || preset.questionCount;
     const easy = shuffleArray(pool.filter(q => q.difficulty === 'Easy'));
