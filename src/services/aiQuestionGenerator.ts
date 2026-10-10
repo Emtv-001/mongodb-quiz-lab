@@ -21,7 +21,8 @@ export async function generateAiDynamicQuestions(options: GenerationOptions = {}
     });
 
     if (!response.ok) {
-      throw new Error('Failed to generate AI questions.');
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.message || 'Failed to generate AI questions.');
     }
 
     const data = await response.json();

@@ -95,9 +95,10 @@ export async function generateQuizQuestions(options: QuizSetupOptions): Promise<
       if (aiQuestions && aiQuestions.length > 0) {
         return aiQuestions.map(prepareQuestionForSession);
       }
-    } catch (err) {
-      console.warn('AI generation failed or skipped. Falling back to default questions.', err);
-    }
+    } catch (err: any) {
+        console.warn('AI generation failed or skipped. Falling back to default questions.', err);
+        alert("AI Generation Error: " + (err.message || "Unknown error") + ". Falling back to hardcoded questions.");
+      }
   }
 
   // Filter by topic if specified
