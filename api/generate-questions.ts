@@ -1,31 +1,14 @@
-export const config = {
-  runtime: 'edge'
-};
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-export default async function handler(req: Request) {
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ message: 'Method not allowed' }), { 
-      status: 405, 
-      headers: { 'Content-Type': 'application/json' } 
-    });
-  }
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
   
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return new Response(JSON.stringify({ success: false, message: 'GEMINI_API_KEY not configured in Vercel environment variables.' }), { 
-      status: 500, 
-      headers: { 'Content-Type': 'application/json' } 
-    });
+    return res.status(500).json({ success: false, message: 'GEMINI_API_KEY not configured in Vercel environment variables.' });
   }
   
-  let body;
-  try {
-    body = await req.json();
-  } catch {
-    body = {};
-  }
-  
-  const { topic, level, difficulty, count = 3, datasetName } = body;
+  const { topic, level, difficulty, count = 3, datasetName } = req.body;
 
   const prompt = `Generate ${count} advanced MongoDB practical questions. 
 Topic: ${topic || 'General MongoDB'}
@@ -94,15 +77,9 @@ Note: For multiple-choice questions, "options" must be an array of exactly 4 str
       tags: ['ai-generated', 'dynamic', 'gemini-2.5']
     }));
 
-    return new Response(JSON.stringify({ success: true, questions }), { 
-      status: 200, 
-      headers: { 'Content-Type': 'application/json' } 
-    });
+    return res.status(200).json({ success: true, questions });
   } catch (error: any) {
     console.error("AI Generation Error:", error);
-    return new Response(JSON.stringify({ success: false, message: error.message || 'Unknown Server Error' }), { 
-      status: 500, 
-      headers: { 'Content-Type': 'application/json' } 
-    });
+    return res.status(500).json({ success: false, message: error.message || 'Unknown Server Error' });
   }
 }
