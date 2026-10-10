@@ -97,7 +97,20 @@ export async function generateQuizQuestions(options: QuizSetupOptions): Promise<
       }
     } catch (err: any) {
         console.warn('AI generation failed or skipped. Falling back to default questions.', err);
-        alert("AI Generation Error: " + (err.message || "Unknown error") + ". Falling back to hardcoded questions.");
+        const errMsg = err.message || "Unknown error";
+        
+        // Log to Admin Audit Trail silently
+        fetch('/api/admin/logs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            timestamp: new Date().toISOString(),
+            adminUsername: "SYSTEM",
+            action: "AI_ERROR",
+            category: "Error",
+            details: "AI Generation Error: " + errMsg
+          })
+        }).catch(() => {});
       }
   }
 
