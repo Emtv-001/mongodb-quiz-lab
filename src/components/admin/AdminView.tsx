@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AdminUser } from '../../types/admin';
 import { GlobalNotificationPopup } from '../common/GlobalNotificationPopup';
+import { EMTVLoader } from '../common/EMTVLoader';
 import {
   authenticateAdminUser,
   getAdminUsers,
@@ -94,6 +95,7 @@ export const AdminView: React.FC = () => {
   const [usernameOrEmail, setUsernameOrEmail] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
+  const [activeLoadingTask, setActiveLoadingTask] = useState<string | null>(null);
   const [currentAdminTab, setCurrentAdminTab] = useState<AdminTab>(() => {
     return (localStorage.getItem('mongo_quiz_admin_last_tab') as AdminTab) || 'overview';
   });
@@ -254,7 +256,9 @@ export const AdminView: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setActiveLoadingTask('Authenticating super admin credentials...');
     const res = await authenticateAdminUser(usernameOrEmail, passwordInput);
+    setActiveLoadingTask(null);
     if (res.success && res.user) {
       setCurrentUser(res.user);
       sessionStorage.setItem('mongo_quiz_logged_admin_user', JSON.stringify(res.user));

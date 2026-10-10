@@ -62,6 +62,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
 }) => {
   const [account, setAccount] = useState<RegisteredLearnerAccount | null>(() => getRegisteredLearnerAccount());
   const [stats, setStats] = useState(() => getLearnerGamificationStats(progress));
+  const [activeLoadingTask, setActiveLoadingTask] = useState<string | null>(null);
 
   // Modal States
   const [showRegisterModal, setShowRegisterModal] = useState(false);
@@ -190,10 +191,11 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setRegError(null);
+    setActiveLoadingTask('Provisioning learner account...');
     setIsSendingEmail(true);
-
     const res = await verifyLearnerRegistrationOtp(otpCodeInput);
     setIsSendingEmail(false);
+    setActiveLoadingTask(null);
     
     if (res.success && res.account) {
       refreshAccountState();
@@ -217,9 +219,11 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
     e.preventDefault();
     setLoginError(null);
 
+    setActiveLoadingTask('Verifying credentials...');
     setIsAuthenticating(true);
     const res = await loginLearner(loginIdentifier, loginPassword);
     setIsAuthenticating(false);
+    setActiveLoadingTask(null);
     if (res.success && res.account) {
       refreshAccountState();
       setShowLoginModal(false);
@@ -276,6 +280,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
         setRecoverStep(2);
         setRecoverCooldown(60);
       } else {
+        setActiveLoadingTask(null);
         setRecoverMsg({ text: res.message, isError: true });
       }
     } catch (err: any) {
@@ -311,7 +316,9 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
         setRecoverMsg({ text: vRes.message, isError: true });
         return;
       }
-      const cRes = await completeLearnerPasswordReset(recoverNewPassword);
+      setActiveLoadingTask('Resetting cryptographic keys...');
+        const cRes = await completeLearnerPasswordReset(recoverNewPassword);
+        setActiveLoadingTask(null);
       if (cRes.success) {
         setRecoverMsg({ text: cRes.message, isError: false });
         setTimeout(() => {
@@ -337,6 +344,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
           setRecoverMsg(null);
         }, 2000);
       } else {
+        setActiveLoadingTask(null);
         setRecoverMsg({ text: res.message, isError: true });
       }
     }
