@@ -24,19 +24,22 @@ import {
   Award
 } from 'lucide-react';
 import { MOCK_EXAM_PRESETS } from '../../data/mockExams';
+import { replenishAiQuestionsBatch } from '../../services/quizEngine';
 
 interface QuizControllerProps {
   session: QuizSession;
   onOpenSeedData: () => void;
   onGoHome: () => void;
   onRestartQuiz: () => void;
+  onSessionUpdate?: (session: QuizSession) => void;
 }
 
 export const QuizController: React.FC<QuizControllerProps> = ({
   session: initialSession,
   onOpenSeedData,
   onGoHome,
-  onRestartQuiz
+  onRestartQuiz,
+  onSessionUpdate
 }) => {
   const [session, setSession] = useState<QuizSession>(initialSession);
   const [hasStarted, setHasStarted] = useState<boolean>(false); // Pre-start briefing screen state
@@ -47,9 +50,103 @@ export const QuizController: React.FC<QuizControllerProps> = ({
   const [bookmarkedMap, setBookmarkedMap] = useState<Record<string, boolean>>({});
   const [showPalette, setShowPalette] = useState<boolean>(false);
 
+  // Sync if parent updates initialSession (e.g. restart)
+  useEffect(() => {
+    setSession(initialSession);
+  }, [initialSession.id]);
+
   const currentQuestion: Question | undefined = session.questions[session.currentIndex];
   const isMock = session.mode === 'mock-test';
   const preset = MOCK_EXAM_PRESETS.find(p => p.id === session.mockExamId);
+
+  // Progressive AI Background Replenishment Effect
+  // While learner is answering initial questions, seamlessly synthesize and append remaining questions
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function replenishBackgroundQuestions() {
+      if (!session.isAiGeneratingInBackground || !session.aiGenerationOptions) return;
+      if (session.completed) return;
+
+      const target = session.targetQuestionCount || session.totalQuestions;
+      if (session.questions.length >= target) {
+        setSession(prev => ({ ...prev, isAiGeneratingInBackground: false }));
+        return;
+      }
+
+      const remaining = target - session.questions.length;
+      const chunkSize = Math.min(3, remaining);
+
+      try {
+        const newBatch = await replenishAiQuestionsBatch(
+          session.aiGenerationOptions,
+          session.questions,
+          chunkSize
+        );
+
+        if (isCancelled) return;
+
+        if (newBatch && newBatch.length > 0) {
+          setSession((prev) => {
+            const existingIds = new Set(prev.questions.map(q => q.id));
+            const existingTitles = new Set(prev.questions.map(q => q.title));
+            const fresh = newBatch.filter(q => !existingIds.has(q.id) && !existingTitles.has(q.title));
+
+            if (fresh.length === 0) return prev;
+
+            const updatedQuestions = [...prev.questions, ...fresh];
+            const isDone = updatedQuestions.length >= (prev.targetQuestionCount || prev.totalQuestions);
+
+            const updatedSession: QuizSession = {
+              ...prev,
+              questions: updatedQuestions,
+              isAiGeneratingInBackground: !isDone
+            };
+
+            try {
+              localStorage.setItem('mongo_quiz_active_session', JSON.stringify(updatedSession));
+            } catch {}
+
+            if (onSessionUpdate) {
+              onSessionUpdate(updatedSession);
+            }
+
+            return updatedSession;
+          });
+        } else {
+          // If no new questions could be synthesized, finalize background generation
+          setSession(prev => ({
+            ...prev,
+            totalQuestions: prev.questions.length,
+            targetQuestionCount: prev.questions.length,
+            isAiGeneratingInBackground: false
+          }));
+        }
+      } catch (err) {
+        console.warn("Background question replenishment error:", err);
+      }
+    }
+
+    if (
+      session.isAiGeneratingInBackground &&
+      session.questions.length < (session.targetQuestionCount || session.totalQuestions) &&
+      !session.completed
+    ) {
+      replenishBackgroundQuestions();
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    session.questions.length,
+    session.isAiGeneratingInBackground,
+    session.completed,
+    session.targetQuestionCount,
+    session.totalQuestions,
+    session.aiGenerationOptions,
+    onSessionUpdate
+  ]);
 
   // Sync bookmarks from storage
   useEffect(() => {
@@ -100,11 +197,24 @@ export const QuizController: React.FC<QuizControllerProps> = ({
     }
   }, [session.currentIndex, currentQuestion]);
 
+  const handlePrev = () => {
+    if (session.currentIndex > 0) {
+      setSession((prev) => ({
+        ...prev,
+        currentIndex: prev.currentIndex - 1
+      }));
+    }
+  };
+
   // --- PRE-START EXAM BRIEFING SCREEN ---
   if (!hasStarted) {
+    const targetCount = session.targetQuestionCount || session.totalQuestions;
     const durationMins = session.totalDurationSeconds ? Math.ceil(session.totalDurationSeconds / 60) : 15;
     let totalPoints = 0;
     session.questions.forEach(q => (totalPoints += q.points));
+    const estimatedTotalPoints = session.questions.length < targetCount
+      ? Math.round((totalPoints / (session.questions.length || 1)) * targetCount)
+      : totalPoints;
 
     return (
       <div className="max-w-2xl mx-auto py-8 px-4 animate-fadeIn">
@@ -112,7 +222,7 @@ export const QuizController: React.FC<QuizControllerProps> = ({
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none" />
 
           <div className="space-y-3">
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-[11px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center space-x-1.5">
                 <GraduationCap className="w-3.5 h-3.5" />
                 <span>Ready to Begin Assessment</span>
@@ -120,6 +230,12 @@ export const QuizController: React.FC<QuizControllerProps> = ({
               <span className="text-xs text-purple-300 font-mono bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
                 Mode: {session.mode.toUpperCase()}
               </span>
+              {session.isAiGeneratingInBackground && (
+                <span className="text-[11px] text-purple-300 font-semibold bg-purple-500/15 px-2.5 py-0.5 rounded-full border border-purple-500/30 flex items-center space-x-1.5 animate-pulse">
+                  <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Instant Start: Initial {session.questions.length} ready, more loading in background</span>
+                </span>
+              )}
             </div>
 
             <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
@@ -135,7 +251,7 @@ export const QuizController: React.FC<QuizControllerProps> = ({
           <div className="grid grid-cols-3 gap-3">
             <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 text-center space-y-1">
               <Target className="w-5 h-5 text-blue-400 mx-auto" />
-              <div className="text-xl font-bold font-mono text-white">{session.totalQuestions}</div>
+              <div className="text-xl font-bold font-mono text-white">{targetCount}</div>
               <div className="text-[11px] text-slate-400 font-medium">Questions</div>
             </div>
 
@@ -147,7 +263,7 @@ export const QuizController: React.FC<QuizControllerProps> = ({
 
             <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 text-center space-y-1">
               <Award className="w-5 h-5 text-purple-400 mx-auto" />
-              <div className="text-xl font-bold font-mono text-purple-300">{totalPoints}</div>
+              <div className="text-xl font-bold font-mono text-purple-300">{estimatedTotalPoints}</div>
               <div className="text-[11px] text-slate-400 font-medium">Max Points</div>
             </div>
           </div>
@@ -184,6 +300,39 @@ export const QuizController: React.FC<QuizControllerProps> = ({
               <Play className="w-4 h-4 fill-current" />
               <span>Start Assessment Now</span>
             </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle background generation delay if learner moves ahead of generator
+  if (!currentQuestion && !session.completed && session.currentIndex < session.totalQuestions) {
+    return (
+      <div className="max-w-2xl mx-auto py-12 px-4 animate-fadeIn text-center">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 sm:p-10 shadow-2xl space-y-5">
+          <div className="relative w-16 h-16 mx-auto">
+            <div className="w-16 h-16 rounded-full border-4 border-emerald-500/20 border-t-emerald-500 animate-spin" />
+            <Sparkles className="w-6 h-6 text-emerald-400 absolute inset-0 m-auto animate-pulse" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-xl font-bold text-white tracking-tight">
+              Synthesizing Question {session.currentIndex + 1} with AI...
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
+              Gemini AI is generating dynamic challenge scenarios for Question {session.currentIndex + 1} of {session.totalQuestions}. It will load automatically in just a moment.
+            </p>
+          </div>
+          <div className="flex items-center justify-center space-x-3 pt-2">
+            {session.currentIndex > 0 && (
+              <button
+                type="button"
+                onClick={handlePrev}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+              >
+                ← Return to Question {session.currentIndex}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -322,15 +471,6 @@ export const QuizController: React.FC<QuizControllerProps> = ({
     }
   };
 
-  const handlePrev = () => {
-    if (session.currentIndex > 0) {
-      setSession((prev) => ({
-        ...prev,
-        currentIndex: prev.currentIndex - 1
-      }));
-    }
-  };
-
   const handleToggleFlag = () => {
     if (!currentQuestion) return;
     const isFlagged = session.flaggedQuestionIds.includes(currentQuestion.id);
@@ -362,6 +502,11 @@ export const QuizController: React.FC<QuizControllerProps> = ({
     }
   });
 
+  const targetCount = session.targetQuestionCount || session.totalQuestions;
+  const effectiveTotalPossiblePoints = session.questions.length < targetCount
+    ? Math.round((totalPossiblePoints / (session.questions.length || 1)) * targetCount)
+    : totalPossiblePoints;
+
   const isCurrentFlagged = session.flaggedQuestionIds.includes(currentQuestion.id);
 
   return (
@@ -375,10 +520,12 @@ export const QuizController: React.FC<QuizControllerProps> = ({
         mode={session.mode}
         timeRemaining={session.timeRemainingSeconds}
         currentPoints={currentPoints}
-        totalPossiblePoints={totalPossiblePoints}
+        totalPossiblePoints={effectiveTotalPossiblePoints}
         isBookmarked={Boolean(bookmarkedMap[currentQuestion.id])}
         onToggleBookmark={handleToggleBookmark}
         onOpenSeedData={onOpenSeedData}
+        isAiGeneratingInBackground={session.isAiGeneratingInBackground}
+        loadedQuestionsCount={session.questions.length}
       />
 
       {/* Navigation Tools Bar */}
@@ -443,7 +590,21 @@ export const QuizController: React.FC<QuizControllerProps> = ({
           </div>
 
           <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
-            {session.questions.map((q, idx) => {
+            {Array.from({ length: session.totalQuestions }).map((_, idx) => {
+              const q = session.questions[idx];
+              if (!q) {
+                return (
+                  <div
+                    key={`pending_palette_${idx}`}
+                    className="p-2 rounded-xl text-xs font-mono font-bold border border-slate-800/60 bg-slate-950/40 text-slate-600 text-center flex items-center justify-center space-x-1 cursor-not-allowed select-none opacity-60"
+                    title={`Question ${idx + 1} is synthesizing in the background...`}
+                  >
+                    <span>Q{idx + 1}</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500/50 animate-pulse" />
+                  </div>
+                );
+              }
+
               const hasAttempt = Boolean(session.attempts[q.id]);
               const isFlagged = session.flaggedQuestionIds.includes(q.id);
               const isCurrent = idx === session.currentIndex;

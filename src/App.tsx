@@ -96,7 +96,7 @@ export function App() {
     }
     setIsAppLoading(true);
     if (extraOptions?.useAiGeneration) {
-      setAppLoadingMessage('Synthesizing AI Questions...');
+      setAppLoadingMessage('Synthesizing initial questions (launching in ~2s)...');
     } else {
       setAppLoadingMessage('Loading quiz environment...');
     }
@@ -152,7 +152,8 @@ export function App() {
       mode: activeSession.mode,
       selectedTopic: activeSession.selectedTopic,
       mockExamId: activeSession.mockExamId,
-      questionCount: activeSession.totalQuestions
+      questionCount: activeSession.targetQuestionCount || activeSession.totalQuestions,
+      useAiGeneration: Boolean(activeSession.aiGenerationOptions?.useAiGeneration)
     });
     setActiveSession(newSession);
   };
@@ -188,6 +189,7 @@ export function App() {
           onOpenSeedData={() => setIsSeedDataOpen(true)}
           onGoHome={handleGoHome}
           onRestartQuiz={handleRestartQuiz}
+          onSessionUpdate={setActiveSession}
         />
       );
     }

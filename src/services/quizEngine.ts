@@ -204,10 +204,47 @@ export async function generateQuizQuestions(options: QuizSetupOptions): Promise<
 }
 
 /**
- * Creates a new quiz or mock exam session with customized setup
+ * Creates a new quiz or mock exam session with customized setup.
+ * For AI-assisted quizzes, generates an initial seed batch (3 questions) so the learner
+ * begins in ~2s while the rest are synthesized seamlessly in the background.
  */
 export async function createSession(options: QuizSetupOptions): Promise<QuizSession> {
-  const questions = await generateQuizQuestions(options);
+  const {
+    questionCount = 10,
+    useAiGeneration = false
+  } = options;
+
+  // Progressive loading: If AI generation is requested and count > 3, generate initial 3 questions first
+  const isProgressiveAi = Boolean(useAiGeneration && questionCount > 3);
+  const initialFetchCount = isProgressiveAi ? 3 : questionCount;
+
+  const questions = await generateQuizQuestions({
+    ...options,
+    questionCount: initialFetchCount
+  });
+
+  // Check if AI generation succeeded (AI questions have 'ai_' prefix or 'ai-generated' tag)
+  const isAiSucceeded = questions.length > 0 && Boolean(questions[0]?.tags?.includes('ai-generated') || questions[0]?.id?.startsWith('ai_'));
+
+  let effectiveTotal = questions.length;
+  let isGeneratingInBackground = false;
+
+  if (isProgressiveAi && isAiSucceeded) {
+    effectiveTotal = questionCount;
+    isGeneratingInBackground = questions.length < questionCount;
+  } else if (isProgressiveAi && !isAiSucceeded) {
+    // If AI failed during seed batch, fill remaining from static questions immediately
+    const remainingCount = questionCount - questions.length;
+    if (remainingCount > 0) {
+      const extraQuestions = await generateQuizQuestions({
+        ...options,
+        useAiGeneration: false,
+        questionCount: questionCount
+      });
+      questions.splice(0, questions.length, ...extraQuestions);
+      effectiveTotal = questions.length;
+    }
+  }
 
   let duration: number | undefined;
 
@@ -215,9 +252,9 @@ export async function createSession(options: QuizSetupOptions): Promise<QuizSess
     const preset = MOCK_EXAM_PRESETS.find(p => p.id === options.mockExamId);
     duration = (preset ? preset.durationMinutes : 20) * 60;
   } else if (options.mode === 'quiz' || options.mode === 'challenge') {
-    duration = questions.length * 75; // 75s per question
+    duration = effectiveTotal * 75; // 75s per question
   } else if (options.mode === 'mastery') {
-    duration = questions.length * 90;
+    duration = effectiveTotal * 90;
   }
 
   return {
@@ -225,7 +262,10 @@ export async function createSession(options: QuizSetupOptions): Promise<QuizSess
     mode: options.mode,
     mockExamId: options.mockExamId,
     selectedTopic: options.selectedTopic,
-    totalQuestions: questions.length,
+    totalQuestions: effectiveTotal,
+    targetQuestionCount: effectiveTotal,
+    isAiGeneratingInBackground: isGeneratingInBackground,
+    aiGenerationOptions: isGeneratingInBackground ? { ...options } : undefined,
     timeRemainingSeconds: duration,
     totalDurationSeconds: duration,
     currentIndex: 0,
@@ -235,4 +275,56 @@ export async function createSession(options: QuizSetupOptions): Promise<QuizSess
     completed: false,
     startTime: Date.now()
   };
+}
+
+/**
+ * Asynchronously replenishes a batch of AI questions in the background.
+ * Falls back safely to default database questions if Gemini encounters rate limits or errors.
+ */
+export async function replenishAiQuestionsBatch(
+  options: QuizSetupOptions,
+  existingQuestions: Question[],
+  batchSize: number = 3
+): Promise<Question[]> {
+  const existingTitles = existingQuestions.map(q => q.title);
+  const existingIds = new Set(existingQuestions.map(q => q.id));
+
+  try {
+    const newAiQuestions = await generateAiDynamicQuestions({
+      topic: options.selectedTopic,
+      level: options.level === 'All' ? 3 : (options.level as CurriculumLevel),
+      difficulty: options.difficulty === 'All' ? 'Medium' : (options.difficulty as DifficultyLevel),
+      count: batchSize,
+      existingQuestionsToAvoid: existingTitles
+    });
+
+    if (newAiQuestions && newAiQuestions.length > 0) {
+      const prepared = newAiQuestions.map(prepareQuestionForSession);
+      const unique = prepared.filter(q => !existingIds.has(q.id) && !existingTitles.includes(q.title));
+      if (unique.length > 0) {
+        return unique;
+      }
+    }
+  } catch (err) {
+    console.warn("Background AI replenishment failed, using curated fallback questions:", err);
+  }
+
+  // Fallback: draw from local curated question repository to avoid leaving learner stranded
+  try {
+    const all = await getAllQuestions();
+    let candidates = all.filter(q => !existingIds.has(q.id) && !existingTitles.includes(q.title));
+
+    if (options.selectedTopic) {
+      const topicMatches = candidates.filter(q => q.topic === options.selectedTopic);
+      if (topicMatches.length > 0) candidates = topicMatches;
+    }
+    if (options.difficulty && options.difficulty !== 'All') {
+      const diffMatches = candidates.filter(q => q.difficulty === options.difficulty);
+      if (diffMatches.length > 0) candidates = diffMatches;
+    }
+
+    return shuffleArray(candidates).slice(0, batchSize).map(prepareQuestionForSession);
+  } catch {
+    return [];
+  }
 }

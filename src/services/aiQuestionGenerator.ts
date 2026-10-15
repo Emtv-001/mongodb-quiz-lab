@@ -9,18 +9,25 @@ export interface GenerationOptions {
   datasetName?: string;
   count?: number;
   apiKeyOverride?: string;
+  existingQuestionsToAvoid?: string[];
 }
 
 /**
  * Builds the strict structured JSON prompt for Gemini.
  */
 function buildQuestionPrompt(options: GenerationOptions): string {
-  const { topic, level, difficulty, count = 3, datasetName } = options;
+  const { topic, level, difficulty, count = 3, datasetName, existingQuestionsToAvoid } = options;
+  let avoidInstruction = '';
+  if (existingQuestionsToAvoid && existingQuestionsToAvoid.length > 0) {
+    const titles = existingQuestionsToAvoid.slice(-8).map(t => `"${t}"`).join(', ');
+    avoidInstruction = `\nImportant: Do NOT duplicate or repeat questions similar to these already presented: ${titles}.\n`;
+  }
+
   return `Generate ${count} advanced MongoDB practical questions. 
 Topic: ${topic || 'General MongoDB'}
 Difficulty: ${difficulty || 'Medium'}
 Level: ${level || 3}
-Dataset context: ${datasetName || 'General'}
+Dataset context: ${datasetName || 'General'}${avoidInstruction}
 
 Return a JSON array of objects. Each object MUST exactly match this structure:
 {

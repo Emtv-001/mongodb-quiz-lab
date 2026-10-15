@@ -144,6 +144,9 @@ export interface QuizSession {
   attempts: Record<string, QuestionAttempt>;
   flaggedQuestionIds: string[];
   completed: boolean;
+  targetQuestionCount?: number;
+  isAiGeneratingInBackground?: boolean;
+  aiGenerationOptions?: any;
   startTime: number;
   endTime?: number;
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { DifficultyLevel, MongoTopic, QuizMode } from '../../types';
-import { Clock, Database, Bookmark, BookmarkCheck } from 'lucide-react';
+import { Clock, Database, Bookmark, BookmarkCheck, Sparkles } from 'lucide-react';
 
 interface ProgressBarProps {
   currentIndex: number;
@@ -14,6 +14,8 @@ interface ProgressBarProps {
   isBookmarked: boolean;
   onToggleBookmark: () => void;
   onOpenSeedData: () => void;
+  isAiGeneratingInBackground?: boolean;
+  loadedQuestionsCount?: number;
 }
 
 export const ProgressBar: React.FC<ProgressBarProps> = ({
@@ -27,7 +29,9 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   totalPossiblePoints,
   isBookmarked,
   onToggleBookmark,
-  onOpenSeedData
+  onOpenSeedData,
+  isAiGeneratingInBackground,
+  loadedQuestionsCount
 }) => {
   const progressPercent = Math.round(((currentIndex + 1) / totalQuestions) * 100);
 
@@ -57,6 +61,15 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
           <span className="text-xs font-bold text-white bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">
             Q{currentIndex + 1} of {totalQuestions}
           </span>
+          {isAiGeneratingInBackground && (
+            <span
+              className="inline-flex items-center space-x-1.5 text-[11px] font-bold text-purple-300 bg-purple-500/15 border border-purple-500/30 px-2.5 py-1 rounded-lg animate-pulse"
+              title="Gemini AI is crafting the remaining questions in background..."
+            >
+              <Sparkles className="w-3.5 h-3.5 text-purple-400 animate-spin" />
+              <span>AI Generating: {loadedQuestionsCount || '...'} / {totalQuestions}</span>
+            </span>
+          )}
           <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700">
             {topic}
           </span>
