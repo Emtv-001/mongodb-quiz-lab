@@ -185,7 +185,7 @@ export function getAdminUsers(): AdminUser[] {
 
   users.forEach(u => {
     // The master account is the only Super Admin
-    if (!isMasterAccount(u) && u.role === 'super-admin') {
+    if (!isMasterAccount(u) && (u.role === 'super-admin' || u.role === 'super_admin')) {
       u.role = 'sub-admin';
       u.permissions = getRolePermissions('sub-admin');
       hasRepaired = true;
@@ -201,7 +201,7 @@ export function getAdminUsers(): AdminUser[] {
       hasRepaired = true;
     }
     // Super admins always retain full rights
-    if (u.role === 'super-admin' && Object.values(u.permissions).some(v => !v)) {
+    if ((u.role === 'super-admin' || u.role === 'super_admin') && Object.values(u.permissions).some(v => !v)) {
       u.permissions = { ...FULL_PERMISSIONS };
       hasRepaired = true;
     }
@@ -211,8 +211,13 @@ export function getAdminUsers(): AdminUser[] {
   return users;
 }
 
-export function isMasterAccount(u: Pick<AdminUser, 'id' | 'username'>): boolean {
-  return u.id === 'admin_master_1' || u.username.toLowerCase() === 'admin';
+export function isMasterAccount(u: Pick<AdminUser, 'id' | 'username'> & { role?: string }): boolean {
+  return (
+    u.id === 'admin_master_1' ||
+    u.username.toLowerCase() === 'admin' ||
+    u.role === 'super_admin' ||
+    u.role === 'super-admin'
+  );
 }
 
 /**
@@ -220,6 +225,10 @@ export function isMasterAccount(u: Pick<AdminUser, 'id' | 'username'>): boolean 
  */
 export const ROLE_PERMISSIONS: Record<AdminRole, AdminPermissions> = {
   'super-admin': {
+    canEditBranding: true, canManageTabs: true, canManageDatabases: true, canManageQuestions: true,
+    canViewLearnerData: true, canExportData: true, canManageSubAdmins: true, canResetSystem: true
+  },
+  'super_admin': {
     canEditBranding: true, canManageTabs: true, canManageDatabases: true, canManageQuestions: true,
     canViewLearnerData: true, canExportData: true, canManageSubAdmins: true, canResetSystem: true
   },
@@ -250,7 +259,7 @@ export function getFreshAdminUser(id: string): AdminUser | null {
 function authorize(executorUsername: string, perm: keyof AdminPermissions): string | null {
   const executor = getAdminUsers().find(u => u.username.toLowerCase() === executorUsername.toLowerCase());
   if (!executor || executor.status !== 'active') return "Unauthorized: your admin session is invalid.";
-  if (executor.role !== 'super-admin' && !executor.permissions[perm]) {
+  if (executor.role !== 'super-admin' && executor.role !== 'super_admin' && !executor.permissions[perm]) {
     return "Access denied: your role does not have permission to perform this action.";
   }
   return null;
@@ -331,7 +340,7 @@ export async function createAdminInvitationCode(
   const authError = authorize(creatorUsername, 'canManageSubAdmins');
   if (authError) return { success: false, message: authError };
 
-  if (role === 'super-admin') {
+  if (role === 'super-admin' || role === 'super_admin') {
     return { success: false, message: "The Super Admin role is reserved for the Master account and cannot be assigned." };
   }
 
@@ -573,6 +582,9 @@ export async function deleteSubAdmin(
   statement: string = 'Administrator account removed.'
 ): Promise<{ success: boolean; message: string }> {
   let targetUser = getFreshAdminUser(id);
+  if (targetUser && (targetUser.role === 'super_admin' || targetUser.role === 'super-admin' || isMasterAccount(targetUser))) {
+    return { success: false, message: 'Super Admin accounts cannot be deleted.' };
+  }
   
   try {
     const res = await fetch(`/api/admin/admins?id=${id}`, { method: 'DELETE' });

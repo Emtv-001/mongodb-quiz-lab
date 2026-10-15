@@ -143,7 +143,7 @@ export const AdminView: React.FC = () => {
 
   const canAccessTab = (tab: AdminTab): boolean => {
     if (!currentUser) return false;
-    if (currentUser.role === 'super-admin') return true;
+    if (currentUser.role === 'super-admin' || currentUser.role === 'super_admin') return true;
     if (tab === 'statements' || tab === 'broadcasts') return false;
     const perm = TAB_PERMISSIONS[tab];
     return !perm || Boolean(currentUser.permissions?.[perm]);
@@ -230,7 +230,7 @@ export const AdminView: React.FC = () => {
 
   useEffect(() => {
     const fetchCounts = async () => {
-      if (currentUser?.role === 'super-admin') {
+      if (currentUser?.role === 'super-admin' || currentUser?.role === 'super_admin') {
         const feedbacks = await getFeedbackEntries();
         const totalFeedbacks = feedbacks.length;
         const lastSeenFBCount = Number(localStorage.getItem('mongo_quiz_last_seen_feedback_count') || '0');
@@ -294,8 +294,8 @@ export const AdminView: React.FC = () => {
 
   const handleSelfDelete = async () => {
     if (!currentUser) return;
-    if (isMasterAccount(currentUser)) {
-      alert("The Master Super Admin account cannot be deleted.");
+    if (isMasterAccount(currentUser) || currentUser.role === 'super_admin' || currentUser.role === 'super-admin') {
+      alert("Super Admin accounts cannot be deleted.");
       return;
     }
     
@@ -945,9 +945,9 @@ export const AdminView: React.FC = () => {
     { id: 'users', label: 'Learner Cohort', icon: Users, perm: 'canViewLearnerData' },
     { id: 'admins', label: 'Admin Governance (RBAC)', icon: ShieldCheck, perm: 'canManageSubAdmins' },
     { id: 'share', label: 'Share & Export Hub', icon: Share2, perm: 'canExportData' },
-    { id: 'feedback', label: 'Learner Feedback', icon: MessageSquare, badge: currentUser.role === 'super-admin' && unreadFeedbackCount > 0 ? `${unreadFeedbackCount} New` : undefined },
+    { id: 'feedback', label: 'Learner Feedback', icon: MessageSquare, badge: (currentUser.role === 'super-admin' || currentUser.role === 'super_admin') && unreadFeedbackCount > 0 ? `${unreadFeedbackCount} New` : undefined },
     { id: 'security', label: 'Security & Audit Logs', icon: Lock, perm: 'canResetSystem' },
-    { id: 'statements', label: 'Statements Board', icon: FileText, badge: currentUser.role === 'super-admin' && unreadStatementsCount > 0 ? `${unreadStatementsCount} New` : undefined },
+    { id: 'statements', label: 'Statements Board', icon: FileText, badge: (currentUser.role === 'super-admin' || currentUser.role === 'super_admin') && unreadStatementsCount > 0 ? `${unreadStatementsCount} New` : undefined },
     { id: 'broadcasts', label: 'Broadcasts', icon: Radio }
   ];
   const adminNavTabs = allAdminNavTabs.filter(t => canAccessTab(t.id));
@@ -1061,7 +1061,7 @@ export const AdminView: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 self-end sm:self-center">
-          {!isMasterAccount(currentUser) && (
+          {!isMasterAccount(currentUser) && currentUser.role !== 'super_admin' && currentUser.role !== 'super-admin' && (
             <button
               onClick={handleSelfDelete}
               className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition-colors"
@@ -1138,7 +1138,7 @@ export const AdminView: React.FC = () => {
       )}
 
       {canAccessTab(currentAdminTab) && currentAdminTab === 'feedback' && (
-        <AdminFeedbackView isSuperAdmin={currentUser.role === 'super-admin'} />
+        <AdminFeedbackView isSuperAdmin={currentUser.role === 'super-admin' || currentUser.role === 'super_admin'} />
       )}
 
       {canAccessTab(currentAdminTab) && currentAdminTab === 'statements' && (

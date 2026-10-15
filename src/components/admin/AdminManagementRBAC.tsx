@@ -33,6 +33,7 @@ interface AdminManagementRBACProps {
 
 const ROLE_ACCESS_SUMMARY: Record<AdminRole, string> = {
   'super-admin': 'Full control of everything (reserved for the Master account).',
+  'super_admin': 'Full control of everything (reserved for the Master account).',
   'sub-admin': 'Branding & Tabs, Databases, Question Bank, Learner Cohort, Export Hub, Feedback. No admin management or security.',
   'examiner': 'Question Bank, Learner Cohort, Feedback only.',
   'moderator': 'Learner Cohort and Feedback only (read/review).'
@@ -67,7 +68,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
     return () => clearInterval(timer);
   }, [inviteCooldown]);
 
-  const canManage = currentAdmin.role === 'super-admin' || Boolean(currentAdmin.permissions?.canManageSubAdmins);
+  const canManage = currentAdmin.role === 'super-admin' || currentAdmin.role === 'super_admin' || Boolean(currentAdmin.permissions?.canManageSubAdmins);
 
   // Accept Invite Modal state (for invitee activation)
   const [showAcceptModal, setShowAcceptModal] = useState(false);
@@ -184,7 +185,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
   const handleTogglePermission = async (adminId: string, permKey: keyof AdminPermissions) => {
     const target = adminList.find(a => a.id === adminId);
     if (!target) return;
-    if (target.role === 'super-admin') {
+    if (target.role === 'super-admin' || target.role === 'super_admin') {
       alert("Super Admin permissions cannot be restricted.");
       return;
     }
@@ -412,7 +413,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
 
         <div className="space-y-4">
           {adminList.map((admin) => {
-            const isMaster = admin.id === 'admin_master_1';
+            const isMaster = admin.id === 'admin_master_1' || admin.username.toLowerCase() === 'admin' || admin.role === 'super_admin' || admin.role === 'super-admin';
             const isSelf = admin.id === currentAdmin.id;
             const isLocked = isMaster || isSelf || !canManage;
             return (
@@ -468,7 +469,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                         {admin.status === 'active' ? 'Active' : 'Suspended'}
                       </button>
 
-                      {currentAdmin.id === 'admin_master_1' && (
+                      {currentAdmin.id === 'admin_master_1' && !isMaster && admin.role !== 'super_admin' && admin.role !== 'super-admin' && (
                         <button
                           onClick={() => handleOpenDeleteModal(admin)}
                           className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
@@ -480,7 +481,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                     </div>
                   )}
 
-                  {isSelf && !isMaster && (
+                  {isSelf && !isMaster && admin.role !== 'super_admin' && admin.role !== 'super-admin' && currentAdmin.role !== 'super_admin' && currentAdmin.role !== 'super-admin' && (
                     <div className="flex items-center space-x-2 self-end sm:self-center">
                       <button
                         onClick={() => handleOpenDeleteModal(admin)}
@@ -501,8 +502,9 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                   </span>
                   <div className="flex flex-wrap gap-2 text-xs">
                     {permissionLabels.map((perm) => {
-                      const chipLocked = isLocked || admin.role === 'super-admin';
-                      const hasPerm = admin.role === 'super-admin' || Boolean(admin.permissions[perm.key]);
+                      const isSuper = admin.role === 'super-admin' || admin.role === 'super_admin';
+                      const chipLocked = isLocked || isSuper;
+                      const hasPerm = isSuper || Boolean(admin.permissions[perm.key]);
                       return (
                         <button
                           key={perm.key}

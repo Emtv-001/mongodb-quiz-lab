@@ -1,4 +1,4 @@
-export type AdminRole = 'super-admin' | 'sub-admin' | 'examiner' | 'moderator';
+export type AdminRole = 'super-admin' | 'super_admin' | 'sub-admin' | 'examiner' | 'moderator';
 
 export interface AdminPermissions {
   canEditBranding: boolean;
