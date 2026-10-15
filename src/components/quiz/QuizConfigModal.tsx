@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { QuizMode, MongoTopic, DifficultyLevel, CurriculumLevel } from '../../types';
 import { ALL_TOPICS } from '../../services/storage';
 import { Sliders, Sparkles, Target, Zap, Clock, X, Play } from 'lucide-react';
+import { ProgressiveButton } from '../common/ProgressiveButton';
 
 interface QuizConfigModalProps {
   isOpen: boolean;
@@ -46,17 +47,25 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
     'topic-practice': "Topic Practice Setup"
   };
 
-  const handleStart = (e: React.FormEvent) => {
+  const [isLaunching, setIsLaunching] = useState(false);
+
+  const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
-    onStartConfiguredQuiz({
-      mode,
-      selectedTopic: selectedTopic === 'All' ? undefined : selectedTopic,
-      questionCount: Number(questionCount),
-      difficulty,
-      level,
-      useAiGeneration
-    });
-    onClose();
+    if (isLaunching) return;
+    setIsLaunching(true);
+    try {
+      await onStartConfiguredQuiz({
+        mode,
+        selectedTopic: selectedTopic === 'All' ? undefined : selectedTopic,
+        questionCount: Number(questionCount),
+        difficulty,
+        level,
+        useAiGeneration
+      });
+      onClose();
+    } finally {
+      setIsLaunching(false);
+    }
   };
 
   return (
@@ -188,13 +197,16 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
             >
               Cancel
             </button>
-            <button
+            <ProgressiveButton
               type="submit"
+              isLoading={isLaunching}
+              loadingText={useAiGeneration ? "Synthesizing AI Questions..." : "Launching Session..."}
+              borderVariant="emerald"
               className="flex items-center space-x-2 px-6 py-2.5 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all"
             >
               <Play className="w-4 h-4 fill-current" />
               <span>Launch Session</span>
-            </button>
+            </ProgressiveButton>
           </div>
         </form>
       </div>

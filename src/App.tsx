@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getSiteCustomization, DEFAULT_SITE_CONFIG } from './services/adminService';
 import { MongoTopic, QuizMode, QuizSession } from './types';
 import { createSession } from './services/quizEngine';
@@ -105,11 +105,17 @@ export function App() {
     }
   }, [currentTab, activeSession]);
 
+  const isStartingQuizRef = useRef(false);
+
   const handleStartQuiz = async (mode: QuizMode, topic?: MongoTopic, mockExamId?: string, extraOptions?: Partial<QuizSetupOptions>) => {
     if (globalSiteConfig.maintenanceMode && currentTab !== 'admin') {
       alert("🛠️ Scheduled Maintenance: Live quiz generation and scoring are temporarily offline while administrators perform system updates. Please check back shortly!");
       return;
     }
+
+    if (isStartingQuizRef.current) return;
+    isStartingQuizRef.current = true;
+
     setIsAppLoading(true);
     if (extraOptions?.useAiGeneration) {
       setAppLoadingMessage('Synthesizing initial questions (launching in ~2s)...');
@@ -131,6 +137,9 @@ export function App() {
       setActiveSession(session);
     } finally {
       setIsAppLoading(false);
+      setTimeout(() => {
+        isStartingQuizRef.current = false;
+      }, 500);
     }
   };
 

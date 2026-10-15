@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { MOCK_EXAM_PRESETS } from '../../data/mockExams';
 import { replenishAiQuestionsBatch } from '../../services/quizEngine';
+import { ProgressiveButton } from '../common/ProgressiveButton';
 
 interface QuizControllerProps {
   session: QuizSession;
@@ -292,14 +293,16 @@ export const QuizController: React.FC<QuizControllerProps> = ({
               Back to Dashboard
             </button>
 
-            <button
+            <ProgressiveButton
               type="button"
               onClick={() => setHasStarted(true)}
+              borderVariant="emerald"
+              loadingText="Initializing Assessment..."
               className="w-full sm:w-auto flex items-center justify-center space-x-2 px-8 py-3 rounded-xl text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-xl shadow-emerald-500/25 transition-all transform hover:scale-[1.02]"
             >
               <Play className="w-4 h-4 fill-current" />
               <span>Start Assessment Now</span>
-            </button>
+            </ProgressiveButton>
           </div>
         </div>
       </div>

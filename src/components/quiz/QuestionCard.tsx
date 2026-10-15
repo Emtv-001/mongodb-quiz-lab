@@ -9,6 +9,7 @@ import { ScenarioQuestion } from './types/ScenarioQuestion';
 import { ArrangeCommand } from './types/ArrangeCommand';
 import { MultipleSelect } from './types/MultipleSelect';
 import { HelpCircle, Check, Database } from 'lucide-react';
+import { ProgressiveButton } from '../common/ProgressiveButton';
 
 interface QuestionCardProps {
   question: Question;
@@ -183,15 +184,17 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             <span>Submit to check answer immediately and see concept breakdown</span>
           </div>
 
-          <button
+          <ProgressiveButton
             type="button"
             disabled={!canSubmit}
             onClick={onSubmit}
+            borderVariant="emerald"
+            loadingText="Evaluating..."
             className="flex items-center space-x-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           >
             <Check className="w-4 h-4" />
             <span>Submit Answer</span>
-          </button>
+          </ProgressiveButton>
         </div>
       )}
     </div>

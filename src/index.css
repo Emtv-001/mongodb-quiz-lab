@@ -54,3 +54,44 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Progressive Button Load Animations within Border */
+@keyframes pb-border-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pb-border-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes pb-border-pulse {
+  0%, 100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
+.animate-pb-spin {
+  animation: pb-border-spin 2s linear infinite;
+}
+
+.animate-pb-shimmer {
+  animation: pb-border-shimmer 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-pb-border-pulse {
+  animation: pb-border-pulse 1.8s ease-in-out infinite;
+}
+

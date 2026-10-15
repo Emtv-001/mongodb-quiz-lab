@@ -32,6 +32,6 @@ const ProgressSchema = new mongoose.Schema({
   masteredFlashcardIds: [{ type: String }],
   spacedRepetition: { type: Map, of: mongoose.Schema.Types.Mixed, default: {} },
   updatedAt: { type: Date, default: Date.now }
-});
+}, { strict: false });
 
 export default mongoose.models.Progress || mongoose.model('Progress', ProgressSchema);

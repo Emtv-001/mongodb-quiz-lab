@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StudentProgress, RegisteredLearnerAccount } from '../../types';
 import { GlobalNotificationPopup } from '../common/GlobalNotificationPopup';
 import { EMTVLoader } from '../common/EMTVLoader';
+import { ProgressiveButton } from '../common/ProgressiveButton';
 import {
   getRegisteredLearnerAccount,
   requestLearnerRegistrationOtp,
@@ -886,23 +887,17 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                     className="flex-1 bg-slate-900 border border-slate-700 text-white uppercase font-mono text-xs rounded-xl px-3.5 py-2.5 focus:border-amber-500 focus:outline-none"
                     disabled={isClaimingReferral}
                   />
-                  <button
+                  <ProgressiveButton
                     type="submit"
-                    disabled={isClaimingReferral || !claimReferralCodeInput.trim()}
+                    isLoading={isClaimingReferral}
+                    loadingText="Verifying..."
+                    borderVariant="amber"
+                    disabled={!claimReferralCodeInput.trim()}
                     className="px-5 py-2.5 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all disabled:opacity-50 flex items-center justify-center space-x-1.5 shadow-md shadow-amber-500/20"
                   >
-                    {isClaimingReferral ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        <span>Verifying...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Gift className="w-3.5 h-3.5" />
-                        <span>Claim Bonus</span>
-                      </>
-                    )}
-                  </button>
+                    <Gift className="w-3.5 h-3.5" />
+                    <span>Claim Bonus</span>
+                  </ProgressiveButton>
                 </form>
 
                 {claimReferralMsg && (
@@ -1366,17 +1361,15 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                   >
                     Cancel
                   </button>
-                  <button
+                  <ProgressiveButton
                     type="submit"
-                    disabled={isSendingEmail || emailCooldown > 0}
-                    className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 shadow-md shadow-emerald-500/20 flex items-center space-x-2 transition-all duration-300 hover:scale-[1.02] active:scale-95 hover:shadow-emerald-500/40 relative overflow-hidden"
+                    isLoading={isSendingEmail}
+                    loadingText="Dispatching Real Email..."
+                    borderVariant="emerald"
+                    disabled={emailCooldown > 0}
+                    className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 shadow-md shadow-emerald-500/20 flex items-center space-x-2 transition-all duration-300 hover:scale-[1.02] active:scale-95 hover:shadow-emerald-500/40"
                   >
-                    {isSendingEmail ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        <span>Dispatching Real Email...</span>
-                      </>
-                    ) : emailCooldown > 0 ? (
+                    {emailCooldown > 0 ? (
                       <>
                         <Clock className="w-3.5 h-3.5 text-slate-950 animate-pulse" />
                         <span>Resend in {emailCooldown}s</span>
@@ -1384,7 +1377,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                     ) : (
                       <span>Send OTP & Generate Recovery Phrase</span>
                     )}
-                  </button>
+                  </ProgressiveButton>
                 </div>
               </form>
             ) : (
@@ -1451,12 +1444,15 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                     >
                       Back
                     </button>
-                    <button
+                    <ProgressiveButton
                       type="submit"
-                      className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02] active:scale-95 hover:shadow-emerald-500/40 relative overflow-hidden"
+                      isLoading={isSendingEmail}
+                      loadingText="Verifying OTP..."
+                      borderVariant="emerald"
+                      className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02] active:scale-95 hover:shadow-emerald-500/40"
                     >
                       Verify & Claim Profile (+100 🪙)
-                    </button>
+                    </ProgressiveButton>
                   </div>
                 </div>
               </form>
@@ -1534,12 +1530,15 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                 >
                   Cancel
                 </button>
-                <button
+                <ProgressiveButton
                   type="submit"
-                  className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02] active:scale-95 hover:shadow-emerald-500/40 relative overflow-hidden"
+                  isLoading={isAuthenticating}
+                  loadingText="Verifying Credentials..."
+                  borderVariant="emerald"
+                  className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02] active:scale-95 hover:shadow-emerald-500/40"
                 >
                   Sign In
-                </button>
+                </ProgressiveButton>
               </div>
             </form>
           </div>

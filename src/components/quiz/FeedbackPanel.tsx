@@ -1,6 +1,7 @@
 import React from 'react';
 import { EvaluationResult, QuizMode } from '../../types';
 import { CheckCircle2, AlertCircle, Award, ArrowRight, RotateCcw, Lightbulb, Code } from 'lucide-react';
+import { ProgressiveButton } from '../common/ProgressiveButton';
 
 interface FeedbackPanelProps {
   result: EvaluationResult;
@@ -179,14 +180,16 @@ export const FeedbackPanel: React.FC<FeedbackPanelProps> = ({
           </div>
         )}
 
-        <button
+        <ProgressiveButton
           type="button"
           onClick={onNext}
+          borderVariant="emerald"
+          loadingText={isLastQuestion ? 'Finalizing Assessment...' : 'Loading Next Question...'}
           className="flex items-center space-x-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition-all ml-auto"
         >
           <span>{isLastQuestion ? 'Complete Assessment' : 'Next Question'}</span>
           <ArrowRight className="w-4 h-4" />
-        </button>
+        </ProgressiveButton>
       </div>
     </div>
   );

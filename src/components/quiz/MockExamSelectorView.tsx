@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { MOCK_EXAM_PRESETS } from '../../data/mockExams';
 import { MockExamPreset } from '../../types';
 import { GraduationCap, Clock, Award, Shield, ArrowRight, Zap, Target } from 'lucide-react';
+import { ProgressiveButton } from '../common/ProgressiveButton';
 
 interface MockExamSelectorViewProps {
   onSelectExam: (preset: MockExamPreset) => void;
@@ -12,6 +13,13 @@ export const MockExamSelectorView: React.FC<MockExamSelectorViewProps> = ({
   onSelectExam,
   bestMockScore
 }) => {
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
+
+  const handleSelect = (preset: MockExamPreset) => {
+    if (selectedPresetId) return;
+    setSelectedPresetId(preset.id);
+    onSelectExam(preset);
+  };
   return (
     <div className="max-w-6xl mx-auto space-y-8 py-4 animate-fadeIn">
       {/* Header Banner */}
@@ -47,7 +55,7 @@ export const MockExamSelectorView: React.FC<MockExamSelectorViewProps> = ({
           return (
             <div
               key={preset.id}
-              onClick={() => onSelectExam(preset)}
+              onClick={() => handleSelect(preset)}
               className={`p-6 rounded-2xl border transition-all cursor-pointer group flex flex-col justify-between space-y-4 shadow-xl ${
                 isMastery
                   ? 'bg-gradient-to-br from-purple-950/20 to-slate-900 border-purple-500/40 hover:border-purple-400'
@@ -107,10 +115,20 @@ export const MockExamSelectorView: React.FC<MockExamSelectorViewProps> = ({
                   </span>
                 </div>
 
-                <div className="flex items-center space-x-1.5 text-xs font-bold text-emerald-400 group-hover:translate-x-1 transition-transform">
+                <ProgressiveButton
+                  type="button"
+                  isLoading={selectedPresetId === preset.id}
+                  loadingText="Launching..."
+                  borderVariant="emerald"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSelect(preset);
+                  }}
+                  className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-all shadow-sm"
+                >
                   <span>Begin Exam</span>
-                  <ArrowRight className="w-4 h-4" />
-                </div>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </ProgressiveButton>
               </div>
             </div>
           );

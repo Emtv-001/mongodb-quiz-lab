@@ -20,7 +20,7 @@ const LearnerSchema = new mongoose.Schema({
   tier: { type: String, default: 'Bronze' },
   rankNumber: { type: Number, default: 0 },
   unlockedBadges: [{ type: String }],
-  referralCode: { type: String, uppercase: true, trim: true, index: true },
+  referralCode: { type: String, uppercase: true, trim: true, unique: true, sparse: true, index: true },
   referredBy: { type: String, default: null },
   referralCount: { type: Number, default: 0 },
   referralBonusCoins: { type: Number, default: 0 },
