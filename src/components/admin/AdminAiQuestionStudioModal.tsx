@@ -140,7 +140,7 @@ export const AdminAiQuestionStudioModal: React.FC<AdminAiQuestionStudioModalProp
               <h2 className="text-lg font-black text-white flex items-center gap-2">
                 AI Question Synthesizer & Studio
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                  Gemini 2.0 Flash
+                  Gemini 2.5 Flash
                 </span>
               </h2>
               <p className="text-xs text-slate-400">
@@ -369,7 +369,7 @@ export const AdminAiQuestionStudioModal: React.FC<AdminAiQuestionStudioModalProp
         {/* Modal Footer */}
         <div className="px-6 py-3.5 border-t border-slate-800 bg-slate-950 flex items-center justify-between text-xs">
           <span className="text-slate-500">
-            Powered by Google Gemini 2.0 • Generated questions are immediately available to all learners.
+            Powered by Google Gemini 2.5 • Generated questions are immediately available to all learners.
           </span>
           <button
             onClick={onClose}

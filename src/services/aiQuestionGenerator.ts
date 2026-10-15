@@ -72,7 +72,7 @@ function parseAndFormatQuestions(text: string, options: GenerationOptions): Ques
  * Completely bypasses Vercel 10s Serverless Function timeouts and execution errors.
  */
 export async function directGeminiGenerate(prompt: string, apiKey: string): Promise<string> {
-  const models = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+  const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3-flash-preview'];
   let lastError: Error | null = null;
 
   for (const model of models) {
@@ -116,26 +116,33 @@ export async function testGeminiConnection(apiKey: string): Promise<{ success: b
   if (!apiKey || !apiKey.trim()) {
     return { success: false, message: 'Please enter a Gemini API Key to test.' };
   }
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey.trim()}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: 'Respond with JSON: {"status": "ok"}' }] }],
-        generationConfig: { responseMimeType: 'application/json' }
-      })
-    });
+  const testModels = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3-flash-preview'];
+  let lastErr = '';
 
-    if (!res.ok) {
+  for (const model of testModels) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: 'Respond with JSON: {"status": "ok"}' }] }],
+          generationConfig: { responseMimeType: 'application/json' }
+        })
+      });
+
+      if (res.ok) {
+        return { success: true, message: `Connection verified! Model ${model} is active and operational.`, model };
+      }
+
       const errText = await res.text().catch(() => '');
-      return { success: false, message: `HTTP ${res.status}: ${errText.slice(0, 150)}` };
+      lastErr = `HTTP ${res.status}: ${errText.slice(0, 150)}`;
+    } catch (err: any) {
+      lastErr = err.message || 'Connection failed.';
     }
-
-    return { success: true, message: 'Connection verified! Gemini 2.0 Flash is operational.', model: 'gemini-2.0-flash' };
-  } catch (err: any) {
-    return { success: false, message: err.message || 'Connection failed.' };
   }
+
+  return { success: false, message: lastErr };
 }
 
 /**
