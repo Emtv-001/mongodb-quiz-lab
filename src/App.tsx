@@ -49,6 +49,18 @@ export function App() {
     };
   }, []);
 
+  // Detect referral code from link (e.g. ?ref=REF-ABCD or ?referral=REF-ABCD)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get('ref') || params.get('referral');
+      if (ref && ref.trim()) {
+        const cleanRef = ref.trim().toUpperCase();
+        localStorage.setItem('mongo_quiz_pending_referral_code', cleanRef);
+      }
+    } catch {}
+  }, []);
+
   const [isAppLoading, setIsAppLoading] = useState(false);
   const [appLoadingMessage, setAppLoadingMessage] = useState('Synthesizing AI Questions...');
 

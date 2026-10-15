@@ -80,7 +80,8 @@ export async function requestLearnerRegistrationOtp(
   email: string,
   username: string,
   displayName: string,
-  passwordPlain: string
+  passwordPlain: string,
+  referralCode?: string
 ): Promise<{ success: boolean; message: string; recoveryPhrase?: string; otpCode?: string }> {
   const cleanEmail = email.trim().toLowerCase();
   const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
@@ -133,7 +134,8 @@ export async function requestLearnerRegistrationOtp(
     otpCode,
     recoveryPhrase,
     expiresAt,
-    requestedAt: Date.now()
+    requestedAt: Date.now(),
+    referralCode: referralCode?.trim()?.toUpperCase() || undefined
   };
 
   try {
@@ -195,7 +197,8 @@ export async function verifyLearnerRegistrationOtp(
         username: session.username,
         displayName: session.displayName,
         passwordHash: sha256Sync(session.passwordPlain),
-        recoveryPhrase: session.recoveryPhrase
+        recoveryPhrase: session.recoveryPhrase,
+        referralCode: session.referralCode
       })
     });
 
@@ -217,13 +220,71 @@ export async function verifyLearnerRegistrationOtp(
     progress.learnerId.pseudonym = newAccount.displayName;
     saveProgress(progress);
 
+    const welcomeCoins = newAccount.coins || 100;
+    const bonusNotice = data.referralApplied
+      ? ` (including +${data.bonusCoins} Coins & +${data.bonusXp} XP referral welcome bonus from @${data.referredBy})`
+      : '';
+
     return {
       success: true,
-      message: `Welcome @${newAccount.username}! Your Gamification Profile has been activated with +100 MongoCoins bonus!\n\nIMPORTANT: Your account recovery phrase is ${newAccount.recoveryPhrase}. Please save this securely!`,
+      message: `Welcome @${newAccount.username}! Your Gamification Profile has been activated with ${welcomeCoins} MongoCoins${bonusNotice}!\n\nIMPORTANT: Your account recovery phrase is ${newAccount.recoveryPhrase}. Please save this securely!`,
       account: newAccount
     };
   } catch (err: any) {
     return { success: false, message: "An error occurred during verification: " + err.message };
+  }
+}
+
+/**
+ * Claims a friend's referral code post-registration to receive bonus MongoCoins & XP.
+ */
+export async function claimReferralBonus(
+  learnerId: string,
+  referralCode: string
+): Promise<{ success: boolean; message: string; user?: RegisteredLearnerAccount }> {
+  try {
+    const res = await fetch('/api/auth/referrals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ learnerId, referralCode })
+    });
+    const data = await res.json();
+    if (data.success && data.user) {
+      const updated: RegisteredLearnerAccount = {
+        ...data.user,
+        id: data.user._id || data.user.id
+      };
+      saveRegisteredLearnerAccount(updated);
+      return { success: true, message: data.message, user: updated };
+    }
+    return { success: false, message: data.message || 'Failed to claim referral bonus.' };
+  } catch (err: any) {
+    return { success: false, message: err?.message || 'Network error claiming referral.' };
+  }
+}
+
+/**
+ * Retrieves the live referral analytics, share link code, and referral list for a learner.
+ */
+export async function fetchReferralStats(
+  learnerId: string
+): Promise<{
+  success: boolean;
+  referralCode?: string;
+  referredBy?: string | null;
+  referralCount?: number;
+  referralBonusCoins?: number;
+  referralBonusXp?: number;
+  referrals?: any[];
+  coins?: number;
+  xp?: number;
+  message?: string;
+}> {
+  try {
+    const res = await fetch(`/api/auth/referrals?learnerId=${learnerId}&_t=${Date.now()}`);
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, message: err?.message };
   }
 }
 
@@ -503,6 +564,7 @@ export function getLearnerGamificationStats(progress: StudentProgress) {
   // MongoCoins calculation
   let computedCoins = 50 + (totalCorrect * 5) + (streak * 15) + (completedSessions.length * 20);
   if (bestMock >= 85) computedCoins += 150;
+  if (account?.referralBonusCoins) computedCoins += account.referralBonusCoins;
   if (account?.coins && account.coins > computedCoins) computedCoins = account.coins;
 
   // Infinite Tier & Ranking Formula
@@ -618,6 +680,54 @@ export function getLearnerGamificationStats(progress: StudentProgress) {
       requirementText: '30+ Questions Attempted',
       isUnlocked: totalAttempted >= 30,
       progressPercent: Math.min(100, (totalAttempted / 30) * 100)
+    },
+    {
+      id: 'badge_community_spark',
+      title: 'Community Spark',
+      description: 'Invite your first peer to MongoDB Quiz Lab using your personal referral code.',
+      iconName: 'UserPlus',
+      category: 'Milestone',
+      coinReward: 100,
+      xpReward: 200,
+      requirementText: '1 Friend Referred',
+      isUnlocked: (account?.referralCount || 0) >= 1 || (account?.unlockedBadges || []).includes('community-spark'),
+      progressPercent: Math.min(100, ((account?.referralCount || 0) / 1) * 100)
+    },
+    {
+      id: 'badge_network_builder',
+      title: 'Network Builder',
+      description: 'Build your study circle by successfully referring 3 active learners.',
+      iconName: 'Crown',
+      category: 'Milestone',
+      coinReward: 300,
+      xpReward: 500,
+      requirementText: '3 Friends Referred',
+      isUnlocked: (account?.referralCount || 0) >= 3 || (account?.unlockedBadges || []).includes('network-builder'),
+      progressPercent: Math.min(100, ((account?.referralCount || 0) / 3) * 100)
+    },
+    {
+      id: 'badge_mongodb_ambassador',
+      title: 'MongoDB Ambassador',
+      description: 'Achieve official Ambassador status by onboarding 5 learners to the platform.',
+      iconName: 'Award',
+      category: 'Excellence',
+      coinReward: 750,
+      xpReward: 1200,
+      requirementText: '5 Friends Referred',
+      isUnlocked: (account?.referralCount || 0) >= 5 || (account?.unlockedBadges || []).includes('mongodb-ambassador'),
+      progressPercent: Math.min(100, ((account?.referralCount || 0) / 5) * 100)
+    },
+    {
+      id: 'badge_grand_influencer',
+      title: 'Grand Influencer',
+      description: 'Reach legendary community status with 10+ verified learner referrals.',
+      iconName: 'Trophy',
+      category: 'Excellence',
+      coinReward: 2000,
+      xpReward: 3000,
+      requirementText: '10 Friends Referred',
+      isUnlocked: (account?.referralCount || 0) >= 10 || (account?.unlockedBadges || []).includes('grand-influencer'),
+      progressPercent: Math.min(100, ((account?.referralCount || 0) / 10) * 100)
     }
   ];
 

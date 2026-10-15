@@ -15,7 +15,9 @@ import {
   verifyLearnerPasswordResetOtp,
   completeLearnerPasswordReset,
   syncProgressToAtlas,
-  fetchProgressFromAtlas
+  fetchProgressFromAtlas,
+  claimReferralBonus,
+  fetchReferralStats
 } from '../../services/learnerService';
 import { sha256Sync } from '../../services/security';
 import {
@@ -46,7 +48,10 @@ import {
   Crown,
   Mail,
   Clock,
-  RefreshCw
+  RefreshCw,
+  Share2,
+  Users,
+  CheckCircle2
 } from 'lucide-react';
 
 interface LearnerGamificationViewProps {
@@ -137,6 +142,70 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
   // Rewards store purchase
   const [storeMessage, setStoreMessage] = useState<string | null>(null);
 
+  // Referral & Bonuses State
+  const [regReferralCode, setRegReferralCode] = useState(() => {
+    return localStorage.getItem('mongo_quiz_pending_referral_code') || '';
+  });
+  const [referralStats, setReferralStats] = useState<{
+    referralCode?: string;
+    referredBy?: string | null;
+    referralCount?: number;
+    referralBonusCoins?: number;
+    referralBonusXp?: number;
+    referrals?: any[];
+  } | null>(null);
+  const [claimReferralCodeInput, setClaimReferralCodeInput] = useState('');
+  const [isClaimingReferral, setIsClaimingReferral] = useState(false);
+  const [claimReferralMsg, setClaimReferralMsg] = useState<{ text: string; isError: boolean } | null>(null);
+  const [copiedReferral, setCopiedReferral] = useState<'code' | 'link' | null>(null);
+
+  const loadReferralData = async (accountId: string) => {
+    try {
+      const statsRes = await fetchReferralStats(accountId);
+      if (statsRes && statsRes.success) {
+        setReferralStats(statsRes);
+      }
+    } catch (err) {}
+  };
+
+  useEffect(() => {
+    if (account?.id) {
+      loadReferralData(account.id);
+    } else {
+      setReferralStats(null);
+    }
+  }, [account?.id]);
+
+  const handleClaimReferralCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!account?.id || !claimReferralCodeInput.trim()) return;
+    setIsClaimingReferral(true);
+    setClaimReferralMsg(null);
+    try {
+      const res = await claimReferralBonus(account.id, claimReferralCodeInput.trim());
+      if (res.success) {
+        setClaimReferralMsg({ text: res.message, isError: false });
+        setClaimReferralCodeInput('');
+        refreshAccountState();
+        if (account.id) {
+          loadReferralData(account.id);
+        }
+      } else {
+        setClaimReferralMsg({ text: res.message, isError: true });
+      }
+    } catch (err: any) {
+      setClaimReferralMsg({ text: err?.message || 'Failed to claim referral bonus.', isError: true });
+    } finally {
+      setIsClaimingReferral(false);
+    }
+  };
+
+  const handleCopyReferral = (text: string, type: 'code' | 'link') => {
+    navigator.clipboard.writeText(text);
+    setCopiedReferral(type);
+    setTimeout(() => setCopiedReferral(null), 2500);
+  };
+
   const refreshAccountState = () => {
     const acc = getRegisteredLearnerAccount();
     setAccount(acc);
@@ -173,7 +242,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
     setIsSendingEmail(true);
 
     try {
-      const res = await requestLearnerRegistrationOtp(regEmail, regUsername, regDisplayName, regPassword);
+      const res = await requestLearnerRegistrationOtp(regEmail, regUsername, regDisplayName, regPassword, regReferralCode);
       if (res.success) {
         setRegStep(2);
         setRegSuccessMsg(res.message);
@@ -200,6 +269,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
     setActiveLoadingTask(null);
     
     if (res.success && res.account) {
+      localStorage.removeItem('mongo_quiz_pending_referral_code');
       refreshAccountState();
       setShowRegisterModal(false);
       alert(`🎉 Registration complete! Welcome @${res.account.username}. +100 MongoCoins bonus added to your account!`);
@@ -209,6 +279,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
       setRegUsername('');
       setRegDisplayName('');
       setRegPassword('');
+      setRegReferralCode('');
       setOtpCodeInput('');
       setRegSuccessMsg(null);
     } else {
@@ -583,6 +654,440 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
         </div>
       </div>
 
+      {/* Referrals & Study Circle Bonuses Hub */}
+      <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/40 border border-slate-800 rounded-3xl p-5 sm:p-7 shadow-2xl space-y-6 w-full min-w-0 relative overflow-hidden">
+        {/* Hub Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
+          <div className="space-y-1.5">
+            <div className="flex items-center space-x-2">
+              <span className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                <Users className="w-5 h-5" />
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                <span>Study Circle Referrals & Bonuses</span>
+              </h2>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
+              Invite your peers, classmates, and fellow developers to prepare for MongoDB certification. You earn{' '}
+              <strong className="text-amber-300 font-mono">+250 Coins</strong> &{' '}
+              <strong className="text-purple-300 font-mono">+500 XP</strong> for every friend who joins. Your friends get an instant{' '}
+              <strong className="text-emerald-300 font-mono">+150 Coins</strong> &{' '}
+              <strong className="text-purple-300 font-mono">+250 XP</strong> welcome bonus!
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+            <span className="px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono text-xs font-bold flex items-center space-x-1.5 shadow-sm">
+              <Gift className="w-4 h-4 text-amber-400" />
+              <span>Dual Referral Bonuses</span>
+            </span>
+          </div>
+        </div>
+
+        {account ? (
+          <div className="space-y-6">
+            {/* Share Code & Link Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Unique Code Box */}
+              <div className="bg-slate-950/80 border border-slate-800 p-4 sm:p-5 rounded-2xl space-y-2.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+                  Your Unique Referral Code
+                </span>
+                <div className="flex items-center space-x-2">
+                  <div className="flex-1 bg-slate-900 border border-amber-500/30 rounded-xl px-4 py-2.5 font-mono font-black text-lg sm:text-xl text-amber-400 tracking-wider truncate">
+                    {account.referralCode || referralStats?.referralCode || 'GENERATING...'}
+                  </div>
+                  <button
+                    onClick={() => handleCopyReferral(account.referralCode || referralStats?.referralCode || '', 'code')}
+                    disabled={!account.referralCode && !referralStats?.referralCode}
+                    className="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all flex items-center space-x-1.5 active:scale-95 shadow-md shadow-amber-500/20"
+                  >
+                    {copiedReferral === 'code' ? (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" />
+                        <span>Copy Code</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Share this code with friends to enter during registration.
+                </p>
+              </div>
+
+              {/* Shareable Link Box & Social Buttons */}
+              <div className="bg-slate-950/80 border border-slate-800 p-4 sm:p-5 rounded-2xl space-y-2.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+                  Instant Referral Link & Social Sharing
+                </span>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={
+                      (account.referralCode || referralStats?.referralCode)
+                        ? `${typeof window !== 'undefined' ? window.location.origin + window.location.pathname : ''}?ref=${account.referralCode || referralStats?.referralCode}`
+                        : 'Generating referral link...'
+                    }
+                    className="flex-1 bg-slate-900 border border-slate-700 text-slate-300 font-mono text-xs rounded-xl px-3 py-2.5 focus:outline-none select-all truncate"
+                  />
+                  <button
+                    onClick={() => {
+                      const code = account.referralCode || referralStats?.referralCode;
+                      if (!code) return;
+                      const link = `${window.location.origin}${window.location.pathname}?ref=${code}`;
+                      handleCopyReferral(link, 'link');
+                    }}
+                    className="px-3.5 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-purple-600 hover:bg-purple-500 text-white transition-all flex items-center space-x-1.5 active:scale-95 shadow-md shadow-purple-600/20"
+                  >
+                    {copiedReferral === 'link' ? (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4" />
+                        <span>Copy Link</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Social Share Buttons */}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <a
+                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+                      `Master MongoDB quizzes and exam practice with me! Use my referral code ${account.referralCode || referralStats?.referralCode} to get +150 bonus MongoCoins and +250 XP: ${typeof window !== 'undefined' ? window.location.origin + window.location.pathname : ''}?ref=${account.referralCode || referralStats?.referralCode}`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center space-x-1.5 transition-colors shadow-sm"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>WhatsApp</span>
+                  </a>
+
+                  <a
+                    href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
+                      `Sharpening my MongoDB skills on MongoDB Quiz Lab! Use my invite code ${account.referralCode || referralStats?.referralCode} to claim +150 bonus MongoCoins and +250 XP: ${typeof window !== 'undefined' ? window.location.origin + window.location.pathname : ''}?ref=${account.referralCode || referralStats?.referralCode}`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs flex items-center space-x-1.5 transition-colors border border-slate-700"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Twitter / X</span>
+                  </a>
+
+                  {typeof navigator !== 'undefined' && (navigator as any).share && (
+                    <button
+                      onClick={() => {
+                        const code = account.referralCode || referralStats?.referralCode;
+                        if (!code) return;
+                        (navigator as any).share({
+                          title: 'Join me on MongoDB Quiz Lab!',
+                          text: `Use my referral code ${code} to get +150 bonus MongoCoins and +250 XP!`,
+                          url: `${window.location.origin}${window.location.pathname}?ref=${code}`
+                        }).catch(() => {});
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs flex items-center space-x-1.5 transition-colors border border-slate-700"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span>Device Share</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 3 Referral Metrics Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-1">
+                <div className="flex items-center justify-between text-slate-400">
+                  <span className="text-xs font-semibold">Friends Successfully Referred</span>
+                  <Users className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-emerald-400">
+                  {referralStats?.referralCount ?? account.referralCount ?? 0}
+                </div>
+                <p className="text-[11px] text-slate-500">Active learners in your network</p>
+              </div>
+
+              <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-1">
+                <div className="flex items-center justify-between text-slate-400">
+                  <span className="text-xs font-semibold">Referral MongoCoins Earned</span>
+                  <Coins className="w-4 h-4 text-amber-400" />
+                </div>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-amber-400">
+                  +{referralStats?.referralBonusCoins ?? account.referralBonusCoins ?? 0} 🪙
+                </div>
+                <p className="text-[11px] text-slate-500">+250 🪙 per friend enrolled</p>
+              </div>
+
+              <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-1">
+                <div className="flex items-center justify-between text-slate-400">
+                  <span className="text-xs font-semibold">Referral Experience (XP) Earned</span>
+                  <Sparkles className="w-4 h-4 text-purple-400" />
+                </div>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-purple-400">
+                  +{referralStats?.referralBonusXp ?? account.referralBonusXp ?? 0} XP
+                </div>
+                <p className="text-[11px] text-slate-500">+500 XP per friend enrolled</p>
+              </div>
+            </div>
+
+            {/* Post-Registration Claim Form OR Referred By Badge */}
+            {(account.referredBy || referralStats?.referredBy) ? (
+              <div className="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center space-x-2.5 text-xs text-emerald-300">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                  <span>
+                    You were referred by{' '}
+                    <strong className="text-white font-mono font-bold">
+                      @{account.referredBy || referralStats?.referredBy}
+                    </strong>
+                    . Your <strong className="text-amber-300">+150 Coins</strong> &{' '}
+                    <strong className="text-purple-300">+250 XP</strong> welcome bonus is active!
+                  </span>
+                </div>
+                <span className="text-[11px] font-mono uppercase bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-500/30 font-bold">
+                  Bonus Claimed
+                </span>
+              </div>
+            ) : (
+              <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center space-x-2">
+                    <Gift className="w-4 h-4 text-amber-400" />
+                    <h4 className="text-sm font-bold text-white">
+                      Were you invited by a friend? Claim your bonus!
+                    </h4>
+                  </div>
+                  <span className="text-[11px] text-amber-400 font-mono font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                    +150 Coins & +250 XP
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400">
+                  If you created your account without entering a referral code, you can claim your friend's code here.
+                </p>
+
+                <form onSubmit={handleClaimReferralCode} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+                  <input
+                    type="text"
+                    placeholder="Enter friend's referral code (e.g. REF-ABC123XY)"
+                    value={claimReferralCodeInput}
+                    onChange={(e) => setClaimReferralCodeInput(e.target.value.toUpperCase())}
+                    className="flex-1 bg-slate-900 border border-slate-700 text-white uppercase font-mono text-xs rounded-xl px-3.5 py-2.5 focus:border-amber-500 focus:outline-none"
+                    disabled={isClaimingReferral}
+                  />
+                  <button
+                    type="submit"
+                    disabled={isClaimingReferral || !claimReferralCodeInput.trim()}
+                    className="px-5 py-2.5 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all disabled:opacity-50 flex items-center justify-center space-x-1.5 shadow-md shadow-amber-500/20"
+                  >
+                    {isClaimingReferral ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Verifying...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Gift className="w-3.5 h-3.5" />
+                        <span>Claim Bonus</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                {claimReferralMsg && (
+                  <div className={`p-3 rounded-xl text-xs flex items-center space-x-2 ${
+                    claimReferralMsg.isError
+                      ? 'bg-red-500/10 text-red-400 border border-red-500/30'
+                      : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                  }`}>
+                    {claimReferralMsg.isError ? (
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    ) : (
+                      <Check className="w-4 h-4 flex-shrink-0" />
+                    )}
+                    <span>{claimReferralMsg.text}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Referral Milestone Roadmap */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Crown className="w-4 h-4 text-amber-400" />
+                  <h4 className="text-sm font-bold text-white">Referral Milestones Roadmap</h4>
+                </div>
+                <span className="text-xs text-slate-400 font-mono">
+                  {referralStats?.referralCount ?? account.referralCount ?? 0} Total Referred
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {[
+                  {
+                    title: 'Community Spark',
+                    target: 1,
+                    coins: 100,
+                    xp: 200,
+                    desc: 'Invite your 1st friend',
+                    unlocked: ((referralStats?.referralCount ?? account.referralCount ?? 0) >= 1) || ((account.unlockedBadges || []).includes('community-spark'))
+                  },
+                  {
+                    title: 'Network Builder',
+                    target: 3,
+                    coins: 300,
+                    xp: 500,
+                    desc: 'Reach 3 active friends',
+                    unlocked: ((referralStats?.referralCount ?? account.referralCount ?? 0) >= 3) || ((account.unlockedBadges || []).includes('network-builder'))
+                  },
+                  {
+                    title: 'MongoDB Ambassador',
+                    target: 5,
+                    coins: 750,
+                    xp: 1200,
+                    desc: 'Onboard 5 colleagues',
+                    unlocked: ((referralStats?.referralCount ?? account.referralCount ?? 0) >= 5) || ((account.unlockedBadges || []).includes('mongodb-ambassador'))
+                  },
+                  {
+                    title: 'Grand Influencer',
+                    target: 10,
+                    coins: 2000,
+                    xp: 3000,
+                    desc: 'Reach 10+ referrals',
+                    unlocked: ((referralStats?.referralCount ?? account.referralCount ?? 0) >= 10) || ((account.unlockedBadges || []).includes('grand-influencer'))
+                  }
+                ].map((m, idx) => {
+                  const current = referralStats?.referralCount ?? account.referralCount ?? 0;
+                  const progressPct = Math.min(100, (current / m.target) * 100);
+                  return (
+                    <div
+                      key={idx}
+                      className={`p-3.5 rounded-2xl border transition-all space-y-2.5 ${
+                        m.unlocked
+                          ? 'bg-slate-950/90 border-amber-500/40 shadow-lg shadow-amber-500/5'
+                          : 'bg-slate-950/40 border-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className={`text-xs font-bold ${m.unlocked ? 'text-amber-300' : 'text-slate-400'}`}>
+                          {m.title}
+                        </span>
+                        {m.unlocked ? (
+                          <span className="p-1 rounded-full bg-emerald-500/20 text-emerald-400">
+                            <Check className="w-3.5 h-3.5" />
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-mono text-slate-500">
+                            {current}/{m.target}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-400">{m.desc}</p>
+                      <div className="flex items-center justify-between text-[10px] font-mono">
+                        <span className="text-amber-400 font-bold">+{m.coins} 🪙</span>
+                        <span className="text-purple-400">+{m.xp} XP</span>
+                      </div>
+                      <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden border border-slate-800">
+                        <div
+                          className={`h-1.5 rounded-full transition-all ${
+                            m.unlocked ? 'bg-emerald-400' : 'bg-amber-500'
+                          }`}
+                          style={{ width: `${progressPct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Referred Friends History List */}
+            {((referralStats?.referrals && referralStats.referrals.length > 0) || (account.referrals && account.referrals.length > 0)) && (
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-white flex items-center space-x-2">
+                    <Users className="w-4 h-4 text-emerald-400" />
+                    <span>Your Referred Friends List</span>
+                  </h4>
+                  <span className="text-xs text-slate-400 font-mono">
+                    {(referralStats?.referrals || account.referrals || []).length} Joined
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/60">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-800 text-[11px] text-slate-400 uppercase font-mono bg-slate-950/80">
+                        <th className="py-2.5 px-3">Friend</th>
+                        <th className="py-2.5 px-3">Username</th>
+                        <th className="py-2.5 px-3">Joined On</th>
+                        <th className="py-2.5 px-3 text-right">Bonuses Awarded</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {(referralStats?.referrals || account.referrals || []).map((ref: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-slate-900/40">
+                          <td className="py-2.5 px-3 font-semibold text-white">
+                            {ref.displayName || 'Learner'}
+                          </td>
+                          <td className="py-2.5 px-3 font-mono text-emerald-400">
+                            @{ref.username}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-400 font-mono text-[11px]">
+                            {ref.joinedAt ? new Date(ref.joinedAt).toLocaleDateString() : 'Recently'}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold text-[11px]">
+                            <span className="text-amber-400">+{ref.bonusCoinsAwarded || 250} 🪙</span>
+                            <span className="text-purple-400 ml-2">+{ref.bonusXpAwarded || 500} XP</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Guest CTA */
+          <div className="p-6 rounded-2xl bg-slate-950/80 border border-slate-800 text-center space-y-4">
+            <div className="max-w-xl mx-auto space-y-2">
+              <h3 className="text-base sm:text-lg font-bold text-white">
+                Unlock Your Personal Referral Code & Study Circle Rewards
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Create a free learner profile to get a custom shareable link. Every friend who joins earns you{' '}
+                <strong className="text-amber-400">+250 MongoCoins</strong> &{' '}
+                <strong className="text-purple-400">+500 XP</strong>, plus unlocks milestone badges!
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setShowRegisterModal(true);
+                setRegStep(1);
+                setRegError(null);
+              }}
+              className="px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-95 inline-flex items-center space-x-2"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Register Free to Claim Referral Code</span>
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Cohort Leaderboard & Tier Progression Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full min-w-0">
         {/* Left 2 Cols: Personal Progression */}
@@ -832,6 +1337,25 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                     required
                     className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none"
                   />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-300 font-semibold">Referral Code (Optional)</label>
+                    <span className="text-[11px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                      🎁 +150 Coins & +250 XP Bonus
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="e.g. REF-ABC123XY"
+                    value={regReferralCode}
+                    onChange={(e) => setRegReferralCode(e.target.value.toUpperCase())}
+                    className="w-full bg-slate-950 border border-slate-700 text-white uppercase font-mono rounded-xl p-2.5 focus:border-amber-500 focus:outline-none"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Got invited by a friend? Enter their referral code to receive an extra +150 MongoCoins and +250 XP on signup.
+                  </p>
                 </div>
 
                 <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">

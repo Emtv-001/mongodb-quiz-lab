@@ -257,6 +257,14 @@ export interface StudentDocument {
 
 export type LearnerTier = string;
 
+export interface ReferralRecord {
+  username: string;
+  displayName: string;
+  date: string;
+  bonusCoins: number;
+  bonusXp: number;
+}
+
 export interface RegisteredLearnerAccount {
   id: string;
   email: string;
@@ -271,6 +279,12 @@ export interface RegisteredLearnerAccount {
   tier: LearnerTier;
   rankNumber: number;
   unlockedBadges: string[];
+  referralCode?: string;
+  referredBy?: string;
+  referralCount?: number;
+  referralBonusCoins?: number;
+  referralBonusXp?: number;
+  referrals?: ReferralRecord[];
 }
 
 export interface LearnerAchievement {
@@ -308,6 +322,7 @@ export interface LearnerOtpSession {
   recoveryPhrase: string;
   expiresAt: number;
   requestedAt?: number;
+  referralCode?: string;
 }
 
 export interface FeedbackEntry {
