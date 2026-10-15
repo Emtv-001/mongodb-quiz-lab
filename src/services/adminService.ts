@@ -211,12 +211,13 @@ export function getAdminUsers(): AdminUser[] {
   return users;
 }
 
-export function isMasterAccount(u: Pick<AdminUser, 'id' | 'username'> & { role?: string }): boolean {
+export function isMasterAccount(u: Pick<AdminUser, 'id' | 'username'> & { email?: string; role?: string }): boolean {
+  if (!u) return false;
   return (
     u.id === 'admin_master_1' ||
+    u.id === 'master' ||
     u.username.toLowerCase() === 'admin' ||
-    u.role === 'super_admin' ||
-    u.role === 'super-admin'
+    (Boolean(u.email) && u.email!.toLowerCase() === 'uzooejims@gmail.com')
   );
 }
 

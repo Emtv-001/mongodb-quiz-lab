@@ -61,7 +61,9 @@ import {
   X,
   FileText,
   Radio,
-  Sparkles
+  Sparkles,
+  Eye,
+  Copy
 } from 'lucide-react';
 
 type AdminTab =
@@ -202,6 +204,8 @@ export const AdminView: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showAiStudioModal, setShowAiStudioModal] = useState(false);
   const [importedStatus, setImportedStatus] = useState<string | null>(null);
+  const [inspectingQuestion, setInspectingQuestion] = useState<Question | null>(null);
+  const [copiedQuestionCode, setCopiedQuestionCode] = useState(false);
 
   // Form fields for new question
   const [newTopic, setNewTopic] = useState<MongoTopic>('CRUD Operations');
@@ -1218,230 +1222,412 @@ export const AdminView: React.FC = () => {
             </div>
           )}
 
+          {/* Modal: Author New Question */}
           {showAddForm && (
-            <form onSubmit={handleCreateQuestion} className="bg-slate-900 border border-emerald-500/40 rounded-2xl p-6 shadow-2xl space-y-4 animate-fadeIn">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                <h3 className="text-base font-bold text-white flex items-center space-x-2">
-                  <FileCode className="w-4 h-4 text-emerald-400" />
-                  <span>Author Practical Assessment Question</span>
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Topic</label>
-                  <select
-                    value={newTopic}
-                    onChange={(e) => setNewTopic(e.target.value as MongoTopic)}
-                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
-                  >
-                    {ALL_TOPICS.map((t) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Level (1 to 9)</label>
-                  <select
-                    value={newLevel}
-                    onChange={(e) => setNewLevel(Number(e.target.value) as CurriculumLevel)}
-                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(l => (
-                      <option key={l} value={l}>Level {l}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Difficulty</label>
-                  <select
-                    value={newDifficulty}
-                    onChange={(e) => setNewDifficulty(e.target.value as DifficultyLevel)}
-                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
-                  >
-                    <option value="Easy">Easy</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Hard">Hard</option>
-                    <option value="Expert">Expert</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Question Type</label>
-                  <select
-                    value={newType}
-                    onChange={(e) => setNewType(e.target.value as QuestionType)}
-                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
-                  >
-                    <option value="write-command">Type D — Write Command</option>
-                    <option value="multiple-choice">Type A — Multiple Choice</option>
-                    <option value="predict-output">Type B — Predict Output</option>
-                    <option value="find-error">Type C — Find Error</option>
-                    <option value="scenario">Type F — Scenario</option>
-                    <option value="multiple-select">Type H — Multiple Select</option>
-                    <option value="true-false">Type I — True / False</option>
-                    <option value="fix-query">Type J — Fix Query</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="text-xs space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="sm:col-span-2">
-                    <label className="block text-slate-300 font-semibold mb-1">Question Title</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Find Active Patients in Cardiology"
-                      value={newTitle}
-                      onChange={(e) => setNewTitle(e.target.value)}
-                      required
-                      className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Target Dataset</label>
-                    <select
-                      value={newDataset}
-                      onChange={(e) => setNewDataset(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
-                    >
-                      <option value="GptData02">School (GptData02)</option>
-                      <option value="hospital">Hospital (patients)</option>
-                      <option value="banking">Banking (accounts)</option>
-                      <option value="ecommerce">E-Commerce (products)</option>
-                      <option value="hotel">Hotel (reservations)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Scenario Instructions</label>
-                  <textarea
-                    rows={2}
-                    placeholder="Instructions for the student..."
-                    value={newScenario}
-                    onChange={(e) => setNewScenario(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5"
-                  />
-                </div>
-
-                {['write-command', 'fix-query'].includes(newType) ? (
-                  <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Expected Shell Command</label>
-                    <input
-                      type="text"
-                      placeholder='db.patients.find({ department: "Cardiology", admitted: true })'
-                      value={newExpectedCommand}
-                      onChange={(e) => setNewExpectedCommand(e.target.value)}
-                      required
-                      className="w-full bg-slate-950 border border-slate-700 font-mono text-emerald-400 text-xs rounded-xl p-2.5"
-                    />
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3">
+            <div 
+              onClick={() => setShowAddForm(false)}
+              className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn"
+            >
+              <div 
+                onClick={(e) => e.stopPropagation()}
+                className="bg-slate-900 border border-emerald-500/30 rounded-3xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
+              >
+                {/* Modal Header */}
+                <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
+                      <FileCode className="w-5 h-5" />
+                    </div>
                     <div>
-                      <label className="block text-slate-300 font-semibold mb-1">Options (One per line)</label>
+                      <h3 className="text-base font-bold text-white">Author Practical Assessment Question</h3>
+                      <p className="text-[11px] text-slate-400">Design custom exercises across curriculum topics and Levels 1–9</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowAddForm(false)}
+                    className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Modal Body */}
+                <form onSubmit={(e) => { handleCreateQuestion(e); setShowAddForm(false); }} className="p-6 overflow-y-auto space-y-4 text-xs flex-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                    <div>
+                      <label className="block text-slate-300 font-semibold mb-1">Topic</label>
+                      <select
+                        value={newTopic}
+                        onChange={(e) => setNewTopic(e.target.value as MongoTopic)}
+                        className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none"
+                      >
+                        {ALL_TOPICS.map((t) => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 font-semibold mb-1">Level (1 to 9)</label>
+                      <select
+                        value={newLevel}
+                        onChange={(e) => setNewLevel(Number(e.target.value) as CurriculumLevel)}
+                        className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none"
+                      >
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(l => (
+                          <option key={l} value={l}>Level {l}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 font-semibold mb-1">Difficulty</label>
+                      <select
+                        value={newDifficulty}
+                        onChange={(e) => setNewDifficulty(e.target.value as DifficultyLevel)}
+                        className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none"
+                      >
+                        <option value="Easy">Easy</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Hard">Hard</option>
+                        <option value="Expert">Expert</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 font-semibold mb-1">Question Type</label>
+                      <select
+                        value={newType}
+                        onChange={(e) => setNewType(e.target.value as QuestionType)}
+                        className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none"
+                      >
+                        <option value="write-command">Type D — Write Command</option>
+                        <option value="multiple-choice">Type A — Multiple Choice</option>
+                        <option value="predict-output">Type B — Predict Output</option>
+                        <option value="find-error">Type C — Find Error</option>
+                        <option value="scenario">Type F — Scenario</option>
+                        <option value="multiple-select">Type H — Multiple Select</option>
+                        <option value="true-false">Type I — True / False</option>
+                        <option value="fix-query">Type J — Fix Query</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="text-xs space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="sm:col-span-2">
+                        <label className="block text-slate-300 font-semibold mb-1">Question Title</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Find Active Patients in Cardiology"
+                          value={newTitle}
+                          onChange={(e) => setNewTitle(e.target.value)}
+                          required
+                          className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-300 font-semibold mb-1">Target Dataset</label>
+                        <select
+                          value={newDataset}
+                          onChange={(e) => setNewDataset(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none"
+                        >
+                          <option value="GptData02">School (GptData02)</option>
+                          <option value="hospital">Hospital (patients)</option>
+                          <option value="banking">Banking (accounts)</option>
+                          <option value="ecommerce">E-Commerce (products)</option>
+                          <option value="hotel">Hotel (reservations)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-slate-300 font-semibold mb-1">Scenario Instructions</label>
                       <textarea
-                        rows={3}
-                        value={newOptionsText}
-                        onChange={(e) => setNewOptionsText(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-700 text-white font-mono text-xs rounded-xl p-2"
+                        rows={2}
+                        placeholder="Instructions for the student..."
+                        value={newScenario}
+                        onChange={(e) => setNewScenario(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none"
                       />
+                    </div>
+
+                    {['write-command', 'fix-query'].includes(newType) ? (
+                      <div>
+                        <label className="block text-slate-300 font-semibold mb-1">Expected Shell Command</label>
+                        <input
+                          type="text"
+                          placeholder='db.patients.find({ department: "Cardiology", admitted: true })'
+                          value={newExpectedCommand}
+                          onChange={(e) => setNewExpectedCommand(e.target.value)}
+                          required
+                          className="w-full bg-slate-950 border border-slate-700 font-mono text-emerald-400 text-xs rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none"
+                        />
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-slate-300 font-semibold mb-1">Options (One per line)</label>
+                          <textarea
+                            rows={3}
+                            value={newOptionsText}
+                            onChange={(e) => setNewOptionsText(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-700 text-white font-mono text-xs rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-slate-300 font-semibold mb-1">Correct Index (0-based)</label>
+                          <input
+                            type="number"
+                            min={0}
+                            max={10}
+                            value={newCorrectOptionIndex}
+                            onChange={(e) => setNewCorrectOptionIndex(Number(e.target.value))}
+                            className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-slate-300 font-semibold mb-1">Explanation</label>
+                        <input
+                          type="text"
+                          placeholder="Why this is correct..."
+                          value={newExplanation}
+                          onChange={(e) => setNewExplanation(e.target.value)}
+                          required
+                          className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-300 font-semibold mb-1">Misconception</label>
+                        <input
+                          type="text"
+                          placeholder="Common mistake..."
+                          value={newMisconception}
+                          onChange={(e) => setNewMisconception(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-slate-300 font-semibold mb-1">Concept Focus</label>
+                        <input
+                          type="text"
+                          placeholder="Key rule..."
+                          value={newConceptFocus}
+                          onChange={(e) => setNewConceptFocus(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 focus:border-emerald-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end space-x-2 pt-3 border-t border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddForm(false)}
+                      className="px-4 py-2 rounded-xl text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-95"
+                    >
+                      Save Question
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Modal: Question Inspector & Simulator */}
+          {inspectingQuestion && (
+            <div 
+              onClick={() => setInspectingQuestion(null)}
+              className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn"
+            >
+              <div 
+                onClick={(e) => e.stopPropagation()}
+                className="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
+              >
+                {/* Header */}
+                <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="p-2 bg-purple-500/10 text-purple-400 rounded-xl border border-purple-500/20">
+                      <Eye className="w-5 h-5" />
                     </div>
                     <div>
-                      <label className="block text-slate-300 font-semibold mb-1">Correct Index (0-based)</label>
-                      <input
-                        type="number"
-                        min={0}
-                        max={10}
-                        value={newCorrectOptionIndex}
-                        onChange={(e) => setNewCorrectOptionIndex(Number(e.target.value))}
-                        className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2"
-                      />
+                      <h3 className="text-base font-bold text-white">Question Inspector & Simulator</h3>
+                      <p className="text-[11px] text-slate-400 font-mono">ID: {inspectingQuestion.id} • {inspectingQuestion.topic}</p>
                     </div>
                   </div>
-                )}
+                  <button
+                    onClick={() => setInspectingQuestion(null)}
+                    className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Explanation</label>
-                    <input
-                      type="text"
-                      placeholder="Why this is correct..."
-                      value={newExplanation}
-                      onChange={(e) => setNewExplanation(e.target.value)}
-                      required
-                      className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2"
-                    />
+                {/* Body */}
+                <div className="p-6 overflow-y-auto space-y-4 text-xs flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                      Level {inspectingQuestion.level}
+                    </span>
+                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                      {inspectingQuestion.difficulty}
+                    </span>
+                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30 font-mono">
+                      {inspectingQuestion.type}
+                    </span>
+                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                      Dataset: {inspectingQuestion.datasetName || (inspectingQuestion as any).targetDataset || 'GptData02'}
+                    </span>
+                    <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 font-mono">
+                      +{inspectingQuestion.points} Points
+                    </span>
                   </div>
-                  <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Misconception</label>
-                    <input
-                      type="text"
-                      placeholder="Common mistake..."
-                      value={newMisconception}
-                      onChange={(e) => setNewMisconception(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2"
-                    />
+
+                  <div className="bg-slate-950/70 p-4 rounded-2xl border border-slate-800 space-y-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Prompt / Title</span>
+                    <h4 className="text-sm font-bold text-white">{inspectingQuestion.title}</h4>
+                    {inspectingQuestion.scenario && (
+                      <p className="text-slate-300 leading-relaxed pt-1 text-xs">{inspectingQuestion.scenario}</p>
+                    )}
                   </div>
-                  <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Concept Focus</label>
-                    <input
-                      type="text"
-                      placeholder="Key rule..."
-                      value={newConceptFocus}
-                      onChange={(e) => setNewConceptFocus(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2"
-                    />
+
+                  {inspectingQuestion.expectedCommand && (
+                    <div className="bg-slate-950/80 p-4 rounded-2xl border border-slate-800 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Expected Shell Command</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(inspectingQuestion.expectedCommand || '');
+                            setCopiedQuestionCode(true);
+                            setTimeout(() => setCopiedQuestionCode(false), 2000);
+                          }}
+                          className="text-[11px] font-mono text-slate-400 hover:text-white flex items-center space-x-1"
+                        >
+                          {copiedQuestionCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          <span>{copiedQuestionCode ? 'Copied' : 'Copy'}</span>
+                        </button>
+                      </div>
+                      <pre className="p-3 bg-slate-900 rounded-xl text-emerald-400 font-mono text-xs overflow-x-auto border border-emerald-500/20 whitespace-pre-wrap">
+                        {inspectingQuestion.expectedCommand}
+                      </pre>
+                    </div>
+                  )}
+
+                  {inspectingQuestion.options && inspectingQuestion.options.length > 0 && (
+                    <div className="bg-slate-950/70 p-4 rounded-2xl border border-slate-800 space-y-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Options & Solution</span>
+                      <div className="space-y-1.5 pt-1">
+                        {inspectingQuestion.options.map((opt, oIdx) => {
+                          const isCorrect = oIdx === inspectingQuestion.correctOptionIndex;
+                          return (
+                            <div
+                              key={oIdx}
+                              className={`p-2.5 rounded-xl border flex items-center justify-between ${
+                                isCorrect
+                                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 font-semibold'
+                                  : 'bg-slate-900/80 border-slate-800 text-slate-300'
+                              }`}
+                            >
+                              <span>{opt}</span>
+                              {isCorrect && (
+                                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">
+                                  Correct Answer
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="bg-slate-950/70 p-4 rounded-2xl border border-slate-800 space-y-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400 block">Pedagogical Explanation</span>
+                    <p className="text-slate-300 text-xs leading-relaxed">{inspectingQuestion.explanation}</p>
+                    {inspectingQuestion.misconception && (
+                      <div className="pt-2 text-[11px] text-amber-300/90 border-t border-slate-800/80">
+                        <strong className="text-amber-400">Common Misconception: </strong>
+                        {inspectingQuestion.misconception}
+                      </div>
+                    )}
+                    {inspectingQuestion.conceptFocus && (
+                      <div className="pt-1 text-[11px] text-indigo-300/90">
+                        <strong className="text-indigo-400">Concept Focus: </strong>
+                        {inspectingQuestion.conceptFocus}
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
 
-              <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(false)}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white bg-slate-800"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02] active:scale-95 hover:shadow-emerald-500/40 relative overflow-hidden"
-                >
-                  Save Question
-                </button>
+                {/* Footer */}
+                <div className="px-6 py-3 border-t border-slate-800 flex items-center justify-between bg-slate-900/90">
+                  <div>
+                    {inspectingQuestion.id.startsWith('custom_') && (
+                      <button
+                        onClick={() => {
+                          handleDeleteQuestion(inspectingQuestion.id);
+                          setInspectingQuestion(null);
+                        }}
+                        className="px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-400 hover:bg-rose-500/10 border border-rose-500/30 transition-colors flex items-center space-x-1.5"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete Custom Question</span>
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setInspectingQuestion(null)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white transition-colors"
+                  >
+                    Close Inspector
+                  </button>
+                </div>
               </div>
-            </form>
+            </div>
           )}
 
           {/* Directory Explorer */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 space-y-4 shadow-xl">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <span className="font-bold text-white text-sm">
-                Question Bank Directory ({filteredQuestions.length} questions)
-              </span>
+              <div>
+                <span className="font-bold text-white text-base">
+                  Question Bank Directory
+                </span>
+                <p className="text-xs text-slate-400">
+                  Showing {filteredQuestions.length} curated & synthesized exercises
+                </p>
+              </div>
 
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
-                    placeholder="Search questions..."
+                    placeholder="Search by topic, keyword, or command..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="bg-slate-950 border border-slate-700 text-xs text-white pl-8 pr-3 py-1.5 rounded-xl focus:outline-none focus:border-emerald-500"
+                    className="bg-slate-950 border border-slate-700 text-xs text-white pl-9 pr-4 py-2 rounded-xl focus:outline-none focus:border-emerald-500 w-64"
                   />
                 </div>
 
                 <select
                   value={selectedTopic}
                   onChange={(e) => setSelectedTopic(e.target.value)}
-                  className="bg-slate-950 border border-slate-700 text-xs text-slate-300 rounded-xl px-2.5 py-1.5"
+                  className="bg-slate-950 border border-slate-700 text-xs text-slate-300 rounded-xl px-3.5 py-2 focus:outline-none focus:border-emerald-500"
                 >
-                  <option value="All">All Topics</option>
+                  <option value="All">All Topics ({allQuestions.length})</option>
                   {ALL_TOPICS.map((t) => (
                     <option key={t} value={t}>{t}</option>
                   ))}
@@ -1449,14 +1635,17 @@ export const AdminView: React.FC = () => {
               </div>
             </div>
 
-            <div className="divide-y divide-slate-800 max-h-[500px] overflow-y-auto pr-1">
+            <div className="max-h-[640px] overflow-y-auto pr-1 space-y-3">
               {filteredQuestions.map((q) => {
                 const isCustom = q.id.startsWith('custom_');
                 return (
-                  <div key={q.id} className="py-3 px-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-800/30 rounded-xl transition-colors">
-                    <div className="space-y-1 flex-1">
+                  <div 
+                    key={q.id} 
+                    className="p-4 sm:p-5 bg-slate-950/70 border border-slate-800/80 rounded-2xl hover:border-slate-700 transition-all space-y-2.5"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
                           {q.id}
                         </span>
                         <span className="text-xs font-semibold text-emerald-400">
@@ -1465,34 +1654,56 @@ export const AdminView: React.FC = () => {
                         <span className="text-[10px] uppercase font-bold text-slate-400">
                           • Level {q.level} • {q.difficulty}
                         </span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">
+                          {q.type}
+                        </span>
                         {isCustom && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-purple-500/10 text-purple-400 border border-purple-500/30">
-                            Custom
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/30">
+                            Custom / AI Synthesized
                           </span>
                         )}
                       </div>
-                      <h4 className="text-sm font-semibold text-white">{q.title}</h4>
-                      {q.expectedCommand && (
-                        <p className="font-mono text-xs text-emerald-400/80 truncate max-w-xl">
-                          {q.expectedCommand}
-                        </p>
-                      )}
+
+                      <div className="flex items-center space-x-2 self-end sm:self-center">
+                        <span className="font-mono text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+                          +{q.points} pts
+                        </span>
+                        <button
+                          onClick={() => setInspectingQuestion(q)}
+                          className="flex items-center space-x-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-all hover:scale-[1.02] active:scale-95"
+                          title="Inspect Question Simulation"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>Inspect</span>
+                        </button>
+                        {isCustom && (
+                          <button
+                            onClick={() => handleDeleteQuestion(q.id)}
+                            className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                            title="Delete Custom Question"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="flex items-center space-x-2 self-end sm:self-center">
-                      <span className="font-mono text-xs font-bold text-slate-400 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800">
-                        {q.points} pts
-                      </span>
-                      {isCustom && (
-                        <button
-                          onClick={() => handleDeleteQuestion(q.id)}
-                          className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                          title="Delete Custom Question"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
+                    <h4 className="text-sm font-semibold text-white leading-snug">{q.title}</h4>
+
+                    {q.scenario && (
+                      <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                        {q.scenario}
+                      </p>
+                    )}
+
+                    {q.expectedCommand && (
+                      <div className="p-2.5 bg-slate-900/90 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
+                        <code className="font-mono text-xs text-emerald-400 truncate">
+                          {q.expectedCommand}
+                        </code>
+                        <span className="text-[10px] font-mono text-slate-500 shrink-0">Shell Command</span>
+                      </div>
+                    )}
                   </div>
                 );
               })}

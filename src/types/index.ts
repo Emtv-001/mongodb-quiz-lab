@@ -263,6 +263,15 @@ export interface ReferralRecord {
   date: string;
   bonusCoins: number;
   bonusXp: number;
+  status?: 'pending' | 'unlocked';
+  unlockedAt?: string | null;
+  targetXp?: number;
+  targetCoins?: number;
+  currentXp?: number;
+  currentCoins?: number;
+  bonusCoinsAwarded?: number;
+  bonusXpAwarded?: number;
+  joinedAt?: string;
 }
 
 export interface RegisteredLearnerAccount {

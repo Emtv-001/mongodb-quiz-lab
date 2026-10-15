@@ -48,39 +48,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         bonusCoinsForNewUser = 150; // New user gets 100 base + 150 referral bonus = 250 coins
         bonusXpForNewUser = 250;    // New user gets 250 base + 250 referral bonus = 500 XP
 
-        // Credit the referrer: +250 Coins & +500 XP
-        const referrerCoinsReward = 250;
-        const referrerXpReward = 500;
-
-        referrerUser.coins = (referrerUser.coins || 0) + referrerCoinsReward;
-        referrerUser.xp = (referrerUser.xp || 0) + referrerXpReward;
-        referrerUser.referralCount = (referrerUser.referralCount || 0) + 1;
-        referrerUser.referralBonusCoins = (referrerUser.referralBonusCoins || 0) + referrerCoinsReward;
-        referrerUser.referralBonusXp = (referrerUser.referralBonusXp || 0) + referrerXpReward;
-
+        // Add pending referral entry to referrer's network (unlocked when user hits 750 XP or 350 Coins)
         if (!referrerUser.referrals) referrerUser.referrals = [];
         referrerUser.referrals.unshift({
           username: cleanUsername,
           displayName: displayName || cleanUsername,
           date: new Date(),
-          bonusCoins: referrerCoinsReward,
-          bonusXp: referrerXpReward
+          status: 'pending',
+          targetXp: 750,
+          targetCoins: 350,
+          currentXp: 250 + bonusXpForNewUser, // starting 500 XP
+          currentCoins: 100 + bonusCoinsForNewUser, // starting 250 Coins
+          bonusCoins: 250,
+          bonusXp: 500,
+          unlockedAt: null
         });
-
-        // Award referral badges if milestone achieved
-        if (!referrerUser.unlockedBadges) referrerUser.unlockedBadges = [];
-        if (referrerUser.referralCount >= 1 && !referrerUser.unlockedBadges.includes('community-spark')) {
-          referrerUser.unlockedBadges.push('community-spark');
-        }
-        if (referrerUser.referralCount >= 3 && !referrerUser.unlockedBadges.includes('network-builder')) {
-          referrerUser.unlockedBadges.push('network-builder');
-        }
-        if (referrerUser.referralCount >= 5 && !referrerUser.unlockedBadges.includes('mongodb-ambassador')) {
-          referrerUser.unlockedBadges.push('mongodb-ambassador');
-        }
-        if (referrerUser.referralCount >= 10 && !referrerUser.unlockedBadges.includes('grand-influencer')) {
-          referrerUser.unlockedBadges.push('grand-influencer');
-        }
 
         await referrerUser.save();
       }

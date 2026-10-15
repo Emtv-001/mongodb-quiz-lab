@@ -25,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'DELETE') {
       const { id } = req.query;
       const target = await Admin.findById(id);
-      if (target && (target.role === 'super_admin' || target.role === 'super-admin' || target.username.toLowerCase() === 'admin' || target._id.toString() === 'admin_master_1')) {
+      if (target && (target.role === 'super_admin' || target.role === 'super-admin' || target.username.toLowerCase() === 'admin' || target.email?.toLowerCase() === 'uzooejims@gmail.com' || target._id.toString() === 'admin_master_1')) {
         return res.status(403).json({ success: false, message: 'Super Admin accounts cannot be deleted.' });
       }
       await Admin.findByIdAndDelete(id);

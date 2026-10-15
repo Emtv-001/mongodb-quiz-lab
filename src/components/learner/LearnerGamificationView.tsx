@@ -151,6 +151,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
     referralCode?: string;
     referredBy?: string | null;
     referralCount?: number;
+    pendingCount?: number;
     referralBonusCoins?: number;
     referralBonusXp?: number;
     referrals?: any[];
@@ -811,13 +812,17 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-1">
                 <div className="flex items-center justify-between text-slate-400">
-                  <span className="text-xs font-semibold">Friends Successfully Referred</span>
+                  <span className="text-xs font-semibold">Verified Dedicated Referrals</span>
                   <Users className="w-4 h-4 text-emerald-400" />
                 </div>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-emerald-400">
                   {referralStats?.referralCount ?? account.referralCount ?? 0}
                 </div>
-                <p className="text-[11px] text-slate-500">Active learners in your network</p>
+                <p className="text-[11px] text-slate-500">
+                  {(referralStats?.pendingCount || 0) > 0
+                    ? `${referralStats?.pendingCount} friend(s) in progress toward dedication`
+                    : 'Dedicated learners in your network'}
+                </p>
               </div>
 
               <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-1">
@@ -828,7 +833,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                 <div className="text-2xl sm:text-3xl font-black font-mono text-amber-400">
                   +{referralStats?.referralBonusCoins ?? account.referralBonusCoins ?? 0} 🪙
                 </div>
-                <p className="text-[11px] text-slate-500">+250 🪙 per friend enrolled</p>
+                <p className="text-[11px] text-slate-500">+250 🪙 per dedicated friend</p>
               </div>
 
               <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-1">
@@ -839,27 +844,65 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                 <div className="text-2xl sm:text-3xl font-black font-mono text-purple-400">
                   +{referralStats?.referralBonusXp ?? account.referralBonusXp ?? 0} XP
                 </div>
-                <p className="text-[11px] text-slate-500">+500 XP per friend enrolled</p>
+                <p className="text-[11px] text-slate-500">+500 XP per dedicated friend</p>
               </div>
             </div>
 
             {/* Post-Registration Claim Form OR Referred By Badge */}
             {(account.referredBy || referralStats?.referredBy) ? (
-              <div className="p-4 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 flex items-center justify-between flex-wrap gap-3">
-                <div className="flex items-center space-x-2.5 text-xs text-emerald-300">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-                  <span>
-                    You were referred by{' '}
-                    <strong className="text-white font-mono font-bold">
-                      @{account.referredBy || referralStats?.referredBy}
-                    </strong>
-                    . Your <strong className="text-amber-300">+150 Coins</strong> &{' '}
-                    <strong className="text-purple-300">+250 XP</strong> welcome bonus is active!
+              <div className="p-4 sm:p-5 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center space-x-2.5 text-xs text-emerald-300">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+                    <span>
+                      You were referred by{' '}
+                      <strong className="text-white font-mono font-bold">
+                        @{account.referredBy || referralStats?.referredBy}
+                      </strong>
+                      . Your <strong className="text-amber-300">+150 Coins</strong> &{' '}
+                      <strong className="text-purple-300">+250 XP</strong> welcome bonus was credited immediately!
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-mono uppercase bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-500/30 font-bold">
+                    Welcome Bonus Active
                   </span>
                 </div>
-                <span className="text-[11px] font-mono uppercase bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full border border-emerald-500/30 font-bold">
-                  Bonus Claimed
-                </span>
+
+                {/* Dedication progress to unlock mentor bonus */}
+                {(() => {
+                  const targetXp = 750;
+                  const targetCoins = 350;
+                  const isDedicated = stats.xp >= targetXp || stats.coins >= targetCoins;
+                  const progressPct = Math.min(100, Math.round((Math.max(stats.xp / targetXp, stats.coins / targetCoins)) * 100));
+
+                  return (
+                    <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-300 font-medium">
+                          {isDedicated ? (
+                            <span className="text-emerald-400 font-semibold flex items-center space-x-1.5">
+                              <Check className="w-4 h-4" />
+                              <span>Dedication Verified! You've unlocked @{account.referredBy || referralStats?.referredBy}'s referral reward (+250 🪙, +500 XP).</span>
+                            </span>
+                          ) : (
+                            <span>
+                              Help @{account.referredBy || referralStats?.referredBy} unlock their referral reward by demonstrating dedication (reach 750 XP or 350 Coins in quizzes).
+                            </span>
+                          )}
+                        </span>
+                        <span className="font-mono text-[11px] text-amber-400 font-bold ml-2">
+                          {stats.xp}/{targetXp} XP · {stats.coins}/{targetCoins} 🪙
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden border border-slate-800">
+                        <div
+                          className={`h-1.5 rounded-full transition-all duration-500 ${isDedicated ? 'bg-emerald-400' : 'bg-gradient-to-r from-amber-500 to-emerald-400'}`}
+                          style={{ width: `${progressPct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             ) : (
               <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-3">
@@ -925,7 +968,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                   <h4 className="text-sm font-bold text-white">Referral Milestones Roadmap</h4>
                 </div>
                 <span className="text-xs text-slate-400 font-mono">
-                  {referralStats?.referralCount ?? account.referralCount ?? 0} Total Referred
+                  {referralStats?.referralCount ?? account.referralCount ?? 0} Verified Scholars
                 </span>
               </div>
 
@@ -1027,28 +1070,59 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                       <tr className="border-b border-slate-800 text-[11px] text-slate-400 uppercase font-mono bg-slate-950/80">
                         <th className="py-2.5 px-3">Friend</th>
                         <th className="py-2.5 px-3">Username</th>
-                        <th className="py-2.5 px-3">Joined On</th>
-                        <th className="py-2.5 px-3 text-right">Bonuses Awarded</th>
+                        <th className="py-2.5 px-3">Dedication Progress</th>
+                        <th className="py-2.5 px-3 text-right">Referrer Reward</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/60">
-                      {(referralStats?.referrals || account.referrals || []).map((ref: any, idx: number) => (
-                        <tr key={idx} className="hover:bg-slate-900/40">
-                          <td className="py-2.5 px-3 font-semibold text-white">
-                            {ref.displayName || 'Learner'}
-                          </td>
-                          <td className="py-2.5 px-3 font-mono text-emerald-400">
-                            @{ref.username}
-                          </td>
-                          <td className="py-2.5 px-3 text-slate-400 font-mono text-[11px]">
-                            {ref.joinedAt ? new Date(ref.joinedAt).toLocaleDateString() : 'Recently'}
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-mono font-bold text-[11px]">
-                            <span className="text-amber-400">+{ref.bonusCoinsAwarded || 250} 🪙</span>
-                            <span className="text-purple-400 ml-2">+{ref.bonusXpAwarded || 500} XP</span>
-                          </td>
-                        </tr>
-                      ))}
+                      {(referralStats?.referrals || account.referrals || []).map((ref: any, idx: number) => {
+                        const isUnlocked = ref.status === 'unlocked' || (!ref.status && (ref.bonusCoinsAwarded || ref.bonusCoins));
+                        const targetXp = ref.targetXp || 750;
+                        const currentXp = ref.currentXp || 0;
+                        const progressPct = Math.min(100, Math.round((currentXp / targetXp) * 100));
+
+                        return (
+                          <tr key={idx} className="hover:bg-slate-900/40">
+                            <td className="py-2.5 px-3 font-semibold text-white">
+                              {ref.displayName || 'Learner'}
+                            </td>
+                            <td className="py-2.5 px-3 font-mono text-emerald-400">
+                              @{ref.username}
+                            </td>
+                            <td className="py-2.5 px-3 font-mono text-[11px]">
+                              {isUnlocked ? (
+                                <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">
+                                  <Check className="w-3 h-3" />
+                                  <span>Dedicated Scholar (Verified)</span>
+                                </span>
+                              ) : (
+                                <div className="space-y-1 py-0.5">
+                                  <div className="flex items-center space-x-2 text-[10px]">
+                                    <span className="text-amber-400 font-bold">In Progress</span>
+                                    <span className="text-slate-400 font-mono">({currentXp}/{targetXp} XP)</span>
+                                  </div>
+                                  <div className="w-28 bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                                    <div
+                                      className="bg-gradient-to-r from-amber-500 to-emerald-400 h-1.5 rounded-full transition-all duration-500"
+                                      style={{ width: `${progressPct}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono font-bold text-[11px]">
+                              {isUnlocked ? (
+                                <>
+                                  <span className="text-amber-400">+{ref.bonusCoins || 250} 🪙</span>
+                                  <span className="text-purple-400 ml-2">+{ref.bonusXp || 500} XP</span>
+                                </>
+                              ) : (
+                                <span className="text-slate-500 text-[10px] font-mono">Unlocks at {targetXp} XP</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1063,9 +1137,11 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                 Unlock Your Personal Referral Code & Study Circle Rewards
               </h3>
               <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                Create a free learner profile to get a custom shareable link. Every friend who joins earns you{' '}
+                Create a free learner profile to get a custom shareable link. Every friend who joins gets an instant{' '}
+                <strong className="text-amber-400">+150 Coins</strong> &{' '}
+                <strong className="text-purple-400">+250 XP</strong> welcome bonus, and earns you{' '}
                 <strong className="text-amber-400">+250 MongoCoins</strong> &{' '}
-                <strong className="text-purple-400">+500 XP</strong>, plus unlocks milestone badges!
+                <strong className="text-purple-400">+500 XP</strong> once they show dedication by reaching 750 XP or 350 Coins!
               </p>
             </div>
             <button

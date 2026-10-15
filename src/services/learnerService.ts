@@ -273,6 +273,7 @@ export async function fetchReferralStats(
   referralCode?: string;
   referredBy?: string | null;
   referralCount?: number;
+  pendingCount?: number;
   referralBonusCoins?: number;
   referralBonusXp?: number;
   referrals?: any[];
@@ -769,13 +770,16 @@ export async function syncProgressToAtlas(): Promise<void> {
   if (!account || !account.id) return;
   
   const progress = loadProgress();
+  const stats = getLearnerGamificationStats(progress);
   try {
     fetch('/api/learners/progress', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         learnerId: account.id,
-        progressData: progress
+        progressData: progress,
+        coins: stats.coins,
+        xp: stats.xp
       })
     }).catch(() => {});
   } catch (err) {}

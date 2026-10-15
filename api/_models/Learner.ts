@@ -4,6 +4,12 @@ const ReferralRecordSchema = new mongoose.Schema({
   username: { type: String, required: true },
   displayName: { type: String, default: '' },
   date: { type: Date, default: Date.now },
+  status: { type: String, enum: ['pending', 'unlocked'], default: 'pending' },
+  unlockedAt: { type: Date, default: null },
+  targetXp: { type: Number, default: 750 },
+  targetCoins: { type: Number, default: 350 },
+  currentXp: { type: Number, default: 0 },
+  currentCoins: { type: Number, default: 0 },
   bonusCoins: { type: Number, default: 250 },
   bonusXp: { type: Number, default: 500 }
 }, { _id: false });

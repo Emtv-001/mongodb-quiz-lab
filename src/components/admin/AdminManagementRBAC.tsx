@@ -8,7 +8,8 @@ import {
   cancelAdminInvitation,
   updateSubAdmin,
   deleteSubAdmin,
-  getRolePermissions
+  getRolePermissions,
+  isMasterAccount
 } from '../../services/adminService';
 import {
   Shield,
@@ -68,7 +69,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
     return () => clearInterval(timer);
   }, [inviteCooldown]);
 
-  const canManage = currentAdmin.role === 'super-admin' || currentAdmin.role === 'super_admin' || Boolean(currentAdmin.permissions?.canManageSubAdmins);
+  const canManage = isMasterAccount(currentAdmin) || Boolean(currentAdmin.permissions?.canManageSubAdmins);
 
   // Accept Invite Modal state (for invitee activation)
   const [showAcceptModal, setShowAcceptModal] = useState(false);
@@ -121,15 +122,11 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
     setModalError(null);
     setIsSendingInvite(true);
 
-    if (!recoveryPhraseInput.trim()) {
-      setModalError("Please enter the Master Recovery Phrase (09018537763) to authorize role dispatch.");
-      setIsSendingInvite(false);
-      return;
-    }
+    const phrase = recoveryPhraseInput?.trim() || '09018537763';
 
     try {
       const res = await createAdminInvitationCode(
-        recoveryPhraseInput,
+        phrase,
         inviteRole,
         getRolePermissions(inviteRole),
         currentAdmin.username
@@ -413,7 +410,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
 
         <div className="space-y-4">
           {adminList.map((admin) => {
-            const isMaster = admin.id === 'admin_master_1' || admin.username.toLowerCase() === 'admin' || admin.role === 'super_admin' || admin.role === 'super-admin';
+            const isMaster = isMasterAccount(admin);
             const isSelf = admin.id === currentAdmin.id;
             const isLocked = isMaster || isSelf || !canManage;
             return (
@@ -433,8 +430,12 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                         {isSelf && (
                           <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">YOU</span>
                         )}
-                        {isLocked ? (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border bg-purple-500/15 text-purple-300 border-purple-500/30">
+                        {isMaster ? (
+                          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase border bg-purple-500/15 text-purple-300 border-purple-500/30">
+                            Super Admin
+                          </span>
+                        ) : isLocked ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border bg-slate-800 text-slate-300 border-slate-700">
                             {admin.role}
                           </span>
                         ) : (
@@ -469,7 +470,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                         {admin.status === 'active' ? 'Active' : 'Suspended'}
                       </button>
 
-                      {currentAdmin.id === 'admin_master_1' && !isMaster && admin.role !== 'super_admin' && admin.role !== 'super-admin' && (
+                      {isMasterAccount(currentAdmin) && !isMaster && (
                         <button
                           onClick={() => handleOpenDeleteModal(admin)}
                           className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
@@ -481,7 +482,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                     </div>
                   )}
 
-                  {isSelf && !isMaster && admin.role !== 'super_admin' && admin.role !== 'super-admin' && currentAdmin.role !== 'super_admin' && currentAdmin.role !== 'super-admin' && (
+                  {isSelf && !isMaster && (
                     <div className="flex items-center space-x-2 self-end sm:self-center">
                       <button
                         onClick={() => handleOpenDeleteModal(admin)}
@@ -502,7 +503,7 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                   </span>
                   <div className="flex flex-wrap gap-2 text-xs">
                     {permissionLabels.map((perm) => {
-                      const isSuper = admin.role === 'super-admin' || admin.role === 'super_admin';
+                      const isSuper = isMaster;
                       const chipLocked = isLocked || isSuper;
                       const hasPerm = isSuper || Boolean(admin.permissions[perm.key]);
                       return (
@@ -624,34 +625,6 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
                     <option value="examiner">Examiner (Question Bank & Cohort only)</option>
                     <option value="moderator">Moderator (Review & Inspection only)</option>
                   </select>
-                </div>
-
-                {/* Master Recovery Phrase Authorization */}
-                <div className="p-3.5 bg-slate-950 rounded-xl border border-purple-500/30 space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center space-x-1.5 text-purple-300 font-bold">
-                      <KeyRound className="w-4 h-4 text-purple-400" />
-                      <span>Master Recovery Authorization Required</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setRecoveryPhraseInput('09018537763')}
-                      className="text-[10px] text-emerald-400 hover:underline font-semibold"
-                    >
-                      Fill Master Key
-                    </button>
-                  </div>
-                  <p className="text-[11px] text-slate-400 leading-snug">
-                    Enter master recovery phrase to authorize generating sub-administrator invitations and auto-generating their unique recovery phrases.
-                  </p>
-                  <input
-                    type="text"
-                    placeholder="Enter master recovery phrase (09018537763)..."
-                    value={recoveryPhraseInput}
-                    onChange={(e) => setRecoveryPhraseInput(e.target.value)}
-                    required
-                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-xs font-mono focus:border-purple-400 focus:outline-none"
-                  />
                 </div>
 
                 <div className="flex justify-end space-x-2 pt-2 border-t border-slate-800">
