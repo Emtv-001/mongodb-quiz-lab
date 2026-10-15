@@ -276,7 +276,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans w-full max-w-full overflow-x-hidden">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans w-full max-w-full">
       {/* Global Top Maintenance Banner */}
       {globalSiteConfig.maintenanceMode && (
         <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 px-4 py-2 text-xs font-bold flex items-center justify-between shadow-lg sticky top-0 z-[100] border-b border-amber-600/30">
@@ -309,7 +309,7 @@ export function App() {
       />
 
       {/* Main Layout Container */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto min-w-0 overflow-x-hidden">
+      <div className="flex-1 flex max-w-7xl w-full mx-auto min-w-0">
         {/* Responsive Sidebar */}
         <Sidebar
           currentTab={currentTab}
