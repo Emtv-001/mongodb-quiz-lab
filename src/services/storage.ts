@@ -328,6 +328,24 @@ export async function saveCustomQuestions(questions: Question[]): Promise<void> 
   }
 }
 
+
+export async function appendCustomQuestions(questions: Question[]): Promise<Question[]> {
+  try {
+    const res = await fetch('/api/questions?mode=append', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(questions)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data.questions || [];
+    }
+  } catch (err) {
+    console.error("Failed to append custom questions", err);
+  }
+  return [];
+}
+
 export function resetAllData(): void {
   localStorage.removeItem(PROGRESS_STORAGE_KEY);
 }

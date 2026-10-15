@@ -71,6 +71,7 @@ export interface SiteCustomization {
   enabledTabs: Record<string, boolean>;
   customTabLabels: Record<string, string>;
     maintenanceMode?: boolean;
+  geminiApiKey?: string;
   footerText: string;
 }
 

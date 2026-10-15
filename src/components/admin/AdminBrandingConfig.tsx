@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SiteCustomization } from '../../types/admin';
+import { testGeminiConnection } from '../../services/aiQuestionGenerator';
 import { getSiteCustomization, saveSiteCustomization, DEFAULT_SITE_CONFIG } from '../../services/adminService';
 import {
   Palette,
@@ -10,7 +11,13 @@ import {
   Layout,
   Save,
   Globe,
-  Sparkles
+  Sparkles,
+  Eye,
+  EyeOff,
+  Wrench,
+  KeyRound,
+  Zap,
+  AlertTriangle
 } from 'lucide-react';
 
 interface AdminBrandingConfigProps {
@@ -20,6 +27,9 @@ interface AdminBrandingConfigProps {
 export const AdminBrandingConfig: React.FC<AdminBrandingConfigProps> = ({ currentAdminUsername }) => {
   const [config, setConfig] = useState<SiteCustomization>(DEFAULT_SITE_CONFIG);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isTestingKey, setIsTestingKey] = useState(false);
+  const [keyTestResult, setKeyTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
     getSiteCustomization().then(setConfig);
@@ -76,6 +86,24 @@ export const AdminBrandingConfig: React.FC<AdminBrandingConfigProps> = ({ curren
       await saveSiteCustomization(defaults, currentAdminUsername);
       setStatusMessage("Reset to defaults.");
       setTimeout(() => setStatusMessage(null), 3000);
+    }
+  };
+
+  
+  const handleTestKey = async () => {
+    if (!config.geminiApiKey) {
+      setKeyTestResult({ success: false, message: 'Please enter a Gemini API Key first.' });
+      return;
+    }
+    setIsTestingKey(true);
+    setKeyTestResult(null);
+    try {
+      const res = await testGeminiConnection(config.geminiApiKey);
+      setKeyTestResult(res);
+    } catch (err: any) {
+      setKeyTestResult({ success: false, message: err.message || 'Test failed' });
+    } finally {
+      setIsTestingKey(false);
     }
   };
 
@@ -306,6 +334,137 @@ export const AdminBrandingConfig: React.FC<AdminBrandingConfigProps> = ({ curren
             </div>
           </div>
         </div>
+      </div>
+
+      
+      {/* Maintenance Mode & AI Integration Cards Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        {/* Maintenance Mode Card */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center space-x-2">
+                <Wrench className="w-4 h-4 text-amber-400" />
+                <h3 className="text-sm font-bold text-white">
+                  System Maintenance Mode
+                </h3>
+              </div>
+              <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold ${
+                config.maintenanceMode 
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse' 
+                  : 'bg-slate-800 text-slate-400'
+              }`}>
+                {config.maintenanceMode ? 'ACTIVE / LOCKED' : 'OFFLINE / OPEN'}
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-300 mt-3 leading-relaxed">
+              When Maintenance Mode is turned ON, non-admin learners are immediately intercepted by a clean maintenance screen. All quiz submissions, leaderboards, and progress tracking are safely frozen to prevent data inconsistencies during migrations or curriculum overhauls. Super Admins remain fully unrestricted.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between mt-4">
+            <div className="flex items-center space-x-3">
+              <div className={`w-3 h-3 rounded-full ${config.maintenanceMode ? 'bg-amber-400 animate-ping' : 'bg-slate-600'}`} />
+              <div>
+                <span className="text-xs font-bold text-white block">
+                  {config.maintenanceMode ? 'Maintenance Mode Enabled' : 'Site is Open to Public'}
+                </span>
+                <span className="text-[10px] text-slate-400">
+                  {config.maintenanceMode ? 'Learners cannot access quizzes' : 'Learners can study freely'}
+                </span>
+              </div>
+            </div>
+
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={Boolean(config.maintenanceMode)}
+                onChange={(e) => setConfig({ ...config, maintenanceMode: e.target.checked })}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+            </label>
+          </div>
+        </div>
+
+        {/* Gemini AI Integration Card */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center space-x-2">
+              <Zap className="w-4 h-4 text-purple-400" />
+              <h3 className="text-sm font-bold text-white">
+                Google Gemini AI Integration
+              </h3>
+            </div>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+              Direct Client & Synthesizer
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-300 leading-relaxed">
+            Configure your Google Gemini API key to enable instant client-side dynamic quizzes (completely immune to Vercel 10s timeouts) and unlock the Super Admin AI Question Synthesizer.
+          </p>
+
+          <div className="space-y-3 pt-1">
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1 text-xs">
+                Gemini API Key (Google AI Studio)
+              </label>
+              <div className="relative">
+                <input
+                  type={showApiKey ? 'text' : 'password'}
+                  placeholder="AIzaSy..."
+                  value={config.geminiApiKey || ''}
+                  onChange={(e) => {
+                    setConfig({ ...config, geminiApiKey: e.target.value });
+                    setKeyTestResult(null);
+                  }}
+                  className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl p-2.5 text-xs font-mono pr-20 focus:border-purple-500 focus:outline-none"
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    className="p-1.5 text-slate-400 hover:text-white rounded-lg transition-colors"
+                    title={showApiKey ? 'Hide API key' : 'Show API key'}
+                  >
+                    {showApiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <button
+                type="button"
+                onClick={handleTestKey}
+                disabled={isTestingKey || !config.geminiApiKey}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-purple-300 border border-purple-500/30 disabled:opacity-50 transition-colors"
+              >
+                <Zap className="w-3.5 h-3.5" />
+                <span>{isTestingKey ? 'Testing Connection...' : 'Test Gemini Connection'}</span>
+              </button>
+
+              <span className="text-[10px] text-slate-500 font-mono">
+                Model: gemini-2.0-flash
+              </span>
+            </div>
+
+            {keyTestResult && (
+              <div className={`p-3 rounded-xl border text-xs flex items-center space-x-2 animate-fadeIn ${
+                keyTestResult.success 
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' 
+                  : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+              }`}>
+                {keyTestResult.success ? <Check className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
+                <span className="font-semibold text-[11px] leading-tight">{keyTestResult.message}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
       </div>
 
       {/* Navigation Tabs Controller */}

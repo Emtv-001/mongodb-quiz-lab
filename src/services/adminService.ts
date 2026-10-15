@@ -74,6 +74,8 @@ export const DEFAULT_SITE_CONFIG: SiteCustomization = {
     datasets: "Live Datasets Explorer",
     review: "Question Review"
   },
+  maintenanceMode: false,
+  geminiApiKey: "",
   footerText: "EMTVTech Learning Hub • Practical Assessment Platform"
 };
 

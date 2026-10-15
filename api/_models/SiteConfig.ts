@@ -10,6 +10,8 @@ const SiteConfigSchema = new mongoose.Schema({
   footerText: { type: String, default: 'EMTVTech Learning Hub • Practical Assessment Platform' },
   enabledTabs: { type: Object, default: {} },
   customTabLabels: { type: Object, default: {} },
+  maintenanceMode: { type: Boolean, default: false },
+  geminiApiKey: { type: String, default: '' },
   updatedAt: { type: Date, default: Date.now }
 }, { strict: false }); // Allow extra fields just in case
 

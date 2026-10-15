@@ -27,6 +27,7 @@ import { AdminSecuritySettings } from './AdminSecuritySettings';
 import { AdminBroadcasts } from './AdminBroadcasts';
 import { AdminFeedbackView } from './AdminFeedbackView';
 import { AdminStatementsBoard } from './AdminStatementsBoard';
+import { AdminAiQuestionStudioModal } from './AdminAiQuestionStudioModal';
 import { DEFAULT_QUESTIONS } from '../../data/questions';
 import { ALL_TOPICS } from '../../services/storage';
 import { DifficultyLevel, MongoTopic, Question, QuestionType, CurriculumLevel } from '../../types';
@@ -59,7 +60,8 @@ import {
   MessageSquare,
   X,
   FileText,
-  Radio
+  Radio,
+  Sparkles
 } from 'lucide-react';
 
 type AdminTab =
@@ -198,6 +200,7 @@ export const AdminView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTopic, setSelectedTopic] = useState<string>('All');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showAiStudioModal, setShowAiStudioModal] = useState(false);
   const [importedStatus, setImportedStatus] = useState<string | null>(null);
 
   // Form fields for new question
@@ -1146,7 +1149,20 @@ export const AdminView: React.FC = () => {
         <AdminBroadcasts />
       )}
 
-      {/* Question Bank Directory */}
+      
+        {/* AI Question Studio Modal */}
+        <AdminAiQuestionStudioModal
+          isOpen={showAiStudioModal}
+          onClose={() => setShowAiStudioModal(false)}
+          currentAdminUsername={currentUser.username}
+          onQuestionsSaved={() => {
+            loadCustomQuestions().then(setCustomQuestions);
+            setImportedStatus("Successfully added synthesized questions to the Question Bank!");
+            setTimeout(() => setImportedStatus(null), 4000);
+          }}
+        />
+
+        {/* Question Bank Directory */}
       {canAccessTab(currentAdminTab) && currentAdminTab === 'questions' && (
         <div className="space-y-6 animate-fadeIn">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1163,7 +1179,16 @@ export const AdminView: React.FC = () => {
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAiStudioModal(true)}
+                  className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-white shadow-md shadow-purple-500/20 transition-all duration-300 hover:scale-[1.02] active:scale-95"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <span>AI Question Synthesizer</span>
+                </button>
               <button
                 onClick={() => setShowAddForm(!showAddForm)}
                 className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02] active:scale-95 hover:shadow-emerald-500/40 relative overflow-hidden"

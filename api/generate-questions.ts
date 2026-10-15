@@ -32,9 +32,9 @@ Return a JSON array of objects. Each object MUST exactly match this structure:
 Note: For multiple-choice questions, "options" must be an array of exactly 4 strings, and "correctOptionIndex" must be a number between 0 and 3. For write-command questions, leave options empty and provide expectedCommand.`;
 
   try {
-    const url = \`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=\${apiKey}\`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
     
-    const response = await fetch(url, {
+    let response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -48,8 +48,21 @@ Note: For multiple-choice questions, "options" must be an array of exactly 4 str
     });
 
     if (!response.ok) {
+      // Automatic fallback to gemini-1.5-flash
+      const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      response = await fetch(fallbackUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: 'application/json' }
+        })
+      });
+    }
+
+    if (!response.ok) {
       const errText = await response.text();
-      throw new Error(\`Gemini API Error (\${response.status}): \${errText.substring(0, 200)}\`);
+      throw new Error(`Gemini API Error (${response.status}): ${errText.substring(0, 200)}`);
     }
 
     const data = await response.json();
@@ -61,20 +74,19 @@ Note: For multiple-choice questions, "options" must be an array of exactly 4 str
 
     let questions = JSON.parse(text);
     
-    // Validate and post-process
     if (!Array.isArray(questions)) {
-        questions = [questions];
+      questions = [questions];
     }
     
     questions = questions.map((q: any, i: number) => ({
       ...q,
-      id: \`ai_\${Date.now()}_\${i}_\${Math.random().toString(36).substring(2, 6)}\`,
+      id: `ai_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
       topic: topic || 'AI Generated',
       level: level || 3,
       difficulty: difficulty || 'Medium',
       datasetName: datasetName || 'Custom',
       type: q.type === 'multiple-choice' || q.type === 'write-command' ? q.type : 'write-command',
-      tags: ['ai-generated', 'dynamic', 'gemini-2.5']
+      tags: ['ai-generated', 'dynamic', 'gemini']
     }));
 
     return res.status(200).json({ success: true, questions });

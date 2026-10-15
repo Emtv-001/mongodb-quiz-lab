@@ -10,13 +10,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ success: true, questions });
     }
     if (req.method === 'POST') {
+      const { mode } = req.query;
       // Allow bulk insert or single insert
       if (Array.isArray(req.body)) {
-        await CustomQuestion.deleteMany({}); // replace all for now, or just insert
-        const questions = await CustomQuestion.insertMany(req.body);
-        return res.status(200).json({ success: true, questions });
+        if (mode === 'append') {
+          // Upsert each question by id so we preserve existing custom questions
+          const bulkOps = req.body.map((q: any) => ({
+            updateOne: {
+              filter: { id: q.id },
+              update: { $set: q },
+              upsert: true
+            }
+          }));
+          if (bulkOps.length > 0) {
+            await CustomQuestion.bulkWrite(bulkOps);
+          }
+          const questions = await CustomQuestion.find();
+          return res.status(200).json({ success: true, questions });
+        } else {
+          await CustomQuestion.deleteMany({}); // replace all (import/restore)
+          const questions = await CustomQuestion.insertMany(req.body);
+          return res.status(200).json({ success: true, questions });
+        }
       } else {
-        const question = await CustomQuestion.create(req.body);
+        const question = await CustomQuestion.findOneAndUpdate(
+          { id: req.body.id },
+          { $set: req.body },
+          { upsert: true, new: true }
+        );
         return res.status(200).json({ success: true, question });
       }
     }
