@@ -877,7 +877,7 @@ export const completePhoneResetPassword = completePasswordReset;
  */
 export async function getSiteCustomization(): Promise<SiteCustomization> {
   try {
-    const res = await fetch('/api/config');
+    const res = await fetch('/api/config?_t=' + Date.now(), { cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       const parsed = data.config || {};
@@ -901,6 +901,7 @@ export async function saveSiteCustomization(config: SiteCustomization, executorU
     });
     if (res.ok) {
       window.dispatchEvent(new CustomEvent('site_branding_updated', { detail: config }));
+      window.dispatchEvent(new CustomEvent('site_config_updated', { detail: config }));
       addAuditLog(executorUsername, 'Update Site Branding', 'branding', `Updated site title to "${config.siteName}", color: ${config.accentColor}`);
     }
   } catch (err) {

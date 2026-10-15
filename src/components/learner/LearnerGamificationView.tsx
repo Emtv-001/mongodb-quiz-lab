@@ -53,12 +53,14 @@ interface LearnerGamificationViewProps {
   progress: StudentProgress;
   onGoToPractice: () => void;
   onGoToMockExams: () => void;
+  maintenanceMode?: boolean;
 }
 
 export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = ({
   progress,
   onGoToPractice,
-  onGoToMockExams
+  onGoToMockExams,
+  maintenanceMode
 }) => {
   const [account, setAccount] = useState<RegisteredLearnerAccount | null>(() => getRegisteredLearnerAccount());
   const [stats, setStats] = useState(() => getLearnerGamificationStats(progress));

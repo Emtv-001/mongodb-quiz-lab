@@ -3,6 +3,11 @@ import connectToDatabase from './_utils/db.js';
 import SiteConfig from './_models/SiteConfig.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Prevent aggressive edge and browser caching
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
   try {
     await connectToDatabase();
     if (req.method === 'GET') {

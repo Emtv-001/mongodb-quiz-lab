@@ -28,10 +28,25 @@ export function App() {
   const [globalSiteConfig, setGlobalSiteConfig] = useState(DEFAULT_SITE_CONFIG);
 
   useEffect(() => {
-    getSiteCustomization().then(setGlobalSiteConfig);
-    const handleConfigUpdate = () => getSiteCustomization().then(setGlobalSiteConfig);
-    window.addEventListener('site_config_updated', handleConfigUpdate);
-    return () => window.removeEventListener('site_config_updated', handleConfigUpdate);
+    const syncConfig = () => {
+      getSiteCustomization().then(setGlobalSiteConfig);
+    };
+
+    syncConfig();
+
+    window.addEventListener('site_config_updated', syncConfig);
+    window.addEventListener('site_branding_updated', syncConfig);
+    window.addEventListener('focus', syncConfig);
+
+    // Auto-poll every 12 seconds so users instantly detect maintenance without hard refresh
+    const interval = setInterval(syncConfig, 12000);
+
+    return () => {
+      window.removeEventListener('site_config_updated', syncConfig);
+      window.removeEventListener('site_branding_updated', syncConfig);
+      window.removeEventListener('focus', syncConfig);
+      clearInterval(interval);
+    };
   }, []);
 
   const [isAppLoading, setIsAppLoading] = useState(false);
@@ -75,6 +90,10 @@ export function App() {
   }, [currentTab, activeSession]);
 
   const handleStartQuiz = async (mode: QuizMode, topic?: MongoTopic, mockExamId?: string, extraOptions?: Partial<QuizSetupOptions>) => {
+    if (globalSiteConfig.maintenanceMode && currentTab !== 'admin') {
+      alert("🛠️ Scheduled Maintenance: Live quiz generation and scoring are temporarily offline while administrators perform system updates. Please check back shortly!");
+      return;
+    }
     setIsAppLoading(true);
     if (extraOptions?.useAiGeneration) {
       setAppLoadingMessage('Synthesizing AI Questions...');
@@ -233,6 +252,7 @@ export function App() {
             progress={progress}
             onGoToPractice={() => handleStartQuiz('practice')}
             onGoToMockExams={() => handleSelectTab('mock-exam-selector')}
+            maintenanceMode={Boolean(globalSiteConfig.maintenanceMode)}
           />
         );
 
@@ -257,6 +277,27 @@ export function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans w-full max-w-full overflow-x-hidden">
+      {/* Global Top Maintenance Banner */}
+      {globalSiteConfig.maintenanceMode && (
+        <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 px-4 py-2 text-xs font-bold flex items-center justify-between shadow-lg sticky top-0 z-[100] border-b border-amber-600/30">
+          <div className="flex items-center space-x-2 mx-auto">
+            <span className="text-base animate-bounce">🛠️</span>
+            <span>
+              MAINTENANCE MODE ACTIVE: Platform upgrades are currently in progress. Quiz sessions and live leaderboard scoring are temporarily paused.
+            </span>
+          </div>
+          {currentTab === 'admin' ? (
+            <span className="text-[10px] bg-slate-900 text-amber-300 px-2.5 py-0.5 rounded-full font-mono font-bold">
+              Admin Access
+            </span>
+          ) : (
+            <span className="text-[10px] bg-amber-950/20 text-slate-950 px-2 py-0.5 rounded-full font-mono uppercase">
+              Read-Only
+            </span>
+          )}
+        </div>
+      )}
+
       {isAppLoading && <EMTVLoader message={appLoadingMessage} />}
       {/* Top Navbar */}
       <Navbar

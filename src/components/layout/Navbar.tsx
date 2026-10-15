@@ -39,9 +39,11 @@ export const Navbar: React.FC<NavbarProps> = ({
     };
 
     window.addEventListener('site_branding_updated', handleUpdate);
+    window.addEventListener('site_config_updated', handleUpdate);
     window.addEventListener('learner_account_updated', handleLearnerUpdate);
     return () => {
       window.removeEventListener('site_branding_updated', handleUpdate);
+      window.removeEventListener('site_config_updated', handleUpdate);
       window.removeEventListener('learner_account_updated', handleLearnerUpdate);
     };
   }, []);
@@ -92,6 +94,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => onNavigateTab && onNavigateTab('dashboard')}
               className="flex items-center space-x-2.5 cursor-pointer flex-shrink-0"
             >
+              {siteConfig.maintenanceMode && (
+                    <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
+                      🛠️ Maintenance
+                    </span>
+                  )}
               {/* Dynamic Logo Icon */}
               <div className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${activeGradient} flex items-center justify-center shadow-lg shadow-emerald-500/20 flex-shrink-0`}>
                 {renderLogo()}

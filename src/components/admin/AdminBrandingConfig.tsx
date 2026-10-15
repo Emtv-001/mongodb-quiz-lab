@@ -35,6 +35,15 @@ export const AdminBrandingConfig: React.FC<AdminBrandingConfigProps> = ({ curren
     getSiteCustomization().then(setConfig);
   }, []);
 
+  
+  const handleToggleMaintenance = async (newVal: boolean) => {
+    const updated = { ...config, maintenanceMode: newVal };
+    setConfig(updated);
+    await saveSiteCustomization(updated, currentAdminUsername);
+    setStatusMessage(newVal ? "⚠️ Maintenance Mode activated! Non-admin learners are now notified." : "✓ Maintenance Mode deactivated. Site is now open.");
+    setTimeout(() => setStatusMessage(null), 3500);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     await saveSiteCustomization(config, currentAdminUsername);
@@ -381,7 +390,7 @@ export const AdminBrandingConfig: React.FC<AdminBrandingConfigProps> = ({ curren
               <input
                 type="checkbox"
                 checked={Boolean(config.maintenanceMode)}
-                onChange={(e) => setConfig({ ...config, maintenanceMode: e.target.checked })}
+                onChange={(e) => handleToggleMaintenance(e.target.checked)}
                 className="sr-only peer"
               />
               <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
