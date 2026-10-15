@@ -19,6 +19,7 @@ import { sendAdminInvitationEmail, sendPasswordResetEmail } from './emailService
 export const MASTER_RECOVERY_PHRASE = '09018537763';
 export const MASTER_ADMIN_EMAIL = 'admin@emtvtech.com';
 export const MASTER_ADMIN_PHONE = '09018537763';
+export const ROOT_SECURITY_EMAIL = 'uzooejims@gmail.com';
 
 const ADMIN_USERS_KEY = 'mongo_quiz_admin_users_v3';
 const ADMIN_INVITES_KEY = 'mongo_quiz_admin_invites_v3';

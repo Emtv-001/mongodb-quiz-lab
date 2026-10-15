@@ -1134,7 +1134,7 @@ export const AdminView: React.FC = () => {
       )}
 
       {canAccessTab(currentAdminTab) && currentAdminTab === 'security' && (
-        <AdminSecuritySettings />
+        <AdminSecuritySettings currentUser={currentUser} />
       )}
 
       {canAccessTab(currentAdminTab) && currentAdminTab === 'feedback' && (
