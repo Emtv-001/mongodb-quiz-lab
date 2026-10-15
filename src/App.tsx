@@ -336,7 +336,7 @@ export function App() {
       />
 
       {/* Main Layout Container */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto min-w-0 overflow-hidden">
+      <div className="flex-1 flex max-w-7xl w-full mx-auto min-w-0 min-h-0 overflow-hidden">
         {/* Responsive Sidebar */}
         <Sidebar
           currentTab={currentTab}
@@ -346,7 +346,7 @@ export function App() {
         />
 
         {/* Content View Area */}
-        <main ref={mainContentRef} className="flex-1 h-full overflow-y-auto overscroll-contain p-4 sm:p-6 lg:p-8 min-w-0 w-full max-w-full">
+        <main ref={mainContentRef} className="flex-1 h-full overflow-y-auto overscroll-contain touch-pan-y p-4 sm:p-6 lg:p-8 min-w-0 w-full max-w-full">
           {renderContent()}
         </main>
       </div>

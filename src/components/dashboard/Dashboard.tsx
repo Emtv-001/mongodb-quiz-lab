@@ -329,7 +329,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        <div className="w-full min-w-0 overflow-x-auto pb-2 pt-1 scrollbar-none">
+        <div className="w-full min-w-0 overflow-x-auto pb-2 pt-1 scrollbar-none overscroll-contain touch-pan-x">
           <div className="flex items-center justify-between gap-1.5 min-w-[520px] sm:min-w-0 w-full">
             {calendarDays.map((cd) => {
               const hasActivity = cd.count > 0;

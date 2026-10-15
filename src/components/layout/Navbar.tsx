@@ -77,14 +77,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   const activeGradient = colorGradients[siteConfig.accentColor] || colorGradients['emerald'];
 
   return (
-    <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 w-full max-w-full overflow-x-auto scrollbar-none shadow-sm">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full min-w-max sm:min-w-0">
-        <div className="flex items-center justify-between h-16 gap-3 sm:gap-4">
-          {/* Brand Left */}
-          <div className="flex items-center space-x-3 flex-shrink-0">
+    <header className="shrink-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 w-full max-w-full shadow-sm select-none overflow-hidden overscroll-none">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full min-w-0">
+        <div className="flex items-center justify-between h-16 gap-2 sm:gap-4 min-w-0">
+          {/* Brand Left - Permanently pinned and rock-solid */}
+          <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
             <button
               onClick={onToggleSidebar}
-              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 lg:hidden flex-shrink-0"
+              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 lg:hidden shrink-0"
               aria-label="Toggle menu"
             >
               <Menu className="w-5 h-5" />
@@ -92,20 +92,20 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <div
               onClick={() => onNavigateTab && onNavigateTab('dashboard')}
-              className="flex items-center space-x-2.5 cursor-pointer flex-shrink-0"
+              className="flex items-center space-x-2 sm:space-x-2.5 cursor-pointer shrink-0"
             >
               {siteConfig.maintenanceMode && (
-                    <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
-                      🛠️ Maintenance
-                    </span>
-                  )}
+                <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
+                  🛠️ Maintenance
+                </span>
+              )}
               {/* Dynamic Logo Icon */}
-              <div className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${activeGradient} flex items-center justify-center shadow-lg shadow-emerald-500/20 flex-shrink-0`}>
+              <div className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${activeGradient} flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0`}>
                 {renderLogo()}
               </div>
-              <div className="flex-shrink-0">
+              <div className="shrink-0">
                 <div className="flex items-center space-x-1.5 whitespace-nowrap">
-                  <span className="font-extrabold text-base tracking-tight text-white">
+                  <span className="font-extrabold text-sm sm:text-base tracking-tight text-white">
                     {siteConfig.siteName}
                   </span>
                   <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -119,33 +119,33 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Right Action Items */}
-          <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
+          {/* Right Action Items & Tab Pills - Completely isolated horizontal scroll */}
+          <div className="flex items-center space-x-2 sm:space-x-3 overflow-x-auto scrollbar-none overscroll-contain touch-pan-x shrink min-w-0 py-1">
             {/* Gamification / MongoCoins CTA */}
             <button
               onClick={() => onNavigateTab && onNavigateTab('learner-hub')}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/15 to-purple-500/15 hover:from-amber-500/25 hover:to-purple-500/25 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all shadow-sm flex-shrink-0 whitespace-nowrap"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/15 to-purple-500/15 hover:from-amber-500/25 hover:to-purple-500/25 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all shadow-sm shrink-0 whitespace-nowrap"
               title="View Personal Points, Rank & MongoCoins"
             >
-              <Trophy className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+              <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               <span>{learnerAccount ? `${learnerAccount.coins || 100} 🪙` : 'Points & 🪙'}</span>
             </button>
 
             {/* Seed Data Explorer Button */}
             <button
               onClick={onOpenSeedData}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800/80 hover:bg-slate-700/80 text-emerald-400 border border-slate-700 transition-all hover:shadow-md hover:shadow-emerald-500/10 flex-shrink-0 whitespace-nowrap"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800/80 hover:bg-slate-700/80 text-emerald-400 border border-slate-700 transition-all hover:shadow-md hover:shadow-emerald-500/10 shrink-0 whitespace-nowrap"
               title="Inspect Live Data Collections"
             >
-              <Database className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+              <Database className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <span className="hidden md:inline">Live Datasets</span>
               <span className="md:hidden">Datasets</span>
             </button>
 
             {/* Best Score Badge */}
             {bestScore > 0 && (
-              <div className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-purple-500/10 text-purple-300 border border-purple-500/20 text-xs font-semibold flex-shrink-0 whitespace-nowrap">
-                <Award className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
+              <div className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-purple-500/10 text-purple-300 border border-purple-500/20 text-xs font-semibold shrink-0 whitespace-nowrap">
+                <Award className="w-3.5 h-3.5 text-purple-400 shrink-0" />
                 <span className="hidden md:inline">Best Mock:</span>
                 <span>{bestScore}%</span>
               </div>
@@ -153,10 +153,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Prominent Streak Counter */}
             <div
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-bold flex-shrink-0 whitespace-nowrap shadow-sm shadow-amber-500/10"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-bold shrink-0 whitespace-nowrap shadow-sm shadow-amber-500/10"
               title={`Current daily learning streak: ${currentStreak} days`}
             >
-              <Flame className="w-4 h-4 text-amber-400 animate-pulse flex-shrink-0" />
+              <Flame className="w-4 h-4 text-amber-400 animate-pulse shrink-0" />
               <span>{currentStreak} Day{currentStreak === 1 ? '' : 's'} Streak 🔥</span>
             </div>
           </div>
