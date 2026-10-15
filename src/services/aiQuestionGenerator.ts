@@ -13,36 +13,43 @@ export interface GenerationOptions {
 }
 
 /**
- * Builds the strict structured JSON prompt for Gemini.
+ * Builds the strict, concise structured JSON prompt for Gemini.
+ * Optimized for ultra-fast generation (< 3-5 seconds) by enforcing token brevity.
  */
 function buildQuestionPrompt(options: GenerationOptions): string {
   const { topic, level, difficulty, count = 3, datasetName, existingQuestionsToAvoid } = options;
   let avoidInstruction = '';
   if (existingQuestionsToAvoid && existingQuestionsToAvoid.length > 0) {
-    const titles = existingQuestionsToAvoid.slice(-8).map(t => `"${t}"`).join(', ');
-    avoidInstruction = `\nImportant: Do NOT duplicate or repeat questions similar to these already presented: ${titles}.\n`;
+    const titles = existingQuestionsToAvoid.slice(-6).map(t => `"${t}"`).join(', ');
+    avoidInstruction = `\nAvoid repeating similar questions to: ${titles}.\n`;
   }
 
-  return `Generate ${count} advanced MongoDB practical questions. 
+  return `Generate exactly ${count} advanced MongoDB practical quiz questions. 
 Topic: ${topic || 'General MongoDB'}
 Difficulty: ${difficulty || 'Medium'}
 Level: ${level || 3}
 Dataset context: ${datasetName || 'General'}${avoidInstruction}
 
+SPEED & BREVITY RULES (CRITICAL FOR PERFORMANCE):
+- Keep "scenario" concise (maximum 1-2 sentences).
+- Keep "explanation" and "misconception" crisp and direct (maximum 1-2 sentences each).
+- Keep option strings concise.
+- Output ONLY the raw valid JSON array without any markdown wrappers or conversational filler.
+
 Return a JSON array of objects. Each object MUST exactly match this structure:
 {
   "title": "String (Short question title)",
-  "scenario": "String (The context or problem description)",
+  "scenario": "String (Concise 1-2 sentence context or problem description)",
   "type": "String (must be either 'write-command' or 'multiple-choice')",
   "expectedCommand": "String (The correct MongoDB shell command, required if type is write-command. E.g. db.users.find({}))",
   "options": ["String", "String", "String", "String"],
   "correctOptionIndex": 0,
-  "explanation": "String (Detailed explanation of the correct answer)",
-  "misconception": "String (A common pitfall or incorrect approach)",
-  "conceptFocus": "String (The core MongoDB concept being tested)",
+  "explanation": "String (Concise 1-2 sentence explanation of correct answer)",
+  "misconception": "String (Concise 1-sentence common pitfall)",
+  "conceptFocus": "String (Core concept)",
   "points": 10
 }
-Note: For multiple-choice questions, "options" must be an array of exactly 4 strings, and "correctOptionIndex" must be a number between 0 and 3. For write-command questions, leave options empty and provide expectedCommand.`;
+Note: For multiple-choice questions, "options" must be an array of exactly 4 strings, and "correctOptionIndex" must be a number between 0 and 3. For write-command questions, leave options empty array [] and provide expectedCommand.`;
 }
 
 /**
@@ -77,24 +84,39 @@ function parseAndFormatQuestions(text: string, options: GenerationOptions): Ques
 /**
  * Direct call to Google Gemini API from browser (Alternative 1).
  * Completely bypasses Vercel 10s Serverless Function timeouts and execution errors.
+ * Uses gemini-2.5-flash-lite and disables thinking budget for sub-3s response times.
  */
-export async function directGeminiGenerate(prompt: string, apiKey: string): Promise<string> {
-  const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3-flash-preview'];
+export async function directGeminiGenerate(
+  prompt: string,
+  apiKey: string,
+  timeoutMs: number = 7500
+): Promise<string> {
+  // Put gemini-2.5-flash-lite first for ultra-fast generation (sub-3s)
+  const models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-3-flash-preview'];
   let lastError: Error | null = null;
 
   for (const model of models) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`;
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           generationConfig: {
-            responseMimeType: 'application/json'
+            responseMimeType: 'application/json',
+            // Disable thinking/reasoning overhead to achieve instant generation within 2-4 seconds
+            thinkingConfig: {
+              thinkingBudget: 0
+            }
           }
         })
       });
+      clearTimeout(timeoutId);
 
       if (!res.ok) {
         const errText = await res.text().catch(() => '');
@@ -108,8 +130,12 @@ export async function directGeminiGenerate(prompt: string, apiKey: string): Prom
       }
       return text;
     } catch (err: any) {
+      clearTimeout(timeoutId);
       lastError = err;
       console.warn(`Direct Gemini call failed with ${model}:`, err.message);
+      if (err.name === 'AbortError') {
+        break; // Don't continue to next model if hard timeout elapsed
+      }
     }
   }
 
@@ -123,7 +149,7 @@ export async function testGeminiConnection(apiKey: string): Promise<{ success: b
   if (!apiKey || !apiKey.trim()) {
     return { success: false, message: 'Please enter a Gemini API Key to test.' };
   }
-  const testModels = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-3-flash-preview'];
+  const testModels = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-3-flash-preview'];
   let lastErr = '';
 
   for (const model of testModels) {
@@ -134,7 +160,12 @@ export async function testGeminiConnection(apiKey: string): Promise<{ success: b
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: 'Respond with JSON: {"status": "ok"}' }] }],
-          generationConfig: { responseMimeType: 'application/json' }
+          generationConfig: {
+            responseMimeType: 'application/json',
+            thinkingConfig: {
+              thinkingBudget: 0
+            }
+          }
         })
       });
 
@@ -154,8 +185,8 @@ export async function testGeminiConnection(apiKey: string): Promise<{ success: b
 
 /**
  * Generates dynamic, AI-synthesized practical MongoDB questions on the fly.
- * Priority 1: Direct Client-Side Gemini (Immune to Vercel timeouts)
- * Priority 2: Vercel Backend Proxy (/api/generate-questions)
+ * Priority 1: Direct Client-Side Gemini (Immune to Vercel timeouts, sub-3s via flash-lite & 0-thinking)
+ * Priority 2: Vercel Backend Proxy (/api/generate-questions) with 7.5s hard timeout
  */
 export async function generateAiDynamicQuestions(options: GenerationOptions = {}): Promise<Question[]> {
   const prompt = buildQuestionPrompt(options);
@@ -167,19 +198,33 @@ export async function generateAiDynamicQuestions(options: GenerationOptions = {}
     apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   }
 
+  // Fast check: check local cached site config first to avoid a 1-2s serverless cold-start roundtrip
+  if (!apiKey) {
+    try {
+      const cached = localStorage.getItem('mongo_quiz_site_config_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.geminiApiKey) apiKey = parsed.geminiApiKey;
+      }
+    } catch {}
+  }
+
   if (!apiKey) {
     try {
       const siteConfig = await getSiteCustomization();
       if (siteConfig?.geminiApiKey) {
         apiKey = siteConfig.geminiApiKey;
+        try {
+          localStorage.setItem('mongo_quiz_site_config_cache', JSON.stringify(siteConfig));
+        } catch {}
       }
     } catch {}
   }
 
-  // 2. If API Key is available, perform direct client-side call
+  // 2. If API Key is available, perform direct client-side call (7.5s hard limit)
   if (apiKey && apiKey.trim()) {
     try {
-      const rawJson = await directGeminiGenerate(prompt, apiKey);
+      const rawJson = await directGeminiGenerate(prompt, apiKey, 7500);
       const questions = parseAndFormatQuestions(rawJson, options);
       if (questions.length > 0) {
         return questions;
@@ -189,13 +234,18 @@ export async function generateAiDynamicQuestions(options: GenerationOptions = {}
     }
   }
 
-  // 3. Fallback: Call Vercel backend route (/api/generate-questions)
+  // 3. Fallback: Call Vercel backend route (/api/generate-questions) with 7.5s hard timeout
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 7500);
+
     const response = await fetch('/api/generate-questions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
       body: JSON.stringify(options)
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       let errText = await response.text().catch(() => '');
@@ -214,7 +264,7 @@ export async function generateAiDynamicQuestions(options: GenerationOptions = {}
       return data.questions;
     }
   } catch (proxyErr: any) {
-    console.warn("Backend proxy also failed:", proxyErr.message);
+    console.warn("Backend proxy also failed or timed out:", proxyErr.message);
     throw proxyErr;
   }
 

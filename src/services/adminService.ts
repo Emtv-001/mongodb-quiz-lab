@@ -882,19 +882,30 @@ export async function getSiteCustomization(): Promise<SiteCustomization> {
     if (res.ok) {
       const data = await res.json();
       const parsed = data.config || {};
-      return {
+      const full = {
         ...DEFAULT_SITE_CONFIG,
         ...parsed,
         enabledTabs: { ...DEFAULT_SITE_CONFIG.enabledTabs, ...(parsed.enabledTabs || {}) },
         customTabLabels: { ...DEFAULT_SITE_CONFIG.customTabLabels, ...(parsed.customTabLabels || {}) }
       };
+      try {
+        localStorage.setItem('mongo_quiz_site_config_cache', JSON.stringify(full));
+      } catch {}
+      return full;
     }
+  } catch {}
+  try {
+    const cached = localStorage.getItem('mongo_quiz_site_config_cache');
+    if (cached) return JSON.parse(cached);
   } catch {}
   return DEFAULT_SITE_CONFIG;
 }
 
 export async function saveSiteCustomization(config: SiteCustomization, executorUsername: string = 'admin'): Promise<void> {
   try {
+    try {
+      localStorage.setItem('mongo_quiz_site_config_cache', JSON.stringify(config));
+    } catch {}
     const res = await fetch('/api/config', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },

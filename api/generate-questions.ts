@@ -8,71 +8,96 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ success: false, message: 'GEMINI_API_KEY not configured in Vercel environment variables.' });
   }
   
-  const { topic, level, difficulty, count = 3, datasetName } = req.body;
+  const { topic, level, difficulty, count = 3, datasetName, existingQuestionsToAvoid } = req.body;
 
-  const prompt = `Generate ${count} advanced MongoDB practical questions. 
+  let avoidInstruction = '';
+  if (existingQuestionsToAvoid && existingQuestionsToAvoid.length > 0) {
+    const titles = existingQuestionsToAvoid.slice(-6).map((t: string) => `"${t}"`).join(', ');
+    avoidInstruction = ` Avoid repeating similar questions to: ${titles}.`;
+  }
+
+  const prompt = `Generate ${count} advanced MongoDB practical quiz questions. 
 Topic: ${topic || 'General MongoDB'}
 Difficulty: ${difficulty || 'Medium'}
 Level: ${level || 3}
-Dataset context: ${datasetName || 'General'}
+Dataset context: ${datasetName || 'General'}${avoidInstruction}
+
+SPEED & BREVITY RULES (CRITICAL):
+- Keep "scenario" concise (maximum 1-2 sentences).
+- Keep "explanation" and "misconception" crisp and direct (maximum 1-2 sentences).
+- Keep option strings concise.
+- Output ONLY the valid JSON array without any markdown wrappers or conversational filler.
 
 Return a JSON array of objects. Each object MUST exactly match this structure:
 {
   "title": "String (Short question title)",
-  "scenario": "String (The context or problem description)",
+  "scenario": "String (Concise 1-2 sentence context or problem description)",
   "type": "String (must be either 'write-command' or 'multiple-choice')",
   "expectedCommand": "String (The correct MongoDB shell command, required if type is write-command. E.g. db.users.find({}))",
   "options": ["String", "String", "String", "String"],
   "correctOptionIndex": 0,
-  "explanation": "String (Detailed explanation of the correct answer)",
-  "misconception": "String (A common pitfall or incorrect approach)",
+  "explanation": "String (Concise 1-2 sentence explanation)",
+  "misconception": "String (Concise 1-sentence common pitfall)",
   "conceptFocus": "String (The core MongoDB concept being tested)",
   "points": 10
 }
-Note: For multiple-choice questions, "options" must be an array of exactly 4 strings, and "correctOptionIndex" must be a number between 0 and 3. For write-command questions, leave options empty and provide expectedCommand.`;
+Note: For multiple-choice questions, "options" must be an array of exactly 4 strings, and "correctOptionIndex" must be a number between 0 and 3. For write-command questions, leave options empty array [] and provide expectedCommand.`;
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-    
-    let response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: 'application/json'
+    // Prioritize gemini-2.5-flash-lite with thinking turned off for ultra-fast response (sub-3s)
+    const models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash'];
+    let lastError: any = null;
+    let text: string | undefined;
+
+    for (const model of models) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 7500);
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: {
+              responseMimeType: 'application/json',
+              thinkingConfig: {
+                thinkingBudget: 0
+              }
+            }
+          })
+        });
+        clearTimeout(timer);
+
+        if (response.ok) {
+          const data = await response.json();
+          text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) break;
+        } else {
+          const errText = await response.text().catch(() => '');
+          lastError = new Error(`Gemini ${model} Error (${response.status}): ${errText.substring(0, 200)}`);
         }
-      })
-    });
-
-    if (!response.ok) {
-      // Automatic fallback to gemini-1.5-flash
-      const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
-      response = await fetch(fallbackUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: 'application/json' }
-        })
-      });
+      } catch (err: any) {
+        lastError = err;
+        if (err.name === 'AbortError') break;
+      }
     }
 
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Gemini API Error (${response.status}): ${errText.substring(0, 200)}`);
-    }
-
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    
     if (!text) {
-      throw new Error("Empty or invalid response from Gemini API");
+      throw lastError || new Error("Empty or invalid response from Gemini API");
     }
 
-    let questions = JSON.parse(text);
+    let questions: any;
+    try {
+      questions = JSON.parse(text);
+    } catch {
+      const cleaned = text.replace(/```json\s*/i, '').replace(/```\s*$/i, '').trim();
+      questions = JSON.parse(cleaned);
+    }
     
     if (!Array.isArray(questions)) {
       questions = [questions];
