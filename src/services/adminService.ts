@@ -901,6 +901,14 @@ export async function getSiteCustomization(): Promise<SiteCustomization> {
         enabledTabs: { ...DEFAULT_SITE_CONFIG.enabledTabs, ...(parsed.enabledTabs || {}) },
         customTabLabels: { ...DEFAULT_SITE_CONFIG.customTabLabels, ...(parsed.customTabLabels || {}) }
       };
+      if (parsed.emailConfig && typeof parsed.emailConfig === 'object' && Object.keys(parsed.emailConfig).length > 0) {
+        try {
+          const localEmailRaw = localStorage.getItem('mongo_quiz_email_config_v2');
+          if (!localEmailRaw) {
+            localStorage.setItem('mongo_quiz_email_config_v2', JSON.stringify(parsed.emailConfig));
+          }
+        } catch {}
+      }
       try {
         localStorage.setItem('mongo_quiz_site_config_cache', JSON.stringify(full));
       } catch {}
@@ -919,10 +927,22 @@ export async function saveSiteCustomization(config: SiteCustomization, executorU
     try {
       localStorage.setItem('mongo_quiz_site_config_cache', JSON.stringify(config));
     } catch {}
+
+    let currentEmailConfig: any = undefined;
+    try {
+      const emailRaw = localStorage.getItem('mongo_quiz_email_config_v2');
+      if (emailRaw) currentEmailConfig = JSON.parse(emailRaw);
+    } catch {}
+
+    const payload = {
+      ...config,
+      ...(currentEmailConfig ? { emailConfig: currentEmailConfig } : {})
+    };
+
     const res = await fetch('/api/config', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(config)
+      body: JSON.stringify(payload)
     });
     if (res.ok) {
       window.dispatchEvent(new CustomEvent('site_branding_updated', { detail: config }));
@@ -937,6 +957,24 @@ export async function saveSiteCustomization(config: SiteCustomization, executorU
 /**
  * Universal Multi-Database Collections
  */
+export async function fetchDatabaseCollections(): Promise<GenericDatabaseCollection[]> {
+  try {
+    const res = await fetch('/api/admin/databases?_t=' + Date.now(), { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.collections) && data.collections.length > 0) {
+        try {
+          localStorage.setItem(GENERIC_DATABASES_KEY, JSON.stringify(data.collections));
+        } catch {}
+        return data.collections;
+      }
+    }
+  } catch (err) {
+    console.error("Failed to fetch database collections from Atlas", err);
+  }
+  return getDatabaseCollections();
+}
+
 export function getDatabaseCollections(): GenericDatabaseCollection[] {
   try {
     const raw = localStorage.getItem(GENERIC_DATABASES_KEY);
@@ -1040,12 +1078,44 @@ export function getDatabaseCollections(): GenericDatabaseCollection[] {
   return initialCollections;
 }
 
-export function saveDatabaseCollections(collections: GenericDatabaseCollection[], executorUsername: string = 'admin'): void {
+export async function saveDatabaseCollections(collections: GenericDatabaseCollection[], executorUsername: string = 'admin'): Promise<void> {
   try {
     localStorage.setItem(GENERIC_DATABASES_KEY, JSON.stringify(collections));
+    window.dispatchEvent(new CustomEvent('database_collections_updated', { detail: collections }));
     addAuditLog(executorUsername, 'Update Databases', 'database', `Saved ${collections.length} database collections`);
+
+    try {
+      await fetch('/api/admin/databases?mode=replace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(collections)
+      });
+    } catch (apiErr) {
+      console.warn("Atlas database sync warning:", apiErr);
+    }
   } catch (err) {
     console.error("Failed to save database collections", err);
+  }
+}
+
+export async function deleteDatabaseCollection(id: string, executorUsername: string = 'admin'): Promise<{ success: boolean; message: string }> {
+  try {
+    const current = getDatabaseCollections();
+    const updated = current.filter(c => c.id !== id);
+    localStorage.setItem(GENERIC_DATABASES_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent('database_collections_updated', { detail: updated }));
+    addAuditLog(executorUsername, 'Delete Database Collection', 'database', `Deleted database collection ID: ${id}`);
+
+    try {
+      await fetch(`/api/admin/databases?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+      });
+    } catch (e) {
+      console.warn("Atlas collection delete warning:", e);
+    }
+    return { success: true, message: 'Collection deleted successfully' };
+  } catch (err: any) {
+    return { success: false, message: err?.message || 'Failed to delete collection' };
   }
 }
 

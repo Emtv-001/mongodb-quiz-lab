@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GenericDatabaseCollection, DatabaseEngineType } from '../../types/admin';
 import {
   getDatabaseCollections,
-  saveDatabaseCollections
+  fetchDatabaseCollections,
+  saveDatabaseCollections,
+  deleteDatabaseCollection
 } from '../../services/adminService';
 import {
   Database,
@@ -35,6 +37,31 @@ export const AdminDatabaseManager: React.FC<AdminDatabaseManagerProps> = ({ curr
   const [expandedDocId, setExpandedDocId] = useState<any>(null);
   const [copiedDocId, setCopiedDocId] = useState<any>(null);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    setIsSyncing(true);
+    fetchDatabaseCollections().then(data => {
+      if (mounted && data && data.length > 0) {
+        setCollections(data);
+        setSelectedColId(prev => (prev && data.some(c => c.id === prev)) ? prev : data[0].id);
+      }
+    }).finally(() => {
+      if (mounted) setIsSyncing(false);
+    });
+
+    const handleUpdated = (e: any) => {
+      if (e.detail && Array.isArray(e.detail)) {
+        setCollections(e.detail);
+      }
+    };
+    window.addEventListener('database_collections_updated', handleUpdated);
+    return () => {
+      mounted = false;
+      window.removeEventListener('database_collections_updated', handleUpdated);
+    };
+  }, []);
 
   // New Collection modal state
   const [showAddColModal, setShowAddColModal] = useState(false);
@@ -101,7 +128,7 @@ export const AdminDatabaseManager: React.FC<AdminDatabaseManagerProps> = ({ curr
     setTimeout(() => setStatusMsg(null), 3000);
   };
 
-  const handleDeleteCollection = (id: string) => {
+  const handleDeleteCollection = async (id: string) => {
     if (collections.length <= 1) {
       alert("At least one database collection must be retained.");
       return;
@@ -109,8 +136,8 @@ export const AdminDatabaseManager: React.FC<AdminDatabaseManagerProps> = ({ curr
     if (confirm("Are you sure you want to delete this collection and all its stored records?")) {
       const updated = collections.filter(c => c.id !== id);
       setCollections(updated);
-      saveDatabaseCollections(updated, currentAdminUsername);
       setSelectedColId(updated[0]?.id || '');
+      await deleteDatabaseCollection(id, currentAdminUsername);
       setStatusMsg("Collection removed.");
       setTimeout(() => setStatusMsg(null), 3000);
     }
@@ -185,11 +212,15 @@ export const AdminDatabaseManager: React.FC<AdminDatabaseManagerProps> = ({ curr
       {/* Header */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
         <div>
-          <div className="flex items-center space-x-2 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-1">
+          <div className="flex flex-wrap items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-1">
             <Server className="w-4 h-4" />
             <span>Universal Multi-Database Engine</span>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               {collections.length} Collections
+            </span>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+              <span className={`w-1.5 h-1.5 rounded-full ${isSyncing ? 'bg-amber-400 animate-ping' : 'bg-emerald-400 animate-pulse'}`} />
+              <span>{isSyncing ? 'Syncing with Atlas...' : 'Atlas Cloud Sync'}</span>
             </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-white">

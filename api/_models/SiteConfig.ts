@@ -12,7 +12,8 @@ const SiteConfigSchema = new mongoose.Schema({
   customTabLabels: { type: Object, default: {} },
   maintenanceMode: { type: Boolean, default: false },
   geminiApiKey: { type: String, default: '' },
+  emailConfig: { type: Object, default: {} },
   updatedAt: { type: Date, default: Date.now }
-}, { strict: false }); // Allow extra fields just in case
+}, { collection: 'siteconfigs', strict: false }); // Allow extra fields just in case
 
 export default mongoose.models.SiteConfig || mongoose.model('SiteConfig', SiteConfigSchema);
