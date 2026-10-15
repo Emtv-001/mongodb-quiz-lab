@@ -83,10 +83,14 @@ export function App() {
     }
   }, [activeSession]);
   const [progress, setProgress] = useState(loadProgress());
+  const mainContentRef = React.useRef<HTMLElement | null>(null);
 
   // Reload progress when tabs or quiz completes
   useEffect(() => {
     setProgress(loadProgress());
+    if (mainContentRef.current) {
+      mainContentRef.current.scrollTop = 0;
+    }
   }, [currentTab, activeSession]);
 
   const handleStartQuiz = async (mode: QuizMode, topic?: MongoTopic, mockExamId?: string, extraOptions?: Partial<QuizSetupOptions>) => {
@@ -278,10 +282,10 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans w-full max-w-full">
+    <div className="h-screen h-[100dvh] max-h-screen overflow-hidden bg-slate-950 text-slate-100 flex flex-col font-sans w-full max-w-full">
       {/* Global Top Maintenance Banner */}
       {globalSiteConfig.maintenanceMode && (
-        <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 px-4 py-2 text-xs font-bold flex items-center justify-between shadow-lg sticky top-0 z-[100] border-b border-amber-600/30">
+        <div className="bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 px-4 py-2 text-xs font-bold flex items-center justify-between shadow-lg shrink-0 z-[100] border-b border-amber-600/30">
           <div className="flex items-center space-x-2 mx-auto">
             <span className="text-base animate-bounce">🛠️</span>
             <span>
@@ -311,7 +315,7 @@ export function App() {
       />
 
       {/* Main Layout Container */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto min-w-0">
+      <div className="flex-1 flex max-w-7xl w-full mx-auto min-w-0 overflow-hidden">
         {/* Responsive Sidebar */}
         <Sidebar
           currentTab={currentTab}
@@ -321,7 +325,7 @@ export function App() {
         />
 
         {/* Content View Area */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0 w-full max-w-full overflow-x-hidden">
+        <main ref={mainContentRef} className="flex-1 h-full overflow-y-auto overscroll-contain p-4 sm:p-6 lg:p-8 min-w-0 w-full max-w-full">
           {renderContent()}
         </main>
       </div>

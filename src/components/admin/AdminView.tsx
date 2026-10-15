@@ -1082,7 +1082,7 @@ export const AdminView: React.FC = () => {
       </div>
 
       {/* Admin Module Tabs Switcher */}
-      <div className="sticky top-16 z-30 bg-slate-950/95 backdrop-blur-md py-2.5 border-b border-slate-800 -mx-2 sm:-mx-4 px-2 sm:px-4 flex items-center space-x-2 overflow-x-auto scrollbar-none shadow-md">
+      <div className="sticky top-0 z-30 bg-slate-950/95 backdrop-blur-md py-2.5 border-b border-slate-800 -mx-2 sm:-mx-4 px-2 sm:px-4 flex items-center space-x-2 overflow-x-auto scrollbar-none shadow-md overscroll-contain">
         {adminNavTabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = currentAdminTab === tab.id;

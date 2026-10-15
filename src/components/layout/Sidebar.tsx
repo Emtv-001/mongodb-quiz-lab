@@ -111,12 +111,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 w-64 bg-slate-900 border-r border-slate-800 flex flex-col transition-transform duration-200 ease-in-out lg:translate-x-0 lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:z-30 shrink-0 ${
+        className={`fixed top-0 bottom-0 left-0 z-50 w-64 bg-slate-900 border-r border-slate-800 flex flex-col transition-transform duration-200 ease-in-out lg:static lg:h-full lg:w-64 lg:translate-x-0 lg:z-auto shrink-0 overscroll-contain ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Mobile Header with Close */}
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between lg:hidden">
+        <div className="p-4 border-b border-slate-800 flex items-center justify-between lg:hidden shrink-0">
           <span className="font-bold text-sm text-white">Menu Navigation</span>
           <button
             onClick={onClose}
@@ -127,7 +127,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Navigation Groups */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div className="flex-1 overflow-y-auto p-4 space-y-6 overscroll-contain">
           {categories.map(category => {
             const items = navItems.filter(item => item.category === category);
             if (items.length === 0) return null;
@@ -180,7 +180,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Sidebar Footer Info */}
-        <div className="p-4 border-t border-slate-800 text-[11px] text-slate-400 space-y-1">
+        <div className="p-4 border-t border-slate-800 text-[11px] text-slate-400 space-y-1 shrink-0">
           <div className="flex items-center justify-between text-slate-300 font-medium">
             <span>Platform Status</span>
             <span className="inline-flex items-center text-emerald-400">
