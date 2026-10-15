@@ -60,20 +60,35 @@ interface LearnerGamificationViewProps {
   onGoToPractice: () => void;
   onGoToMockExams: () => void;
   maintenanceMode?: boolean;
+  autoOpenRegister?: boolean;
 }
 
 export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = ({
   progress,
   onGoToPractice,
   onGoToMockExams,
-  maintenanceMode
+  maintenanceMode,
+  autoOpenRegister
 }) => {
   const [account, setAccount] = useState<RegisteredLearnerAccount | null>(() => getRegisteredLearnerAccount());
   const [stats, setStats] = useState(() => getLearnerGamificationStats(progress));
   const [activeLoadingTask, setActiveLoadingTask] = useState<string | null>(null);
 
   // Modal States
-  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [showRegisterModal, setShowRegisterModal] = useState(() => {
+    const currentAcc = getRegisteredLearnerAccount();
+    if (autoOpenRegister && !currentAcc) return true;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlRef = params.get('ref') || params.get('referral');
+      const tabParam = params.get('tab');
+      const pendingRef = localStorage.getItem('mongo_quiz_pending_referral_code');
+      if (((urlRef && urlRef.trim()) || tabParam === 'register' || (pendingRef && pendingRef.trim())) && !currentAcc) {
+        return true;
+      }
+    } catch {}
+    return false;
+  });
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRecoverModal, setShowRecoverModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -145,6 +160,13 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
 
   // Referral & Bonuses State
   const [regReferralCode, setRegReferralCode] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlRef = params.get('ref') || params.get('referral');
+      if (urlRef && urlRef.trim()) {
+        return urlRef.trim().toUpperCase();
+      }
+    } catch {}
     return localStorage.getItem('mongo_quiz_pending_referral_code') || '';
   });
   const [referralStats, setReferralStats] = useState<{
@@ -160,6 +182,29 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
   const [isClaimingReferral, setIsClaimingReferral] = useState(false);
   const [claimReferralMsg, setClaimReferralMsg] = useState<{ text: string; isError: boolean } | null>(null);
   const [copiedReferral, setCopiedReferral] = useState<'code' | 'link' | null>(null);
+
+  // Auto-drive referral and registration flow
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlRef = params.get('ref') || params.get('referral');
+      const tabParam = params.get('tab');
+      const pendingRef = localStorage.getItem('mongo_quiz_pending_referral_code');
+      const code = (urlRef && urlRef.trim()) || (pendingRef && pendingRef.trim());
+
+      if (code) {
+        const clean = code.toUpperCase();
+        setRegReferralCode(clean);
+        if (!account) {
+          setShowRegisterModal(true);
+        } else if (!claimReferralCodeInput) {
+          setClaimReferralCodeInput(clean);
+        }
+      } else if (tabParam === 'register' && !account) {
+        setShowRegisterModal(true);
+      }
+    } catch {}
+  }, [account, autoOpenRegister]);
 
   const loadReferralData = async (accountId: string) => {
     try {
@@ -733,7 +778,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                     readOnly
                     value={
                       (account.referralCode || referralStats?.referralCode)
-                        ? `${typeof window !== 'undefined' ? window.location.origin + window.location.pathname : ''}?ref=${account.referralCode || referralStats?.referralCode}`
+                        ? `${typeof window !== 'undefined' ? window.location.origin + window.location.pathname : ''}?ref=${account.referralCode || referralStats?.referralCode}&tab=register`
                         : 'Generating referral link...'
                     }
                     className="flex-1 bg-slate-900 border border-slate-700 text-slate-300 font-mono text-xs rounded-xl px-3 py-2.5 focus:outline-none select-all truncate"
@@ -742,7 +787,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                     onClick={() => {
                       const code = account.referralCode || referralStats?.referralCode;
                       if (!code) return;
-                      const link = `${window.location.origin}${window.location.pathname}?ref=${code}`;
+                      const link = `${window.location.origin}${window.location.pathname}?ref=${code}&tab=register`;
                       handleCopyReferral(link, 'link');
                     }}
                     className="px-3.5 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-purple-600 hover:bg-purple-500 text-white transition-all flex items-center space-x-1.5 active:scale-95 shadow-md shadow-purple-600/20"
@@ -765,7 +810,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                   <a
                     href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
-                      `Master MongoDB quizzes and exam practice with me! Use my referral code ${account.referralCode || referralStats?.referralCode} to get +150 bonus MongoCoins and +250 XP: ${typeof window !== 'undefined' ? window.location.origin + window.location.pathname : ''}?ref=${account.referralCode || referralStats?.referralCode}`
+                      `Master MongoDB quizzes and exam practice with me! Register via my referral link to get +150 bonus MongoCoins and +250 XP: ${typeof window !== 'undefined' ? window.location.origin + window.location.pathname : ''}?ref=${account.referralCode || referralStats?.referralCode}&tab=register`
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -777,7 +822,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
 
                   <a
                     href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
-                      `Sharpening my MongoDB skills on MongoDB Quiz Lab! Use my invite code ${account.referralCode || referralStats?.referralCode} to claim +150 bonus MongoCoins and +250 XP: ${typeof window !== 'undefined' ? window.location.origin + window.location.pathname : ''}?ref=${account.referralCode || referralStats?.referralCode}`
+                      `Sharpening my MongoDB skills on MongoDB Quiz Lab! Register via my invite link to claim +150 bonus MongoCoins and +250 XP: ${typeof window !== 'undefined' ? window.location.origin + window.location.pathname : ''}?ref=${account.referralCode || referralStats?.referralCode}&tab=register`
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -794,8 +839,8 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                         if (!code) return;
                         (navigator as any).share({
                           title: 'Join me on MongoDB Quiz Lab!',
-                          text: `Use my referral code ${code} to get +150 bonus MongoCoins and +250 XP!`,
-                          url: `${window.location.origin}${window.location.pathname}?ref=${code}`
+                          text: `Use my referral link to register and get +150 bonus MongoCoins and +250 XP!`,
+                          url: `${window.location.origin}${window.location.pathname}?ref=${code}&tab=register`
                         }).catch(() => {});
                       }}
                       className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs flex items-center space-x-1.5 transition-colors border border-slate-700"
@@ -1352,6 +1397,26 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
               <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl text-xs flex items-center space-x-2">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
                 <span className="font-semibold">{regError}</span>
+              </div>
+            )}
+
+            {/* Active Referral Welcome Banner */}
+            {regReferralCode && (
+              <div className="p-3 bg-gradient-to-r from-amber-500/15 via-purple-500/15 to-emerald-500/15 border border-amber-500/40 rounded-xl text-xs flex items-center space-x-2.5 animate-fadeIn">
+                <Gift className="w-5 h-5 text-amber-400 shrink-0 animate-bounce" />
+                <div className="min-w-0">
+                  <div className="flex items-center space-x-1.5 flex-wrap">
+                    <span className="font-extrabold text-amber-300">
+                      Referral Invitation Active:
+                    </span>
+                    <span className="font-mono font-bold bg-amber-500/20 text-white px-1.5 py-0.5 rounded border border-amber-500/30 text-[11px]">
+                      {regReferralCode}
+                    </span>
+                  </div>
+                  <p className="text-slate-300 text-[11px] mt-0.5">
+                    Register below to immediately receive your welcome bonus of <strong>+150 MongoCoins & +250 XP</strong>!
+                  </p>
+                </div>
               </div>
             )}
 

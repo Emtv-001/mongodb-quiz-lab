@@ -49,14 +49,18 @@ export function App() {
     };
   }, []);
 
-  // Detect referral code from link (e.g. ?ref=REF-ABCD or ?referral=REF-ABCD)
+  // Detect referral code from link (e.g. ?ref=REF-ABCD or ?referral=REF-ABCD or ?tab=register)
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
       const ref = params.get('ref') || params.get('referral');
+      const tab = params.get('tab');
       if (ref && ref.trim()) {
         const cleanRef = ref.trim().toUpperCase();
         localStorage.setItem('mongo_quiz_pending_referral_code', cleanRef);
+        setCurrentTab('learner-hub');
+      } else if (tab === 'register') {
+        setCurrentTab('learner-hub');
       }
     } catch {}
   }, []);
@@ -65,6 +69,14 @@ export function App() {
   const [appLoadingMessage, setAppLoadingMessage] = useState('Synthesizing AI Questions...');
 
   const [currentTab, setCurrentTab] = useState<NavTab>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get('ref') || params.get('referral');
+      const tab = params.get('tab');
+      if ((ref && ref.trim()) || tab === 'register') {
+        return 'learner-hub';
+      }
+    } catch {}
     return (localStorage.getItem('mongo_quiz_last_tab') as NavTab) || 'dashboard';
   });
 
@@ -280,6 +292,14 @@ export function App() {
             onGoToPractice={() => handleStartQuiz('practice')}
             onGoToMockExams={() => handleSelectTab('mock-exam-selector')}
             maintenanceMode={Boolean(globalSiteConfig.maintenanceMode)}
+            autoOpenRegister={Boolean(
+              typeof window !== 'undefined' && (
+                new URLSearchParams(window.location.search).get('ref') ||
+                new URLSearchParams(window.location.search).get('referral') ||
+                new URLSearchParams(window.location.search).get('tab') === 'register' ||
+                localStorage.getItem('mongo_quiz_pending_referral_code')
+              )
+            )}
           />
         );
 
