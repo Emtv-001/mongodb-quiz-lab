@@ -317,7 +317,8 @@ export function sanitizeQuestion(raw: any, index = 0): Question {
       points: 10,
       options: ['Option A', 'Option B'],
       correctOptionIndex: 0,
-      explanation: ''
+      explanation: '',
+      conceptFocus: 'CRUD Operations'
     };
   }
 
@@ -363,7 +364,7 @@ export function sanitizeQuestion(raw: any, index = 0): Question {
     correctOptionIndex: typeof raw.correctOptionIndex === 'number' ? raw.correctOptionIndex : (Number(raw.correctOptionIndex) || 0),
     explanation: safeString(raw.explanation, ''),
     misconception: raw.misconception ? safeString(raw.misconception) : undefined,
-    conceptFocus: raw.conceptFocus ? safeString(raw.conceptFocus) : undefined,
+    conceptFocus: safeString(raw.conceptFocus, raw.topic || 'CRUD Operations'),
     points: typeof raw.points === 'number' ? raw.points : (Number(raw.points) || 10)
   };
 }

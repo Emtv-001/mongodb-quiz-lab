@@ -272,7 +272,7 @@ export const AdminSecuritySettings: React.FC<AdminSecuritySettingsProps> = ({ cu
     }
   };
 
-  const handleCompleteReset = (e: React.FormEvent) => {
+  const handleCompleteReset = async (e: React.FormEvent) => {
     e.preventDefault();
     const verifyRes = verifyPhoneResetOtp(identifierInput, otpCodeInput);
     if (!verifyRes.success) {
@@ -280,7 +280,7 @@ export const AdminSecuritySettings: React.FC<AdminSecuritySettingsProps> = ({ cu
       return;
     }
 
-    const resetRes = completePhoneResetPassword(identifierInput, newPasswordInput);
+    const resetRes = await completePhoneResetPassword(identifierInput, newPasswordInput);
     if (resetRes.success) {
       setResetMessage({ text: resetRes.message, isError: false });
       setOtpStep(1);
