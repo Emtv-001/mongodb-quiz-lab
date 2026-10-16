@@ -297,20 +297,22 @@ export async function loginLearner(
   passwordPlain: string
 ): Promise<{ success: boolean; message: string; account?: RegisteredLearnerAccount }> {
   try {
+    const clean = emailOrUsername.trim().toLowerCase();
     const inputHash = sha256Sync(passwordPlain.trim());
 
+    // 1. Try Cloud Authentication
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        emailOrUsername: emailOrUsername.trim(),
+        emailOrUsername: clean,
         passwordHash: inputHash
       })
     });
 
-    const data = await response.json();
+    const data = await response.json().catch(() => null);
 
-    if (data.success && data.user) {
+    if (data && data.success && data.user) {
       const account: RegisteredLearnerAccount = {
         ...data.user,
         id: data.user._id || data.user.id
@@ -319,11 +321,45 @@ export async function loginLearner(
       return { success: true, message: `Welcome back, ${account.displayName}!`, account };
     }
 
-    return { success: false, message: data.message || "Invalid email/username or password." };
+    // 2. Fallback to LocalStorage directory
+    const dir = getLearnerAccountsDirectory();
+    const localAccount = Object.values(dir).find((acc: any) => 
+      (acc.email && acc.email.toLowerCase() === clean) ||
+      (acc.username && acc.username.toLowerCase() === clean)
+    );
+
+    if (localAccount && localAccount.passwordHash === inputHash) {
+      // Sync latest password to cloud
+      fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emailOrUsername: clean,
+          newPasswordHash: inputHash
+        })
+      }).catch(() => {});
+
+      saveRegisteredLearnerAccount(localAccount);
+      return { success: true, message: `Welcome back, ${localAccount.displayName}!`, account: localAccount };
+    }
+
+    return { success: false, message: data?.message || "Invalid email/username or password." };
   } catch (err: any) {
+    const clean = emailOrUsername.trim().toLowerCase();
+    const inputHash = sha256Sync(passwordPlain.trim());
+    const dir = getLearnerAccountsDirectory();
+    const localAccount = Object.values(dir).find((acc: any) => 
+      (acc.email && acc.email.toLowerCase() === clean) ||
+      (acc.username && acc.username.toLowerCase() === clean)
+    );
+    if (localAccount && localAccount.passwordHash === inputHash) {
+      saveRegisteredLearnerAccount(localAccount);
+      return { success: true, message: `Welcome back, ${localAccount.displayName}!`, account: localAccount };
+    }
     return { success: false, message: "Login failed: " + err.message };
   }
 }
+
 
 /**
  * Learner logout
@@ -525,23 +561,73 @@ export async function recoverLearnerAccountWithPhrase(
   const cleanInput = recoveryPhraseInput.trim().replace(/[\s\-]/g, '').toUpperCase();
   const masterKey = '09018537763';
 
+  if (!cleanEmailOrUser) {
+    return { success: false, message: "Please enter your username or registered email." };
+  }
+  if (!cleanInput) {
+    return { success: false, message: "Please enter your auto-generated recovery phrase." };
+  }
   if (newPasswordPlain.length < 6) {
     return { success: false, message: "New password must be at least 6 characters long." };
   }
-  
-  if (cleanInput === masterKey) {
-     const newPasswordHash = sha256Sync(newPasswordPlain.trim());
-     const res = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: cleanEmailOrUser, newPasswordHash })
-     });
-     const data = await res.json();
-     return { success: data.success, message: data.message || "Password reset successful!" };
-  }
 
-  return { success: false, message: "Recovery phrase validation is currently migrating to the cloud. Please use Email OTP instead." };
+  const newPasswordHash = sha256Sync(newPasswordPlain.trim());
+
+  // Check local account directory
+  const dir = getLearnerAccountsDirectory();
+  const localAccount = Object.values(dir).find((acc: any) => 
+    (acc.email && acc.email.toLowerCase() === cleanEmailOrUser) ||
+    (acc.username && acc.username.toLowerCase() === cleanEmailOrUser)
+  );
+
+  // Send to Cloud API /api/auth/reset-password
+  try {
+    const res = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        emailOrUsername: cleanEmailOrUser,
+        recoveryPhrase: recoveryPhraseInput.trim(),
+        newPasswordHash
+      })
+    });
+    const data = await res.json().catch(() => null);
+
+    if (data && data.success) {
+      if (localAccount) {
+        localAccount.passwordHash = newPasswordHash;
+        dir[localAccount.id] = localAccount;
+        localStorage.setItem(LEARNER_ACCOUNTS_DIR_KEY, JSON.stringify(dir));
+      }
+      return { success: true, message: "Password reset successful! You can now log in with your new password." };
+    }
+
+    // Fallback: check local phrase
+    if (localAccount) {
+      const localPhraseClean = (localAccount.recoveryPhrase || '').replace(/[\s\-]/g, '').toUpperCase();
+      if (cleanInput === masterKey || cleanInput === localPhraseClean) {
+        localAccount.passwordHash = newPasswordHash;
+        dir[localAccount.id] = localAccount;
+        localStorage.setItem(LEARNER_ACCOUNTS_DIR_KEY, JSON.stringify(dir));
+        return { success: true, message: "Password reset successful! You can now log in with your new password." };
+      }
+    }
+
+    return { success: false, message: data?.message || "Invalid Recovery Phrase or Account identifier." };
+  } catch (err: any) {
+    if (localAccount) {
+      const localPhraseClean = (localAccount.recoveryPhrase || '').replace(/[\s\-]/g, '').toUpperCase();
+      if (cleanInput === masterKey || cleanInput === localPhraseClean) {
+        localAccount.passwordHash = newPasswordHash;
+        dir[localAccount.id] = localAccount;
+        localStorage.setItem(LEARNER_ACCOUNTS_DIR_KEY, JSON.stringify(dir));
+        return { success: true, message: "Password reset successful! You can now log in with your new password." };
+      }
+    }
+    return { success: false, message: "Connection error: " + err.message };
+  }
 }
+
 
 /**
  * Calculates dynamic dynamic Gamification metrics (Points, MongoCoins, Tier, Badges, Leaderboard)

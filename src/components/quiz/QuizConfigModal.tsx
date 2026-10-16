@@ -96,18 +96,58 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
 
         <form onSubmit={handleStart} className="space-y-4 text-xs">
           {/* Question Count Selector */}
-          <div>
-            <label className="block text-slate-300 font-bold mb-1.5 flex items-center justify-between">
-              <span>Number of Questions</span>
-              <span className="font-mono text-emerald-400 font-extrabold text-sm">{questionCount} Questions</span>
-            </label>
-            <div className="grid grid-cols-6 gap-1.5">
-              {[5, 10, 15, 20, 25, 30].map(cnt => (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-slate-300 font-bold">
+                Number of Questions
+              </label>
+              <div className="flex items-center space-x-1.5 bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1">
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={questionCount}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val)) {
+                      setQuestionCount(Math.max(1, Math.min(100, val)));
+                    } else {
+                      setQuestionCount(1);
+                    }
+                  }}
+                  className="w-12 bg-transparent text-right font-mono font-extrabold text-emerald-400 text-sm focus:outline-none"
+                />
+                <span className="text-[11px] font-semibold text-slate-400">Questions</span>
+              </div>
+            </div>
+
+            {/* Interactive Slider */}
+            <div className="space-y-1">
+              <input
+                type="range"
+                min={1}
+                max={100}
+                value={questionCount}
+                onChange={(e) => setQuestionCount(Number(e.target.value))}
+                className="w-full accent-emerald-500 cursor-pointer h-1.5 bg-slate-800 rounded-lg"
+              />
+              <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+                <span>1 Q</span>
+                <span>25 Q</span>
+                <span>50 Q</span>
+                <span>75 Q</span>
+                <span>100 Q</span>
+              </div>
+            </div>
+
+            {/* Quick Preset Buttons */}
+            <div className="grid grid-cols-7 gap-1 pt-0.5">
+              {[5, 10, 15, 20, 25, 30, 50].map(cnt => (
                 <button
                   key={cnt}
                   type="button"
                   onClick={() => setQuestionCount(cnt)}
-                  className={`py-2 rounded-xl font-bold font-mono border transition-all text-center ${
+                  className={`py-1.5 rounded-xl font-bold font-mono border transition-all text-center text-xs ${
                     questionCount === cnt
                       ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md'
                       : 'bg-slate-950 border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800'
@@ -118,6 +158,7 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
               ))}
             </div>
           </div>
+
 
           {/* Hardness / Difficulty Selector */}
           <div>

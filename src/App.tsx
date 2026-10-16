@@ -22,6 +22,7 @@ import { QuizConfigModal } from './components/quiz/QuizConfigModal';
 import { QuizSetupOptions } from './services/quizEngine';
 import { EMTVLoader } from './components/common/EMTVLoader';
 import { useAuthHeartbeat } from './hooks/useAuthHeartbeat';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 export function App() {
   useAuthHeartbeat();
@@ -58,8 +59,12 @@ export function App() {
       if (ref && ref.trim()) {
         const cleanRef = ref.trim().toUpperCase();
         localStorage.setItem('mongo_quiz_pending_referral_code', cleanRef);
+        localStorage.removeItem('mongo_quiz_active_session');
+        setActiveSession(null);
         setCurrentTab('learner-hub');
       } else if (tab === 'register') {
+        localStorage.removeItem('mongo_quiz_active_session');
+        setActiveSession(null);
         setCurrentTab('learner-hub');
       }
     } catch {}
@@ -88,12 +93,20 @@ export function App() {
   const [configModalTopic, setConfigModalTopic] = useState<MongoTopic | undefined>(undefined);
   const [activeSession, setActiveSession] = useState<QuizSession | null>(() => {
     try {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get('ref') || params.get('referral');
+      const tab = params.get('tab');
+      if ((ref && ref.trim()) || tab === 'register') {
+        localStorage.removeItem('mongo_quiz_active_session');
+        return null;
+      }
       const saved = localStorage.getItem('mongo_quiz_active_session');
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
     }
   });
+
 
   useEffect(() => {
     localStorage.setItem('mongo_quiz_last_tab', currentTab);
@@ -218,8 +231,14 @@ export function App() {
       );
     }
 
-    // If there is an ongoing or just-completed quiz session
-    if (activeSession) {
+    const hasReferralParam = typeof window !== 'undefined' && Boolean(
+      new URLSearchParams(window.location.search).get('ref') ||
+      new URLSearchParams(window.location.search).get('referral') ||
+      new URLSearchParams(window.location.search).get('tab') === 'register'
+    );
+
+    // If there is an ongoing or just-completed quiz session AND we are not driving straight to register
+    if (activeSession && !hasReferralParam) {
       return (
         <QuizController
           session={activeSession}
@@ -230,6 +249,7 @@ export function App() {
         />
       );
     }
+
 
     switch (currentTab) {
       case 'dashboard':
@@ -367,8 +387,11 @@ export function App() {
 
         {/* Content View Area */}
         <main ref={mainContentRef} className="flex-1 h-full overflow-y-auto overscroll-contain touch-pan-y p-4 sm:p-6 lg:p-8 min-w-0 w-full max-w-full">
-          {renderContent()}
+          <ErrorBoundary fallbackName="Main View">
+            {renderContent()}
+          </ErrorBoundary>
         </main>
+
       </div>
 
       {/* Live Datasets Modal Explorer */}

@@ -276,36 +276,74 @@ export function saveAdminUsers(users: AdminUser[]): void {
 
 export async function authenticateAdminUser(usernameOrEmail: string, passwordCandidate: string): Promise<{ success: boolean; user?: AdminUser; error?: string }> {
   try {
+    const clean = usernameOrEmail.trim().toLowerCase();
     const passHash = sha256Sync(passwordCandidate.trim());
+
+    // 1. Try Cloud Authentication via MongoDB Atlas
     const res = await fetch('/api/admin/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: usernameOrEmail.trim(), passwordHash: passHash })
+      body: JSON.stringify({ username: clean, passwordHash: passHash })
     });
     
-    const data = await res.json();
-    if (data.success && data.user) {
+    const data = await res.json().catch(() => null);
+    if (data && data.success && data.user) {
       const user = data.user;
       user.id = user._id || user.id;
       
       const users = getAdminUsers();
-      if (!users.find((u: AdminUser) => u.username === user.username)) {
+      const existingIdx = users.findIndex((u: AdminUser) => u.username.toLowerCase() === user.username.toLowerCase());
+      if (existingIdx === -1) {
         users.push(user);
       } else {
-        const idx = users.findIndex((u: AdminUser) => u.username === user.username);
-        users[idx] = user;
+        users[existingIdx] = { ...users[existingIdx], ...user, passwordHash: passHash };
       }
       saveAdminUsers(users);
       
-      // We don't await addAuditLog so it doesn't block login
       addAuditLog(user.username, 'Admin Login', 'auth', 'Successful authentication from web portal (Cloud)');
       return { success: true, user };
     }
-    return { success: false, error: data.message || "Invalid username/email or password." };
+
+    // 2. Fallback: Check local storage admins (if password was recently reset or offline)
+    const localUsers = getAdminUsers();
+    const localUser = localUsers.find((u: AdminUser) => 
+      u.username.toLowerCase() === clean || 
+      (u.email && u.email.toLowerCase() === clean)
+    );
+
+    if (localUser && localUser.passwordHash === passHash) {
+      // Sync latest password to MongoDB Atlas so future logins authenticate directly against cloud
+      fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: 'admin',
+          emailOrUsername: localUser.username,
+          newPasswordHash: passHash
+        })
+      }).catch(() => {});
+
+      addAuditLog(localUser.username, 'Admin Login', 'auth', 'Successful authentication from web portal (Local Verified)');
+      return { success: true, user: localUser };
+    }
+
+    return { success: false, error: data?.message || "Invalid username/email or password." };
   } catch (err: any) {
+    const clean = usernameOrEmail.trim().toLowerCase();
+    const passHash = sha256Sync(passwordCandidate.trim());
+    const localUsers = getAdminUsers();
+    const localUser = localUsers.find((u: AdminUser) => 
+      u.username.toLowerCase() === clean || 
+      (u.email && u.email.toLowerCase() === clean)
+    );
+
+    if (localUser && localUser.passwordHash === passHash) {
+      return { success: true, user: localUser };
+    }
     return { success: false, error: "Login failed: " + err.message };
   }
 }
+
 
 /**
  * EMAIL-BASED ADMIN INVITATIONS WORKFLOW
@@ -754,7 +792,7 @@ export function verifyPasswordResetOtp(emailOrPhoneInput: string, otpCodeInput: 
   }
 }
 
-export function completePasswordReset(emailOrPhoneInput: string, newPassword: string): { success: boolean; message: string } {
+export async function completePasswordReset(emailOrPhoneInput: string, newPassword: string): Promise<{ success: boolean; message: string }> {
   try {
     const raw = sessionStorage.getItem(RESET_OTP_KEY);
     if (!raw) return { success: false, message: "Session expired. Please request a new verification code." };
@@ -772,9 +810,23 @@ export function completePasswordReset(emailOrPhoneInput: string, newPassword: st
     const user = users.find(u => u.id === session.adminId);
     if (!user) return { success: false, message: "Administrator account not found." };
 
-    user.passwordHash = sha256Sync(newPassword.trim());
+    const newPasswordHash = sha256Sync(newPassword.trim());
+    user.passwordHash = newPasswordHash;
     user.status = 'active';
     saveAdminUsers(users);
+
+    // Sync to MongoDB Atlas cloud
+    try {
+      await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: 'admin',
+          emailOrUsername: user.username,
+          newPasswordHash
+        })
+      });
+    } catch {}
 
     sessionStorage.removeItem(RESET_OTP_KEY);
     addAuditLog(user.username, 'Password Reset Completed', 'auth', `Password reset successfully via OTP verification`);
@@ -788,11 +840,11 @@ export function completePasswordReset(emailOrPhoneInput: string, newPassword: st
 /**
  * INSTANT PASSWORD RESET USING ACCOUNT RECOVERY PHRASE
  */
-export function resetAdminPasswordWithRecoveryPhrase(
+export async function resetAdminPasswordWithRecoveryPhrase(
   emailOrUsernameInput: string,
   recoveryPhraseInput: string,
   newPasswordPlain: string
-): { success: boolean; message: string; username?: string } {
+): Promise<{ success: boolean; message: string; username?: string }> {
   const rawInput = (emailOrUsernameInput || '').trim();
   const clean = rawInput.toLowerCase();
   const cleanPhrase = (recoveryPhraseInput || '').trim().replace(/[\s\-]/g, '').toUpperCase();
@@ -806,6 +858,29 @@ export function resetAdminPasswordWithRecoveryPhrase(
   }
   if (newPasswordPlain.trim().length < 6) {
     return { success: false, message: "New password must be at least 6 characters long." };
+  }
+
+  const newPasswordHash = sha256Sync(newPasswordPlain.trim());
+
+  // 1. Send update to MongoDB Atlas Cloud
+  let cloudSuccess = false;
+  try {
+    const cloudRes = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        role: 'admin',
+        emailOrUsername: clean,
+        recoveryPhrase: recoveryPhraseInput.trim(),
+        newPasswordHash
+      })
+    });
+    const cloudData = await cloudRes.json().catch(() => null);
+    if (cloudData && cloudData.success) {
+      cloudSuccess = true;
+    }
+  } catch (err) {
+    console.warn("Cloud reset-password sync error:", err);
   }
 
   let users = getAdminUsers();
@@ -830,7 +905,7 @@ export function resetAdminPasswordWithRecoveryPhrase(
           recoveryPhrase: invite.recoveryPhrase || generateRecoveryPhrase(),
           role: invite.role,
           permissions: invite.permissions,
-          passwordHash: sha256Sync(newPasswordPlain.trim()),
+          passwordHash: newPasswordHash,
           status: 'active',
           createdAt: new Date().toISOString(),
           createdBy: invite.createdBy
@@ -854,32 +929,34 @@ export function resetAdminPasswordWithRecoveryPhrase(
     user = users.find(u => u.username === 'admin');
   }
 
-  if (!user) {
+  if (!user && !cloudSuccess) {
     return { success: false, message: `No administrator account found matching "${rawInput}".` };
   }
 
-  const userPhraseClean = (user.recoveryPhrase || MASTER_RECOVERY_PHRASE).replace(/[\s\-]/g, '').toUpperCase();
-  const isMatch = (cleanPhrase === userPhraseClean) || (cleanPhrase === masterPhraseClean);
+  if (user) {
+    const userPhraseClean = (user.recoveryPhrase || MASTER_RECOVERY_PHRASE).replace(/[\s\-]/g, '').toUpperCase();
+    const isMatch = (cleanPhrase === userPhraseClean) || (cleanPhrase === masterPhraseClean);
 
-  if (!isMatch) {
-    return {
-      success: false,
-      message: "Invalid Recovery Phrase. Please check your auto-generated recovery phrase (REC-XXXX-XXXX-XXXX or 09018537763) and try again."
-    };
+    if (!isMatch && !cloudSuccess) {
+      return {
+        success: false,
+        message: "Invalid Recovery Phrase. Please check your auto-generated recovery phrase (REC-XXXX-XXXX-XXXX or 09018537763) and try again."
+      };
+    }
+
+    user.passwordHash = newPasswordHash;
+    user.status = 'active';
+    saveAdminUsers(users);
+    addAuditLog(user.username, 'Password Reset via Recovery Phrase', 'auth', `Password reset successfully via recovery phrase verification`);
   }
-
-  user.passwordHash = sha256Sync(newPasswordPlain.trim());
-  user.status = 'active';
-  saveAdminUsers(users);
-
-  addAuditLog(user.username, 'Password Reset via Recovery Phrase', 'auth', `Password reset successfully via recovery phrase verification`);
 
   return {
     success: true,
     message: "Password reset successful! You can now log in with your new password.",
-    username: user.username
+    username: user?.username || clean
   };
 }
+
 
 // Phone OTP aliases for backwards compatibility
 export const requestPhoneResetOtp = requestPasswordResetOtp;

@@ -22,7 +22,9 @@ import {
   Sliders,
   Trophy,
   Coins,
-  Crown
+  Crown,
+  BookOpen,
+  FileText
 } from 'lucide-react';
 import { getLearnerGamificationStats, getRegisteredLearnerAccount } from '../../services/learnerService';
 
@@ -154,12 +156,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </button>
 
             <button
+              onClick={() => onNavigateTab('study-notes')}
+              className="flex items-center space-x-1.5 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 transition-all shadow-sm"
+            >
+              <BookOpen className="w-4 h-4 text-indigo-400" />
+              <span>Study Notes & Cheatsheets</span>
+            </button>
+
+            <button
               onClick={() => onOpenConfig ? onOpenConfig('practice') : onStartQuiz('practice')}
               className="flex items-center space-x-1.5 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 transition-all shadow-sm"
             >
               <Sliders className="w-4 h-4 text-blue-400" />
               <span>Custom Setup (Count & Hardness)</span>
             </button>
+
 
             <button
               onClick={() => onStartQuiz('practice')}
@@ -410,8 +421,74 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
+      {/* Dedicated Study Notes & Syntax Cheatsheets Section */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+          <div className="flex items-center space-x-2.5">
+            <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-xl border border-indigo-500/20">
+              <BookOpen className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">Study Notes & Rapid Cheatsheets</h3>
+              <p className="text-xs text-slate-400">
+                Concise syntax summaries, command reference guides, and best practices across all curriculum levels.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => onNavigateTab('study-notes')}
+            className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition-all self-start sm:self-center"
+          >
+            <span>Open All 20 Study Notes</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+          {[
+            {
+              title: "CRUD Operations",
+              desc: "insertOne, find, updateOne, deleteMany & bulkWrite",
+              topic: "CRUD Operations"
+            },
+            {
+              title: "Aggregation Pipelines",
+              desc: "$match, $group, $lookup, $unwind & $project",
+              topic: "Aggregation Pipelines"
+            },
+            {
+              title: "Indexes & ESR Rule",
+              desc: "Compound indexes, Equality-Sort-Range & explain()",
+              topic: "Indexes & ESR Rule"
+            },
+            {
+              title: "Transactions & Consistency",
+              desc: "Multi-document ACID sessions, withTransaction & writeConcern",
+              topic: "Transactions & Consistency"
+            }
+          ].map((card, idx) => (
+            <div
+              key={idx}
+              onClick={() => onNavigateTab('study-notes')}
+              className="p-3.5 bg-slate-950/70 hover:bg-slate-800/60 border border-slate-800/80 hover:border-indigo-500/40 rounded-xl transition-all cursor-pointer group space-y-1.5"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-white group-hover:text-indigo-400 transition-colors">
+                  {card.title}
+                </span>
+                <FileText className="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-400 transition-colors" />
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed font-mono">
+                {card.desc}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* 20-Topic Mastery Progress Chart */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl space-y-5 w-full max-w-full min-w-0 overflow-hidden">
+
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
           <div className="flex items-center space-x-2 min-w-0">
             <BarChart3 className="w-5 h-5 text-emerald-400 flex-shrink-0" />

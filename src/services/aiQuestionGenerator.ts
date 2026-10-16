@@ -1,5 +1,6 @@
 import { MongoTopic, Question, DifficultyLevel, CurriculumLevel, QuestionType } from '../types';
 import { getSiteCustomization } from './adminService';
+import { sanitizeQuestion } from './storage';
 
 export interface GenerationOptions {
   topic?: MongoTopic;
@@ -69,7 +70,7 @@ function parseAndFormatQuestions(text: string, options: GenerationOptions): Ques
     parsed = [parsed];
   }
 
-  return parsed.map((q: any, i: number) => ({
+  return parsed.map((q: any, i: number) => sanitizeQuestion({
     ...q,
     id: `ai_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
     topic: options.topic || 'General MongoDB',
@@ -78,7 +79,7 @@ function parseAndFormatQuestions(text: string, options: GenerationOptions): Ques
     datasetName: options.datasetName || 'Custom',
     type: q.type === 'multiple-choice' || q.type === 'write-command' ? q.type : 'write-command',
     tags: ['ai-generated', 'dynamic', 'gemini']
-  }));
+  }, i));
 }
 
 /**

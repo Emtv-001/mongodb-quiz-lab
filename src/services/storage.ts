@@ -304,12 +304,77 @@ export function toggleFlashcardMastery(flashcardId: string): boolean {
   return isMastered;
 }
 
+export function sanitizeQuestion(raw: any, index = 0): Question {
+  if (!raw || typeof raw !== 'object') {
+    return {
+      id: `custom_${Date.now()}_${index}`,
+      topic: 'CRUD Operations',
+      level: 1,
+      difficulty: 'Easy',
+      type: 'multiple-choice',
+      title: 'MongoDB Question',
+      scenario: '',
+      points: 10,
+      options: ['Option A', 'Option B'],
+      correctOptionIndex: 0,
+      explanation: ''
+    };
+  }
+
+  // Ensure id is a valid string
+  const id = typeof raw.id === 'string' && raw.id.trim()
+    ? raw.id.trim()
+    : (raw._id ? String(raw._id) : `custom_${Date.now()}_${index}_${Math.random().toString(36).substring(2, 6)}`);
+
+  // Helper to stringify fields safely
+  const safeString = (val: any, fallback = ''): string => {
+    if (val === null || val === undefined) return fallback;
+    if (typeof val === 'string') return val;
+    if (typeof val === 'object') {
+      return val.text || val.command || val.query || val.code || val.statement || val.value || val.description || JSON.stringify(val);
+    }
+    return String(val);
+  };
+
+  // Ensure options is an array of strings
+  let options: string[] | undefined;
+  if (Array.isArray(raw.options)) {
+    options = raw.options.map((opt: any) => {
+      if (typeof opt === 'string') return opt;
+      if (opt && typeof opt === 'object') {
+        return opt.text || opt.value || opt.option || opt.label || opt.description || JSON.stringify(opt);
+      }
+      return String(opt ?? '');
+    });
+  }
+
+  return {
+    ...raw,
+    id,
+    title: safeString(raw.title, 'MongoDB Question'),
+    topic: safeString(raw.topic, 'CRUD Operations') as any,
+    level: typeof raw.level === 'number' ? raw.level : (Number(raw.level) || 1),
+    difficulty: safeString(raw.difficulty, 'Medium') as any,
+    type: safeString(raw.type, 'multiple-choice') as any,
+    scenario: raw.scenario ? safeString(raw.scenario) : undefined,
+    datasetName: raw.datasetName ? safeString(raw.datasetName) : undefined,
+    expectedCommand: raw.expectedCommand ? safeString(raw.expectedCommand) : undefined,
+    options,
+    correctOptionIndex: typeof raw.correctOptionIndex === 'number' ? raw.correctOptionIndex : (Number(raw.correctOptionIndex) || 0),
+    explanation: safeString(raw.explanation, ''),
+    misconception: raw.misconception ? safeString(raw.misconception) : undefined,
+    conceptFocus: raw.conceptFocus ? safeString(raw.conceptFocus) : undefined,
+    points: typeof raw.points === 'number' ? raw.points : (Number(raw.points) || 10)
+  };
+}
+
 export async function loadCustomQuestions(): Promise<Question[]> {
   try {
     const res = await fetch('/api/questions');
     if (!res.ok) return [];
     const data = await res.json();
-    return data.questions || [];
+    const rawList = Array.isArray(data.questions) ? data.questions : [];
+    return rawList.map((q: any, idx: number) => sanitizeQuestion(q, idx));
   } catch (err) {
     console.error("Failed to load custom questions", err);
     return [];
@@ -318,10 +383,11 @@ export async function loadCustomQuestions(): Promise<Question[]> {
 
 export async function saveCustomQuestions(questions: Question[]): Promise<void> {
   try {
+    const sanitized = (questions || []).map((q, idx) => sanitizeQuestion(q, idx));
     await fetch('/api/questions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(questions)
+      body: JSON.stringify(sanitized)
     });
   } catch (err) {
     console.error("Failed to save custom questions", err);
@@ -331,14 +397,16 @@ export async function saveCustomQuestions(questions: Question[]): Promise<void> 
 
 export async function appendCustomQuestions(questions: Question[]): Promise<Question[]> {
   try {
+    const sanitized = (questions || []).map((q, idx) => sanitizeQuestion(q, idx));
     const res = await fetch('/api/questions?mode=append', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(questions)
+      body: JSON.stringify(sanitized)
     });
     if (res.ok) {
       const data = await res.json();
-      return data.questions || [];
+      const rawList = Array.isArray(data.questions) ? data.questions : [];
+      return rawList.map((q: any, idx: number) => sanitizeQuestion(q, idx));
     }
   } catch (err) {
     console.error("Failed to append custom questions", err);

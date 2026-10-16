@@ -76,19 +76,22 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
 
   // Modal States
   const [showRegisterModal, setShowRegisterModal] = useState(() => {
-    const currentAcc = getRegisteredLearnerAccount();
-    if (autoOpenRegister && !currentAcc) return true;
     try {
       const params = new URLSearchParams(window.location.search);
       const urlRef = params.get('ref') || params.get('referral');
       const tabParam = params.get('tab');
+      if ((urlRef && urlRef.trim()) || tabParam === 'register') {
+        return true;
+      }
+      const currentAcc = getRegisteredLearnerAccount();
       const pendingRef = localStorage.getItem('mongo_quiz_pending_referral_code');
-      if (((urlRef && urlRef.trim()) || tabParam === 'register' || (pendingRef && pendingRef.trim())) && !currentAcc) {
+      if ((autoOpenRegister || (pendingRef && pendingRef.trim())) && !currentAcc) {
         return true;
       }
     } catch {}
     return false;
   });
+
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRecoverModal, setShowRecoverModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -195,16 +198,17 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
       if (code) {
         const clean = code.toUpperCase();
         setRegReferralCode(clean);
-        if (!account) {
+        if (urlRef || tabParam === 'register' || autoOpenRegister || !account) {
           setShowRegisterModal(true);
         } else if (!claimReferralCodeInput) {
           setClaimReferralCodeInput(clean);
         }
-      } else if (tabParam === 'register' && !account) {
+      } else if (tabParam === 'register' || autoOpenRegister) {
         setShowRegisterModal(true);
       }
     } catch {}
   }, [account, autoOpenRegister]);
+
 
   const loadReferralData = async (accountId: string) => {
     try {

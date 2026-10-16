@@ -17,10 +17,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'PUT') {
-      const { id, updates } = req.body;
-      const admin = await Admin.findByIdAndUpdate(id, { $set: updates }, { new: true });
+      const { id, username, email, updates } = req.body;
+      let admin = null;
+      if (id && id.length === 24) {
+        admin = await Admin.findByIdAndUpdate(id, { $set: updates }, { new: true });
+      }
+      if (!admin && username) {
+        admin = await Admin.findOneAndUpdate({ username: username.toLowerCase().trim() }, { $set: updates }, { new: true });
+      }
+      if (!admin && email) {
+        admin = await Admin.findOneAndUpdate({ email: email.toLowerCase().trim() }, { $set: updates }, { new: true });
+      }
       return res.status(200).json({ success: true, admin });
     }
+
 
     if (req.method === 'DELETE') {
       const { id } = req.query;

@@ -31,7 +31,7 @@ import { AdminAiQuestionStudioModal } from './AdminAiQuestionStudioModal';
 import { DEFAULT_QUESTIONS } from '../../data/questions';
 import { ALL_TOPICS } from '../../services/storage';
 import { DifficultyLevel, MongoTopic, Question, QuestionType, CurriculumLevel } from '../../types';
-import { loadCustomQuestions, saveCustomQuestions } from '../../services/storage';
+import { loadCustomQuestions, saveCustomQuestions, sanitizeQuestion } from '../../services/storage';
 import { getFeedbackEntries } from '../../services/feedbackService';
 
 import {
@@ -336,7 +336,7 @@ export const AdminView: React.FC = () => {
     }
   };
 
-  const handleCompleteLoginReset = (e: React.FormEvent) => {
+  const handleCompleteLoginReset = async (e: React.FormEvent) => {
     e.preventDefault();
     const vRes = verifyPasswordResetOtp(resetIdentifier, resetOtpCode);
     if (!vRes.success) {
@@ -344,7 +344,7 @@ export const AdminView: React.FC = () => {
       return;
     }
 
-    const cRes = completePasswordReset(resetIdentifier, newPasswordValue);
+    const cRes = await completePasswordReset(resetIdentifier, newPasswordValue);
     if (cRes.success) {
       setResetMsg({ text: cRes.message, isError: false });
       setTimeout(() => {
@@ -360,10 +360,10 @@ export const AdminView: React.FC = () => {
     }
   };
 
-  const handleRecoveryPhraseReset = (e: React.FormEvent) => {
+  const handleRecoveryPhraseReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setRecoveryMsg(null);
-    const res = resetAdminPasswordWithRecoveryPhrase(
+    const res = await resetAdminPasswordWithRecoveryPhrase(
       recoveryUsernameOrEmail,
       recoveryPhraseInput,
       recoveryNewPassword
@@ -384,6 +384,7 @@ export const AdminView: React.FC = () => {
       setRecoveryMsg({ text: res.message, isError: true });
     }
   };
+
 
   const handleAcceptLoginInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -994,7 +995,7 @@ export const AdminView: React.FC = () => {
   };
 
   const handleDeleteQuestion = (id: string) => {
-    if (!id.startsWith('custom_')) {
+    if (!String(id || '').startsWith('custom_') && !String(id || '').startsWith('ai_')) {
       alert("System built-in questions cannot be deleted. Only custom questions can be removed.");
       return;
     }
@@ -1021,8 +1022,9 @@ export const AdminView: React.FC = () => {
       try {
         const parsed = JSON.parse(event.target?.result as string);
         if (Array.isArray(parsed)) {
-          const valid = parsed.filter(item => item.title && item.topic && item.explanation);
-          const merged = [...customQuestions, ...valid];
+          const valid = parsed.filter(item => item && (item.title || item.scenario) && item.topic);
+          const sanitizedValid = valid.map((item, idx) => sanitizeQuestion(item, idx));
+          const merged = [...customQuestions, ...sanitizedValid];
           setCustomQuestions(merged);
           saveCustomQuestions(merged);
           setImportedStatus(`Imported ${valid.length} questions successfully!`);
@@ -1036,12 +1038,16 @@ export const AdminView: React.FC = () => {
   };
 
   const filteredQuestions = allQuestions.filter((q) => {
+    if (!q) return false;
     const matchesTopic = selectedTopic === 'All' || q.topic === selectedTopic;
-    const term = searchTerm.toLowerCase();
+    const term = (searchTerm || '').toLowerCase();
+    const titleStr = typeof q.title === 'string' ? q.title.toLowerCase() : String(q.title || '').toLowerCase();
+    const scenarioStr = typeof q.scenario === 'string' ? q.scenario.toLowerCase() : String(q.scenario || '').toLowerCase();
+    const cmdStr = typeof q.expectedCommand === 'string' ? q.expectedCommand.toLowerCase() : String(q.expectedCommand || '').toLowerCase();
     return matchesTopic && (
-      q.title.toLowerCase().includes(term) ||
-      (q.scenario && q.scenario.toLowerCase().includes(term)) ||
-      (q.expectedCommand && q.expectedCommand.toLowerCase().includes(term))
+      titleStr.includes(term) ||
+      scenarioStr.includes(term) ||
+      cmdStr.includes(term)
     );
   });
 
@@ -1529,8 +1535,11 @@ export const AdminView: React.FC = () => {
                     <div className="bg-slate-950/70 p-4 rounded-2xl border border-slate-800 space-y-2">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Options & Solution</span>
                       <div className="space-y-1.5 pt-1">
-                        {inspectingQuestion.options.map((opt, oIdx) => {
+                        {inspectingQuestion.options.map((opt: any, oIdx: number) => {
                           const isCorrect = oIdx === inspectingQuestion.correctOptionIndex;
+                          const optText = typeof opt === 'string'
+                            ? opt
+                            : (opt && typeof opt === 'object' ? (opt.text || opt.value || opt.label || JSON.stringify(opt)) : String(opt ?? ''));
                           return (
                             <div
                               key={oIdx}
@@ -1540,7 +1549,7 @@ export const AdminView: React.FC = () => {
                                   : 'bg-slate-900/80 border-slate-800 text-slate-300'
                               }`}
                             >
-                              <span>{opt}</span>
+                              <span>{optText}</span>
                               {isCorrect && (
                                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">
                                   Correct Answer
@@ -1555,17 +1564,19 @@ export const AdminView: React.FC = () => {
 
                   <div className="bg-slate-950/70 p-4 rounded-2xl border border-slate-800 space-y-2">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400 block">Pedagogical Explanation</span>
-                    <p className="text-slate-300 text-xs leading-relaxed">{inspectingQuestion.explanation}</p>
+                    <p className="text-slate-300 text-xs leading-relaxed">
+                      {typeof inspectingQuestion.explanation === 'string' ? inspectingQuestion.explanation : JSON.stringify(inspectingQuestion.explanation)}
+                    </p>
                     {inspectingQuestion.misconception && (
                       <div className="pt-2 text-[11px] text-amber-300/90 border-t border-slate-800/80">
                         <strong className="text-amber-400">Common Misconception: </strong>
-                        {inspectingQuestion.misconception}
+                        {typeof inspectingQuestion.misconception === 'string' ? inspectingQuestion.misconception : JSON.stringify(inspectingQuestion.misconception)}
                       </div>
                     )}
                     {inspectingQuestion.conceptFocus && (
                       <div className="pt-1 text-[11px] text-indigo-300/90">
                         <strong className="text-indigo-400">Concept Focus: </strong>
-                        {inspectingQuestion.conceptFocus}
+                        {typeof inspectingQuestion.conceptFocus === 'string' ? inspectingQuestion.conceptFocus : JSON.stringify(inspectingQuestion.conceptFocus)}
                       </div>
                     )}
                   </div>
@@ -1574,7 +1585,7 @@ export const AdminView: React.FC = () => {
                 {/* Footer */}
                 <div className="px-6 py-3 border-t border-slate-800 flex items-center justify-between bg-slate-900/90">
                   <div>
-                    {inspectingQuestion.id.startsWith('custom_') && (
+                    {(String(inspectingQuestion.id || '').startsWith('custom_') || String(inspectingQuestion.id || '').startsWith('ai_')) && (
                       <button
                         onClick={() => {
                           handleDeleteQuestion(inspectingQuestion.id);
@@ -1637,7 +1648,7 @@ export const AdminView: React.FC = () => {
 
             <div className="max-h-[640px] overflow-y-auto pr-1 space-y-3">
               {filteredQuestions.map((q) => {
-                const isCustom = q.id.startsWith('custom_');
+                const isCustom = String(q.id || '').startsWith('custom_') || String(q.id || '').startsWith('ai_');
                 return (
                   <div 
                     key={q.id} 
@@ -1688,18 +1699,20 @@ export const AdminView: React.FC = () => {
                       </div>
                     </div>
 
-                    <h4 className="text-sm font-semibold text-white leading-snug">{q.title}</h4>
+                    <h4 className="text-sm font-semibold text-white leading-snug">
+                      {typeof q.title === 'string' ? q.title : JSON.stringify(q.title)}
+                    </h4>
 
                     {q.scenario && (
                       <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
-                        {q.scenario}
+                        {typeof q.scenario === 'string' ? q.scenario : JSON.stringify(q.scenario)}
                       </p>
                     )}
 
                     {q.expectedCommand && (
                       <div className="p-2.5 bg-slate-900/90 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
                         <code className="font-mono text-xs text-emerald-400 truncate">
-                          {q.expectedCommand}
+                          {typeof q.expectedCommand === 'string' ? q.expectedCommand : JSON.stringify(q.expectedCommand)}
                         </code>
                         <span className="text-[10px] font-mono text-slate-500 shrink-0">Shell Command</span>
                       </div>
