@@ -43,7 +43,11 @@ export const MultipleChoice: React.FC<MultipleChoiceProps> = ({
               {letter}
             </span>
             <span className="font-mono text-xs sm:text-sm leading-relaxed whitespace-pre-wrap break-all">
-              {option}
+              {typeof option === 'string'
+                ? option
+                : (option && typeof option === 'object'
+                    ? ((option as any).text || (option as any).value || (option as any).label || JSON.stringify(option))
+                    : String(option ?? ''))}
             </span>
           </button>
         );

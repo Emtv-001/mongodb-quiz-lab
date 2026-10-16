@@ -30,7 +30,7 @@ export const PredictOutput: React.FC<PredictOutputProps> = ({
         </div>
 
         <div className="p-4 font-mono text-xs sm:text-sm text-emerald-400/90 overflow-x-auto">
-          {question.scenario}
+          {typeof question.scenario === 'string' ? question.scenario : JSON.stringify(question.scenario)}
         </div>
       </div>
 
@@ -64,7 +64,11 @@ export const PredictOutput: React.FC<PredictOutputProps> = ({
                 {letter}
               </span>
               <span className="font-mono text-xs sm:text-sm leading-relaxed whitespace-pre-wrap break-all">
-                {option}
+                {typeof option === 'string'
+                  ? option
+                  : (option && typeof option === 'object'
+                      ? ((option as any).text || (option as any).value || (option as any).label || JSON.stringify(option))
+                      : String(option ?? ''))}
               </span>
             </button>
           );

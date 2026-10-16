@@ -26,7 +26,7 @@ export const ScenarioQuestion: React.FC<ScenarioQuestionProps> = ({
           <span>Real-World Engineering Scenario</span>
         </div>
         <p className="text-sm text-slate-200 leading-relaxed">
-          {question.scenario}
+          {typeof question.scenario === 'string' ? question.scenario : JSON.stringify(question.scenario)}
         </p>
       </div>
 
@@ -60,7 +60,11 @@ export const ScenarioQuestion: React.FC<ScenarioQuestionProps> = ({
                 {letter}
               </span>
               <span className="text-xs sm:text-sm leading-relaxed">
-                {option}
+                {typeof option === 'string'
+                  ? option
+                  : (option && typeof option === 'object'
+                      ? ((option as any).text || (option as any).value || (option as any).label || JSON.stringify(option))
+                      : String(option ?? ''))}
               </span>
             </button>
           );

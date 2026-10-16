@@ -10,6 +10,7 @@ import { ArrangeCommand } from './types/ArrangeCommand';
 import { MultipleSelect } from './types/MultipleSelect';
 import { HelpCircle, Check, Database } from 'lucide-react';
 import { ProgressiveButton } from '../common/ProgressiveButton';
+import { ErrorBoundary } from '../common/ErrorBoundary';
 
 interface QuestionCardProps {
   question: Question;
@@ -139,10 +140,10 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
             <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 font-mono">
-              {typeLabels[question.type] || question.type}
+              {typeLabels[question.type] || String(question.type)}
             </span>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-              Level {question.level}
+              Level {Number(question.level) || 1}
             </span>
             {question.datasetName && (
               <button
@@ -152,29 +153,33 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 title="View target dataset"
               >
                 <Database className="w-3 h-3" />
-                <span>Dataset: {question.datasetName}</span>
+                <span>Dataset: {String(question.datasetName)}</span>
               </button>
             )}
           </div>
 
           <span className="text-xs font-mono font-semibold text-slate-400 bg-slate-800 px-2.5 py-0.5 rounded-md border border-slate-700">
-            {question.points} Points
+            {Number(question.points) || 10} Points
           </span>
         </div>
 
         <h3 className="text-lg sm:text-xl font-bold text-white leading-snug">
-          {question.title}
+          {typeof question.title === 'string' ? question.title : JSON.stringify(question.title)}
         </h3>
 
         {question.scenario && question.type !== 'predict-output' && question.type !== 'scenario' && (
           <p className="text-sm text-slate-300 leading-relaxed bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/80">
-            {question.scenario}
+            {typeof question.scenario === 'string' ? question.scenario : JSON.stringify(question.scenario)}
           </p>
         )}
       </div>
 
       {/* Specific Question Renderer Body */}
-      <div>{renderQuestionBody()}</div>
+      <div>
+        <ErrorBoundary fallbackName="Question Display">
+          {renderQuestionBody()}
+        </ErrorBoundary>
+      </div>
 
       {/* Submit / Grade Button (Shown only before submission) */}
       {!isSubmitted && (

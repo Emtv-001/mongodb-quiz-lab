@@ -114,19 +114,36 @@ export async function generateQuizQuestions(options: QuizSetupOptions): Promise<
       }
   }
 
+  // Preserve full question pool before filtering as fallback
+  const masterPool = [...all];
+
   // Filter by topic if specified
   if (selectedTopic) {
-    all = all.filter(q => q.topic === selectedTopic);
+    const topicFiltered = all.filter(q => q.topic === selectedTopic);
+    if (topicFiltered.length > 0) {
+      all = topicFiltered;
+    }
   }
 
   // Filter by difficulty if specified
   if (difficulty && difficulty !== 'All') {
-    all = all.filter(q => q.difficulty === difficulty);
+    const diffFiltered = all.filter(q => q.difficulty === difficulty);
+    if (diffFiltered.length > 0) {
+      all = diffFiltered;
+    }
   }
 
   // Filter by level if specified
   if (level && level !== 'All') {
-    all = all.filter(q => q.level === level);
+    const levelFiltered = all.filter(q => q.level === level);
+    if (levelFiltered.length > 0) {
+      all = levelFiltered;
+    }
+  }
+
+  // Final fallback: if somehow all is empty, restore masterPool or DEFAULT_QUESTIONS
+  if (all.length === 0) {
+    all = masterPool.length > 0 ? masterPool : [...DEFAULT_QUESTIONS];
   }
 
   if (mode === 'topic-practice' && selectedTopic) {
@@ -244,6 +261,13 @@ export async function createSession(options: QuizSetupOptions): Promise<QuizSess
       questions.splice(0, questions.length, ...extraQuestions);
       effectiveTotal = questions.length;
     }
+  }
+
+  // Absolute safety guarantee: ensure questions array is NEVER empty
+  if (questions.length === 0) {
+    const fallbackDefaults = shuffleArray([...DEFAULT_QUESTIONS]).slice(0, questionCount);
+    questions.push(...fallbackDefaults.map(prepareQuestionForSession));
+    effectiveTotal = questions.length;
   }
 
   let duration: number | undefined;

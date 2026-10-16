@@ -31,7 +31,7 @@ export const FindError: React.FC<FindErrorProps> = ({
           </div>
 
           <div className="p-4 font-mono text-xs sm:text-sm text-red-200 overflow-x-auto whitespace-pre">
-            {question.codeSnippet}
+            {typeof question.codeSnippet === 'string' ? question.codeSnippet : JSON.stringify(question.codeSnippet)}
           </div>
         </div>
       )}
@@ -66,7 +66,11 @@ export const FindError: React.FC<FindErrorProps> = ({
                 {letter}
               </span>
               <span className="text-xs sm:text-sm leading-relaxed">
-                {option}
+                {typeof option === 'string'
+                  ? option
+                  : (option && typeof option === 'object'
+                      ? ((option as any).text || (option as any).value || (option as any).label || JSON.stringify(option))
+                      : String(option ?? ''))}
               </span>
             </button>
           );

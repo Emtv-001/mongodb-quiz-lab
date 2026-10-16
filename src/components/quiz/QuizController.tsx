@@ -26,6 +26,7 @@ import {
 import { MOCK_EXAM_PRESETS } from '../../data/mockExams';
 import { replenishAiQuestionsBatch } from '../../services/quizEngine';
 import { ProgressiveButton } from '../common/ProgressiveButton';
+import { ErrorBoundary } from '../common/ErrorBoundary';
 
 interface QuizControllerProps {
   session: QuizSession;
@@ -43,7 +44,10 @@ export const QuizController: React.FC<QuizControllerProps> = ({
   onSessionUpdate
 }) => {
   const [session, setSession] = useState<QuizSession>(initialSession);
-  const [hasStarted, setHasStarted] = useState<boolean>(false); // Pre-start briefing screen state
+  const [hasStarted, setHasStarted] = useState<boolean>(() => {
+    // Only mock exams need a separate pre-start rules briefing
+    return initialSession.mode !== 'mock-test';
+  });
   const [currentAnswer, setCurrentAnswer] = useState<any>(undefined);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [currentAttempt, setCurrentAttempt] = useState<QuestionAttempt | null>(null);
@@ -54,6 +58,10 @@ export const QuizController: React.FC<QuizControllerProps> = ({
   // Sync if parent updates initialSession (e.g. restart)
   useEffect(() => {
     setSession(initialSession);
+    setHasStarted(initialSession.mode !== 'mock-test');
+    setCurrentAnswer(undefined);
+    setIsSubmitted(false);
+    setCurrentAttempt(null);
   }, [initialSession.id]);
 
   const currentQuestion: Question | undefined = session.questions[session.currentIndex];
@@ -510,6 +518,36 @@ export const QuizController: React.FC<QuizControllerProps> = ({
     ? Math.round((totalPossiblePoints / (session.questions.length || 1)) * targetCount)
     : totalPossiblePoints;
 
+  if (!currentQuestion) {
+    return (
+      <div className="max-w-xl mx-auto py-12 px-4 text-center space-y-4 animate-fadeIn">
+        <div className="p-8 bg-slate-900 border border-slate-800 rounded-3xl shadow-xl space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto text-amber-400 text-2xl font-bold">
+            ⚠️
+          </div>
+          <h3 className="text-xl font-black text-white">Question Unavailable</h3>
+          <p className="text-xs text-slate-400 leading-relaxed max-w-md mx-auto">
+            This question could not be loaded or the quiz session is empty.
+          </p>
+          <div className="pt-2 flex items-center justify-center gap-3">
+            <button
+              onClick={onRestartQuiz}
+              className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-md transition-colors"
+            >
+              Restart Quiz
+            </button>
+            <button
+              onClick={onGoHome}
+              className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs border border-slate-700 transition-colors"
+            >
+              Return to Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const isCurrentFlagged = session.flaggedQuestionIds.includes(currentQuestion.id);
 
   return (
@@ -635,26 +673,30 @@ export const QuizController: React.FC<QuizControllerProps> = ({
       )}
 
       {/* Main Question Card */}
-      <QuestionCard
-        question={currentQuestion}
-        studentAnswer={currentAnswer}
-        onChangeAnswer={(ans) => setCurrentAnswer(ans)}
-        onSubmit={handleSubmit}
-        isSubmitted={isSubmitted}
-        canSubmit={canSubmit}
-        onOpenSeedData={onOpenSeedData}
-      />
+      <ErrorBoundary fallbackName="Question Card">
+        <QuestionCard
+          question={currentQuestion}
+          studentAnswer={currentAnswer}
+          onChangeAnswer={(ans) => setCurrentAnswer(ans)}
+          onSubmit={handleSubmit}
+          isSubmitted={isSubmitted}
+          canSubmit={canSubmit}
+          onOpenSeedData={onOpenSeedData}
+        />
+      </ErrorBoundary>
 
       {/* Immediate Feedback Panel */}
       {isSubmitted && currentAttempt && (
-        <FeedbackPanel
-          result={currentAttempt.result}
-          mode={session.mode}
-          onRetry={session.mode === 'practice' ? () => setIsSubmitted(false) : undefined}
-          onNext={handleNext}
-          isLastQuestion={session.currentIndex + 1 === session.totalQuestions}
-          firstAttemptScore={currentAttempt.firstAttemptScore}
-        />
+        <ErrorBoundary fallbackName="Feedback Panel">
+          <FeedbackPanel
+            result={currentAttempt.result}
+            mode={session.mode}
+            onRetry={session.mode === 'practice' ? () => setIsSubmitted(false) : undefined}
+            onNext={handleNext}
+            isLastQuestion={session.currentIndex + 1 === session.totalQuestions}
+            firstAttemptScore={currentAttempt.firstAttemptScore}
+          />
+        </ErrorBoundary>
       )}
     </div>
   );

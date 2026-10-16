@@ -31,8 +31,9 @@ import { AdminAiQuestionStudioModal } from './AdminAiQuestionStudioModal';
 import { DEFAULT_QUESTIONS } from '../../data/questions';
 import { ALL_TOPICS } from '../../services/storage';
 import { DifficultyLevel, MongoTopic, Question, QuestionType, CurriculumLevel } from '../../types';
-import { loadCustomQuestions, saveCustomQuestions, sanitizeQuestion } from '../../services/storage';
+import { loadCustomQuestions, saveCustomQuestions, sanitizeQuestion, getLocalCachedCustomQuestions } from '../../services/storage';
 import { getFeedbackEntries } from '../../services/feedbackService';
+import { ErrorBoundary } from '../common/ErrorBoundary';
 
 import {
   LayoutDashboard,
@@ -195,7 +196,7 @@ export const AdminView: React.FC = () => {
   const [acceptedInviteDetails, setAcceptedInviteDetails] = useState<{ recoveryPhrase: string; role: string } | null>(null);
 
   // Question Management state
-  const [customQuestions, setCustomQuestions] = useState<Question[]>([]);
+  const [customQuestions, setCustomQuestions] = useState<Question[]>(() => getLocalCachedCustomQuestions());
   useEffect(() => {
     loadCustomQuestions().then(setCustomQuestions);
   }, []);
@@ -1174,7 +1175,8 @@ export const AdminView: React.FC = () => {
 
         {/* Question Bank Directory */}
       {canAccessTab(currentAdminTab) && currentAdminTab === 'questions' && (
-        <div className="space-y-6 animate-fadeIn">
+        <ErrorBoundary fallbackName="Question Bank">
+          <div className="space-y-6 animate-fadeIn">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center space-x-2 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-1">
@@ -1469,7 +1471,7 @@ export const AdminView: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-white">Question Inspector & Simulator</h3>
-                      <p className="text-[11px] text-slate-400 font-mono">ID: {inspectingQuestion.id} • {inspectingQuestion.topic}</p>
+                      <p className="text-[11px] text-slate-400 font-mono">ID: {String(inspectingQuestion.id)} • {String(inspectingQuestion.topic)}</p>
                     </div>
                   </div>
                   <button
@@ -1484,27 +1486,31 @@ export const AdminView: React.FC = () => {
                 <div className="p-6 overflow-y-auto space-y-4 text-xs flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                      Level {inspectingQuestion.level}
+                      Level {Number(inspectingQuestion.level) || 1}
                     </span>
                     <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                      {inspectingQuestion.difficulty}
+                      {String(inspectingQuestion.difficulty || 'Medium')}
                     </span>
                     <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-purple-500/15 text-purple-300 border border-purple-500/30 font-mono">
-                      {inspectingQuestion.type}
+                      {String(inspectingQuestion.type || 'multiple-choice')}
                     </span>
                     <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                      Dataset: {inspectingQuestion.datasetName || (inspectingQuestion as any).targetDataset || 'GptData02'}
+                      Dataset: {String(inspectingQuestion.datasetName || (inspectingQuestion as any).targetDataset || 'GptData02')}
                     </span>
                     <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 font-mono">
-                      +{inspectingQuestion.points} Points
+                      +{Number(inspectingQuestion.points) || 10} Points
                     </span>
                   </div>
 
                   <div className="bg-slate-950/70 p-4 rounded-2xl border border-slate-800 space-y-2">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Prompt / Title</span>
-                    <h4 className="text-sm font-bold text-white">{inspectingQuestion.title}</h4>
+                    <h4 className="text-sm font-bold text-white">
+                      {typeof inspectingQuestion.title === 'string' ? inspectingQuestion.title : JSON.stringify(inspectingQuestion.title)}
+                    </h4>
                     {inspectingQuestion.scenario && (
-                      <p className="text-slate-300 leading-relaxed pt-1 text-xs">{inspectingQuestion.scenario}</p>
+                      <p className="text-slate-300 leading-relaxed pt-1 text-xs">
+                        {typeof inspectingQuestion.scenario === 'string' ? inspectingQuestion.scenario : JSON.stringify(inspectingQuestion.scenario)}
+                      </p>
                     )}
                   </div>
 
@@ -1515,7 +1521,7 @@ export const AdminView: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
-                            navigator.clipboard.writeText(inspectingQuestion.expectedCommand || '');
+                            navigator.clipboard.writeText(String(inspectingQuestion.expectedCommand || ''));
                             setCopiedQuestionCode(true);
                             setTimeout(() => setCopiedQuestionCode(false), 2000);
                           }}
@@ -1526,12 +1532,12 @@ export const AdminView: React.FC = () => {
                         </button>
                       </div>
                       <pre className="p-3 bg-slate-900 rounded-xl text-emerald-400 font-mono text-xs overflow-x-auto border border-emerald-500/20 whitespace-pre-wrap">
-                        {inspectingQuestion.expectedCommand}
+                        {typeof inspectingQuestion.expectedCommand === 'string' ? inspectingQuestion.expectedCommand : JSON.stringify(inspectingQuestion.expectedCommand)}
                       </pre>
                     </div>
                   )}
 
-                  {inspectingQuestion.options && inspectingQuestion.options.length > 0 && (
+                  {Array.isArray(inspectingQuestion.options) && inspectingQuestion.options.length > 0 && (
                     <div className="bg-slate-950/70 p-4 rounded-2xl border border-slate-800 space-y-2">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Options & Solution</span>
                       <div className="space-y-1.5 pt-1">
@@ -1657,16 +1663,16 @@ export const AdminView: React.FC = () => {
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                          {q.id}
+                          {String(q.id || '')}
                         </span>
                         <span className="text-xs font-semibold text-emerald-400">
-                          {q.topic}
+                          {String(q.topic || 'General')}
                         </span>
                         <span className="text-[10px] uppercase font-bold text-slate-400">
-                          • Level {q.level} • {q.difficulty}
+                          • Level {Number(q.level) || 1} • {String(q.difficulty || 'Medium')}
                         </span>
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">
-                          {q.type}
+                          {String(q.type || 'multiple-choice')}
                         </span>
                         {isCustom && (
                           <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/30">
@@ -1677,7 +1683,7 @@ export const AdminView: React.FC = () => {
 
                       <div className="flex items-center space-x-2 self-end sm:self-center">
                         <span className="font-mono text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
-                          +{q.points} pts
+                          +{Number(q.points) || 10} pts
                         </span>
                         <button
                           onClick={() => setInspectingQuestion(q)}
@@ -1723,7 +1729,8 @@ export const AdminView: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      </ErrorBoundary>
+    )}
       <GlobalNotificationPopup audience="admins" userCreatedAt={currentUser?.createdAt} />
     </div>
   );

@@ -71,12 +71,12 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
             </span>
           )}
           <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700">
-            {topic}
+            {String(topic || 'MongoDB')}
           </span>
           <span
-            className={`text-xs font-bold px-2 py-0.5 rounded-lg border ${difficultyColors[difficulty]}`}
+            className={`text-xs font-bold px-2 py-0.5 rounded-lg border ${difficultyColors[difficulty] || 'bg-blue-500/15 text-blue-400 border-blue-500/30'}`}
           >
-            {difficulty}
+            {String(difficulty || 'Medium')}
           </span>
         </div>
 

@@ -54,7 +54,13 @@ export const MultipleSelect: React.FC<MultipleSelectProps> = ({
 
             <div className="flex-1">
               <span className="font-bold text-xs text-slate-400 mr-2">[{letter}]</span>
-              <span className="text-xs sm:text-sm leading-relaxed">{option}</span>
+              <span className="text-xs sm:text-sm leading-relaxed">
+                {typeof option === 'string'
+                  ? option
+                  : (option && typeof option === 'object'
+                      ? ((option as any).text || (option as any).value || (option as any).label || JSON.stringify(option))
+                      : String(option ?? ''))}
+              </span>
             </div>
           </button>
         );
