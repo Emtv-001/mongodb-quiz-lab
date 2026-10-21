@@ -119,33 +119,33 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* Right Action Items */}
-          <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
+          {/* Right Action Items & Tab Pills - Completely isolated horizontal scroll */}
+          <div className="flex items-center space-x-2 sm:space-x-3 overflow-x-auto scrollbar-none overscroll-contain touch-pan-x shrink min-w-0 py-1">
             {/* Gamification / MongoCoins CTA */}
             <button
               onClick={() => onNavigateTab && onNavigateTab('learner-hub')}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/15 to-purple-500/15 hover:from-amber-500/25 hover:to-purple-500/25 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all shadow-sm flex-shrink-0 whitespace-nowrap"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/15 to-purple-500/15 hover:from-amber-500/25 hover:to-purple-500/25 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all shadow-sm shrink-0 whitespace-nowrap"
               title="View Personal Points, Rank & MongoCoins"
             >
-              <Trophy className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+              <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               <span>{learnerAccount ? `${learnerAccount.coins || 100} 🪙` : 'Points & 🪙'}</span>
             </button>
 
             {/* Seed Data Explorer Button */}
             <button
               onClick={onOpenSeedData}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800/80 hover:bg-slate-700/80 text-emerald-400 border border-slate-700 transition-all hover:shadow-md hover:shadow-emerald-500/10 flex-shrink-0 whitespace-nowrap"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800/80 hover:bg-slate-700/80 text-emerald-400 border border-slate-700 transition-all hover:shadow-md hover:shadow-emerald-500/10 shrink-0 whitespace-nowrap"
               title="Inspect Live Data Collections"
             >
-              <Database className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+              <Database className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <span className="hidden md:inline">Live Datasets</span>
               <span className="md:hidden">Datasets</span>
             </button>
 
             {/* Best Score Badge */}
             {bestScore > 0 && (
-              <div className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-purple-500/10 text-purple-300 border border-purple-500/20 text-xs font-semibold flex-shrink-0 whitespace-nowrap">
-                <Award className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
+              <div className="flex items-center space-x-1 px-2.5 py-1.5 rounded-xl bg-purple-500/10 text-purple-300 border border-purple-500/20 text-xs font-semibold shrink-0 whitespace-nowrap">
+                <Award className="w-3.5 h-3.5 text-purple-400 shrink-0" />
                 <span className="hidden md:inline">Best Mock:</span>
                 <span>{bestScore}%</span>
               </div>
@@ -153,10 +153,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             {/* Prominent Streak Counter */}
             <div
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-bold flex-shrink-0 whitespace-nowrap shadow-sm shadow-amber-500/10"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-bold shrink-0 whitespace-nowrap shadow-sm shadow-amber-500/10"
               title={`Current daily learning streak: ${currentStreak} days`}
             >
-              <Flame className="w-4 h-4 text-amber-400 animate-pulse flex-shrink-0" />
+              <Flame className="w-4 h-4 text-amber-400 animate-pulse shrink-0" />
               <span>{currentStreak} Day{currentStreak === 1 ? '' : 's'} Streak 🔥</span>
             </div>
           </div>
