@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { MongoTopic, DifficultyLevel, CurriculumLevel, Question } from '../../types';
 import { generateAiDynamicQuestions } from '../../services/aiQuestionGenerator';
 import { appendCustomQuestions } from '../../services/storage';
+import { reportSystemIncident } from '../../services/incidentService';
 import {
   Sparkles,
   X,
@@ -15,7 +16,9 @@ import {
   CheckCircle2,
   Layers,
   Zap,
-  HelpCircle
+  HelpCircle,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 const TOPICS: MongoTopic[] = [
@@ -61,7 +64,8 @@ export const AdminAiQuestionStudioModal: React.FC<AdminAiQuestionStudioModalProp
 
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generatedQuestions, setGeneratedQuestions] = useState<Question[]>([]);
-  const [statusMessage, setStatusMessage] = useState<{ text: string; isError: boolean } | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{ text: string; isError: boolean; rawDetail?: string } | null>(null);
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
   if (!isOpen) return null;
@@ -69,6 +73,7 @@ export const AdminAiQuestionStudioModal: React.FC<AdminAiQuestionStudioModalProp
   const handleGenerate = async () => {
     setIsGenerating(true);
     setStatusMessage(null);
+    setShowTechnicalDetails(false);
 
     try {
       const questions = await generateAiDynamicQuestions({
@@ -89,9 +94,18 @@ export const AdminAiQuestionStudioModal: React.FC<AdminAiQuestionStudioModalProp
       });
     } catch (err: any) {
       console.error("AI Generation Error in Admin Studio:", err);
+      // Automatically report incident to admin portal and administrator emails
+      reportSystemIncident({
+        service: 'Google Gemini 3.8 Flash',
+        summary: 'Question Studio Synthesis Failed',
+        technicalDetails: err.message || String(err),
+        context: `Admin Studio (@${currentAdminUsername}) • Topic: ${topic} • Level: ${level}`
+      }).catch(() => {});
+
       setStatusMessage({
-        text: `Generation Failed: ${err.message || 'Unknown error. Verify API key in Branding/Config.'}`,
-        isError: true
+        text: 'AI Question Generation encountered a temporary issue. A detailed incident report has been automatically sent to the Admin Portal and administrator emails.',
+        isError: true,
+        rawDetail: err.message || 'Unknown network or API error'
       });
     } finally {
       setIsGenerating(false);
@@ -146,7 +160,7 @@ export const AdminAiQuestionStudioModal: React.FC<AdminAiQuestionStudioModalProp
               <h2 className="text-lg font-black text-white flex items-center gap-2">
                 AI Question Synthesizer & Studio
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                  Gemini 2.5 Flash
+                  Gemini 3.8 Flash
                 </span>
               </h2>
               <p className="text-xs text-slate-400">
@@ -167,13 +181,38 @@ export const AdminAiQuestionStudioModal: React.FC<AdminAiQuestionStudioModalProp
           
           {/* Status Message */}
           {statusMessage && (
-            <div className={`p-4 rounded-2xl border flex items-center space-x-3 ${
+            <div className={`p-4 rounded-2xl border space-y-2.5 ${
               statusMessage.isError 
                 ? 'bg-rose-500/10 border-rose-500/30 text-rose-300' 
                 : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
             }`}>
-              {statusMessage.isError ? <AlertCircle className="w-5 h-5 shrink-0" /> : <Check className="w-5 h-5 shrink-0" />}
-              <span className="font-semibold text-xs leading-relaxed">{statusMessage.text}</span>
+              <div className="flex items-start space-x-3">
+                {statusMessage.isError ? (
+                  <AlertCircle className="w-5 h-5 shrink-0 mt-0.5 text-rose-400" />
+                ) : (
+                  <Check className="w-5 h-5 shrink-0 mt-0.5 text-emerald-400" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <span className="font-semibold text-xs leading-relaxed block">{statusMessage.text}</span>
+                  {statusMessage.isError && statusMessage.rawDetail && (
+                    <div className="mt-2 pt-2 border-t border-rose-500/20">
+                      <button
+                        type="button"
+                        onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
+                        className="text-[11px] font-mono text-rose-400/90 hover:text-rose-300 flex items-center space-x-1 underline cursor-pointer"
+                      >
+                        <span>{showTechnicalDetails ? 'Hide Technical Diagnostic Details' : 'View Technical Diagnostic Details'}</span>
+                        {showTechnicalDetails ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </button>
+                      {showTechnicalDetails && (
+                        <div className="mt-2 p-2.5 bg-slate-950/80 rounded-xl border border-rose-500/20 font-mono text-[10px] text-rose-200/90 break-all select-all whitespace-pre-wrap">
+                          {statusMessage.rawDetail}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
@@ -375,7 +414,7 @@ export const AdminAiQuestionStudioModal: React.FC<AdminAiQuestionStudioModalProp
         {/* Modal Footer */}
         <div className="px-6 py-3.5 border-t border-slate-800 bg-slate-950 flex items-center justify-between text-xs">
           <span className="text-slate-500">
-            Powered by Google Gemini 2.5 • Generated questions are immediately available to all learners.
+            Powered by Google Gemini 3.8 • Generated questions are immediately available to all learners.
           </span>
           <button
             onClick={onClose}

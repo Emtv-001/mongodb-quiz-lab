@@ -457,7 +457,7 @@ export const AdminBrandingConfig: React.FC<AdminBrandingConfigProps> = ({ curren
               </button>
 
               <span className="text-[10px] text-slate-500 font-mono">
-                Model: gemini-2.5-flash
+                Model: gemini-3.8-flash
               </span>
             </div>
 

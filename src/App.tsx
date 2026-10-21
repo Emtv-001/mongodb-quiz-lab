@@ -16,6 +16,7 @@ import { AdminView } from './components/admin/AdminView';
 import { ReviewView } from './components/review/ReviewView';
 import { LearnerGamificationView } from './components/learner/LearnerGamificationView';
 import { LearnerFeedbackView } from './components/learner/LearnerFeedbackView';
+import { LearnerRegistrationPage } from './components/learner/LearnerRegistrationPage';
 import { DEFAULT_QUESTIONS } from './data/questions';
 
 import { QuizConfigModal } from './components/quiz/QuizConfigModal';
@@ -61,11 +62,11 @@ export function App() {
         localStorage.setItem('mongo_quiz_pending_referral_code', cleanRef);
         localStorage.removeItem('mongo_quiz_active_session');
         setActiveSession(null);
-        setCurrentTab('learner-hub');
+        setCurrentTab('register');
       } else if (tab === 'register') {
         localStorage.removeItem('mongo_quiz_active_session');
         setActiveSession(null);
-        setCurrentTab('learner-hub');
+        setCurrentTab('register');
       }
     } catch {}
   }, []);
@@ -79,7 +80,7 @@ export function App() {
       const ref = params.get('ref') || params.get('referral');
       const tab = params.get('tab');
       if ((ref && ref.trim()) || tab === 'register') {
-        return 'learner-hub';
+        return 'register';
       }
     } catch {}
     return (localStorage.getItem('mongo_quiz_last_tab') as NavTab) || 'dashboard';
@@ -302,6 +303,18 @@ export function App() {
             questions={DEFAULT_QUESTIONS}
             attempts={{}}
             onBack={handleGoHome}
+          />
+        );
+
+      case 'register':
+        return (
+          <LearnerRegistrationPage
+            onRegistrationSuccess={() => {
+              setProgress(loadProgress());
+              handleSelectTab('learner-hub');
+            }}
+            onCancel={() => handleSelectTab('dashboard')}
+            onNavigateTab={(tab) => handleSelectTab(tab)}
           />
         );
 

@@ -21,6 +21,7 @@ import {
 export type NavTab =
   | 'dashboard'
   | 'learner-hub'
+  | 'register'
   | 'practice'
   | 'quiz'
   | 'mock-exam-selector'
