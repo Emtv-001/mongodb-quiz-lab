@@ -272,13 +272,10 @@ export async function createSession(options: QuizSetupOptions): Promise<QuizSess
 
   let duration: number | undefined;
 
+  // Timers are exclusively reserved for mock exams
   if (options.mode === 'mock-test' && options.mockExamId) {
     const preset = MOCK_EXAM_PRESETS.find(p => p.id === options.mockExamId);
     duration = (preset ? preset.durationMinutes : 20) * 60;
-  } else if (options.mode === 'quiz' || options.mode === 'challenge') {
-    duration = effectiveTotal * 75; // 75s per question
-  } else if (options.mode === 'mastery') {
-    duration = effectiveTotal * 90;
   }
 
   return {

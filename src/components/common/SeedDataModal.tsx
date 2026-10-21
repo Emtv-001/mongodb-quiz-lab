@@ -64,7 +64,7 @@ export const SeedDataModal: React.FC<SeedDataModalProps> = ({
         </div>
 
         {/* Dataset Switcher Tabs */}
-        <div className="px-4 py-2.5 border-b border-slate-800 bg-slate-950/70 flex items-center space-x-2 overflow-x-auto scrollbar-none overscroll-contain touch-pan-x">
+        <div className="px-4 py-2.5 border-b border-slate-800 bg-slate-950/70 flex items-center space-x-2 overflow-x-auto">
           {Object.entries(ALL_DATASETS).map(([key, dataset]) => (
             <button
               key={key}

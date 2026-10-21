@@ -105,15 +105,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {isOpen && (
         <div
           onClick={onClose}
-          onTouchMove={(e) => e.preventDefault()}
           className="fixed inset-0 z-40 bg-slate-950/70 backdrop-blur-sm lg:hidden"
         />
       )}
 
       {/* Sidebar Container */}
       <aside
-        onTouchMove={(e) => e.stopPropagation()}
-        className={`fixed top-0 bottom-0 left-0 z-50 w-64 bg-slate-900 border-r border-slate-800 flex flex-col transition-transform duration-200 ease-in-out lg:static lg:h-full lg:w-64 lg:translate-x-0 lg:z-auto shrink-0 select-none overscroll-contain ${
+        className={`fixed top-0 bottom-0 left-0 z-50 w-64 bg-slate-900 border-r border-slate-800 flex flex-col transition-transform duration-200 ease-in-out lg:static lg:h-full lg:w-64 lg:translate-x-0 lg:z-auto shrink-0 overscroll-contain ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -129,7 +127,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Navigation Groups */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6 overscroll-contain touch-pan-y">
+        <div className="flex-1 overflow-y-auto p-4 space-y-6 overscroll-contain">
           {categories.map(category => {
             const items = navItems.filter(item => item.category === category);
             if (items.length === 0) return null;

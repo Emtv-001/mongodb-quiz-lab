@@ -262,7 +262,7 @@ export async function generateAiDynamicQuestions(options: GenerationOptions = {}
 
     const data = await response.json();
     if (data.success && data.questions && data.questions.length > 0) {
-      return data.questions;
+      return data.questions.map((q: any, idx: number) => sanitizeQuestion(q, idx));
     }
   } catch (proxyErr: any) {
     console.warn("Backend proxy also failed or timed out:", proxyErr.message);

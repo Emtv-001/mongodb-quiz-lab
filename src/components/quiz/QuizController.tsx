@@ -165,13 +165,13 @@ export const QuizController: React.FC<QuizControllerProps> = ({
     setBookmarkedMap(map);
   }, []);
 
-  // Timer Tick - ONLY ticks AFTER user clicks Start
+  // Timer Tick - ONLY ticks AFTER user clicks Start in mock-test mode
   useEffect(() => {
-    if (!hasStarted || session.completed || session.timeRemainingSeconds === undefined) return;
+    if (!hasStarted || session.completed || session.timeRemainingSeconds === undefined || session.mode !== 'mock-test') return;
 
     const timer = setInterval(() => {
       setSession((prev) => {
-        if (prev.completed || prev.timeRemainingSeconds === undefined) return prev;
+        if (prev.completed || prev.timeRemainingSeconds === undefined || prev.mode !== 'mock-test') return prev;
         if (prev.timeRemainingSeconds <= 1) {
           clearInterval(timer);
           return {
@@ -189,7 +189,7 @@ export const QuizController: React.FC<QuizControllerProps> = ({
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [hasStarted, session.completed, session.timeRemainingSeconds]);
+  }, [hasStarted, session.completed, session.timeRemainingSeconds, session.mode]);
 
   // Load question state on index change
   useEffect(() => {

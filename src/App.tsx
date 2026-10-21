@@ -376,7 +376,7 @@ export function App() {
       />
 
       {/* Main Layout Container */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto min-w-0 min-h-0 overflow-hidden">
+      <div className="flex-1 flex max-w-7xl w-full mx-auto min-w-0 overflow-hidden">
         {/* Responsive Sidebar */}
         <Sidebar
           currentTab={currentTab}
@@ -386,7 +386,7 @@ export function App() {
         />
 
         {/* Content View Area */}
-        <main ref={mainContentRef} className="flex-1 h-full overflow-y-auto overscroll-contain touch-pan-y p-4 sm:p-6 lg:p-8 min-w-0 w-full max-w-full">
+        <main ref={mainContentRef} className="flex-1 h-full overflow-y-auto overscroll-contain p-4 sm:p-6 lg:p-8 min-w-0 w-full max-w-full">
           <ErrorBoundary fallbackName="Main View">
             {renderContent()}
           </ErrorBoundary>
@@ -401,20 +401,24 @@ export function App() {
       />
 
       {/* Custom Quiz Setup Modal */}
-      <QuizConfigModal
-        isOpen={isConfigModalOpen}
-        onClose={() => setIsConfigModalOpen(false)}
-        mode={configModalMode}
-        initialTopic={configModalTopic}
-        onStartConfiguredQuiz={(config) => {
-          handleStartQuiz(config.mode, config.selectedTopic, undefined, {
-            questionCount: config.questionCount,
-            difficulty: config.difficulty,
-            level: config.level,
-            useAiGeneration: config.useAiGeneration
-          });
-        }}
-      />
+      {isConfigModalOpen && (
+        <ErrorBoundary fallbackName="Quiz Configuration Modal">
+          <QuizConfigModal
+            isOpen={isConfigModalOpen}
+            onClose={() => setIsConfigModalOpen(false)}
+            mode={configModalMode}
+            initialTopic={configModalTopic}
+            onStartConfiguredQuiz={(config) => {
+              handleStartQuiz(config.mode, config.selectedTopic, undefined, {
+                questionCount: config.questionCount,
+                difficulty: config.difficulty,
+                level: config.level,
+                useAiGeneration: config.useAiGeneration
+              });
+            }}
+          />
+        </ErrorBoundary>
+      )}
     </div>
   );
 }

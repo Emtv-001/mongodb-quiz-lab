@@ -31,6 +31,7 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
   const [difficulty, setDifficulty] = useState<DifficultyLevel | 'All'>('All');
   const [level, setLevel] = useState<CurriculumLevel | 'All'>('All');
   const [useAiGeneration, setUseAiGeneration] = useState<boolean>(true);
+  const [isLaunching, setIsLaunching] = useState(false);
 
   if (!isOpen) return null;
 
@@ -46,8 +47,6 @@ export const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
     mastery: "Level 9 Projects Setup",
     'topic-practice': "Topic Practice Setup"
   };
-
-  const [isLaunching, setIsLaunching] = useState(false);
 
   const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
