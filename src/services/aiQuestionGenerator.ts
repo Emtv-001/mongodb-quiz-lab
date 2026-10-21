@@ -15,9 +15,10 @@ export interface GenerationOptions {
 }
 
 /**
- * Builds the strict, authentic MongoDB practical quiz prompt for Gemini.
- * Aligns generated questions with the actual collections (GptData02, accounts, inventory, orders, users)
- * and realistic mongosh syntax seen in the app's native question bank.
+ * Builds a dynamic, versatile structured JSON prompt for Gemini.
+ * Generates practical, varied MongoDB questions across diverse real-world industry domains
+ * (e-commerce, fintech, IoT time-series, SaaS multi-tenant, healthcare, gaming, logs, and more)
+ * without being artificially restricted to any single fixed dataset.
  */
 function buildQuestionPrompt(options: GenerationOptions): string {
   const { topic, level, difficulty, count = 3, datasetName, existingQuestionsToAvoid } = options;
@@ -27,22 +28,33 @@ function buildQuestionPrompt(options: GenerationOptions): string {
     avoidInstruction = `\nAvoid repeating similar questions to: ${titles}.\n`;
   }
 
-  return `Generate exactly ${count} practical, high-caliber MongoDB quiz questions modeled directly after professional MongoDB developer certification standards.
+  const datasetContext = datasetName
+    ? `Specific dataset: ${datasetName}`
+    : `Diverse real-world production datasets (draw freely from varied domains: e-commerce, fintech, IoT telemetry, SaaS multi-tenancy, healthcare, logistics, social media, gaming, or general databases)`;
+
+  return `Generate exactly ${count} practical, high-caliber MongoDB quiz questions modeled after real-world production engineering and MongoDB certification challenges.
 Topic: ${topic || 'CRUD Operations'}
 Difficulty: ${difficulty || 'Medium'}
 Curriculum Level: ${level || 3}
-Dataset context: ${datasetName || 'GptData02 (Students collection with fields: _id, Name, Section, GPA, Age, Course, Courses, Marks, Active, MonthOfAdmission)'}${avoidInstruction}
+Dataset context: ${datasetContext}${avoidInstruction}
 
-AUTHENTIC MONGODB QUESTION GUIDELINES (MATCH USER'S STYLE):
-1. USE REAL APP DATASETS & SCHEMAS:
-   - Primary: 'GptData02' (student records: Name, Section, GPA, Age, Course, Courses [array], Marks, Active)
-   - Secondary: 'inventory' (sku, quantity, price, warehouse, tags [array]), 'orders' (orderId, customer, items [array of subdocs], totalAmount, status), 'accounts' (accountNumber, balance, status), or 'users' (username, email, role, createdAt).
+VERSATILE REAL-WORLD MONGODB QUESTION GUIDELINES:
+1. DIVERSE INDUSTRY DOMAINS & REALISTIC SCHEMAS:
+   - Do NOT restrict yourself to any single dataset. Feel free to use varied, creative, realistic production collections:
+     * E-Commerce / Retail: db.products, db.orders, db.customers, db.reviews
+     * Fintech & Payments: db.transactions, db.accounts, db.ledgers, db.wallets
+     * IoT & Time-Series: db.sensor_readings, db.telemetry, db.devices, db.metrics
+     * SaaS & Cloud Services: db.tenants, db.subscriptions, db.audit_logs, db.users
+     * Healthcare & Life Sciences: db.patients, db.appointments, db.medical_records
+     * Social & Media Streaming: db.posts, db.comments, db.media, db.notifications
+     * Education & Academics: db.students, db.courses, db.enrollments, db.GptData02
+     * Logistics & Supply Chain: db.shipments, db.inventory, db.warehouses
 2. WRITE-COMMAND REALISM:
-   - Provide genuine executable mongosh shell commands (e.g. db.GptData02.find({ Section: "A" }, { Name: 1, GPA: 1, _id: 0 }), db.accounts.findOneAndUpdate(...), db.orders.aggregate([...])).
+   - Provide genuine, executable mongosh shell commands (e.g. db.collection.find(...), db.collection.aggregate([...]), db.collection.updateOne(...), db.collection.createIndex(...)).
    - Provide 2-3 "acceptableAlternatives" with variations in spacing, single/double quotes, or alternative valid mongosh forms so user inputs are graded fairly.
 3. MULTIPLE-CHOICE REALISM:
-   - Include believable developer misconceptions as distractors (e.g. confusing $in with $or, forgetting {_id: 0} in projections, assuming findOneAndUpdate returns the new doc without returnDocument: "after").
-   - Optionally provide a concise "codeSnippet" (1-4 lines of JSON document or command) if examining code.
+   - Include believable developer misconceptions as distractors (e.g. confusing $in with $or, projection rules, index ESR prefix rules, pipeline stage ordering).
+   - Optionally include a concise "codeSnippet" (1-4 lines of JSON document, query, or pipeline) whenever helpful.
 4. SPEED & BREVITY RULES:
    - Keep "scenario" concise (1-2 sentences).
    - Keep "explanation" and "misconception" crisp and punchy (1-2 sentences each).
@@ -53,8 +65,9 @@ Return a JSON array of objects. Each object MUST exactly match this structure:
   "title": "String (Short question title)",
   "scenario": "String (Concise 1-2 sentence context or problem description)",
   "codeSnippet": "String or null (Optional 1-3 lines of sample document or query)",
+  "datasetName": "String (Name of the collection, e.g. 'orders', 'transactions', 'telemetry', 'students')",
   "type": "String (must be either 'write-command' or 'multiple-choice')",
-  "expectedCommand": "String (The correct MongoDB shell command if write-command, e.g. db.GptData02.find({ Section: 'A' }, { Name: 1, _id: 0 }))",
+  "expectedCommand": "String (The correct MongoDB shell command if write-command)",
   "acceptableAlternatives": ["String", "String"],
   "options": ["String", "String", "String", "String"],
   "correctOptionIndex": 0,
@@ -100,7 +113,7 @@ function parseAndFormatQuestions(text: string, options: GenerationOptions): Ques
       topic: options.topic || 'General MongoDB',
       level: options.level || 3,
       difficulty: options.difficulty || 'Medium',
-      datasetName: options.datasetName || 'GptData02',
+      datasetName: q.datasetName || options.datasetName || 'General',
       type: q.type === 'multiple-choice' || q.type === 'write-command' ? q.type : 'write-command',
       codeSnippet: q.codeSnippet || undefined,
       acceptableAlternatives: acceptableAlternatives.length > 0 ? acceptableAlternatives : undefined,
