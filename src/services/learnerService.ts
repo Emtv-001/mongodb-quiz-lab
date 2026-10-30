@@ -8,7 +8,7 @@ import {
 } from '../types';
 import { generateRecoveryPhrase, recordDeletionStatement, addAuditLog } from './adminService';
 import { sha256Sync } from './security';
-import { loadProgress, saveProgress } from './storage';
+import { loadProgress, saveProgress, mergeGuestProgressIntoRegisteredAccount } from './storage';
 import { sendOtpRegistrationEmail, sendPasswordResetEmail } from './emailService';
 
 const LEARNER_ACCOUNTS_DIR_KEY = 'mongo_quiz_learner_accounts_directory_v2';
@@ -185,9 +185,6 @@ export async function verifyLearnerRegistrationOtp(
       return { success: false, message: "Incorrect 6-digit verification code. Please enter the OTP sent to your email." };
     }
 
-    const progress = loadProgress();
-    const stats = getLearnerGamificationStats(progress);
-
     // Call MongoDB Atlas Backend
     const response = await fetch('/api/auth/register', {
       method: 'POST',
@@ -216,7 +213,11 @@ export async function verifyLearnerRegistrationOtp(
     saveRegisteredLearnerAccount(newAccount);
     sessionStorage.removeItem(LEARNER_OTP_SESSION_KEY);
 
-    // Update progress pseudonym to match chosen username
+    // Seamlessly merge temporary guest session activity into the newly registered account
+    mergeGuestProgressIntoRegisteredAccount(newAccount.id);
+
+    // Update progress pseudonym to match chosen username (reload after merge)
+    const progress = loadProgress();
     progress.learnerId.pseudonym = newAccount.displayName;
     saveProgress(progress);
 
@@ -318,6 +319,7 @@ export async function loginLearner(
         id: data.user._id || data.user.id
       };
       saveRegisteredLearnerAccount(account);
+      mergeGuestProgressIntoRegisteredAccount(account.id);
       return { success: true, message: `Welcome back, ${account.displayName}!`, account };
     }
 

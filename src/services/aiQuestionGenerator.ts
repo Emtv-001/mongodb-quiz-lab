@@ -130,32 +130,26 @@ function parseAndFormatQuestions(text: string, options: GenerationOptions): Ques
 export async function directGeminiGenerate(
   prompt: string,
   apiKey: string,
-  timeoutMs: number = 7500
+  _timeoutMs: number = 7500  // kept for backwards-compat signature, no longer used
 ): Promise<string> {
   const models = ['gemini-3.8-flash', 'gemini-3-flash-preview'];
   let lastError: Error | null = null;
 
   for (const model of models) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`;
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           generationConfig: {
             responseMimeType: 'application/json',
-            thinkingConfig: {
-              thinkingLevel: 'low'
-            }
+            maxOutputTokens: 1024,
+            thinkingConfig: { thinkingLevel: 'low' }
           }
         })
       });
-      clearTimeout(timeoutId);
 
       if (!res.ok) {
         const errText = await res.text().catch(() => '');
@@ -169,12 +163,9 @@ export async function directGeminiGenerate(
       }
       return text;
     } catch (err: any) {
-      clearTimeout(timeoutId);
       lastError = err;
       console.warn(`Direct Gemini call failed with ${model}:`, err.message);
-      if (err.name === 'AbortError') {
-        break; // Don't continue to next model if hard timeout elapsed
-      }
+      // Continue to try the fallback model
     }
   }
 

@@ -73,27 +73,19 @@ Note: For multiple-choice questions, "options" must be an array of exactly 4 str
 
     for (const model of models) {
       try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 7500);
-
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
         const response = await fetch(url, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          signal: controller.signal,
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             generationConfig: {
               responseMimeType: 'application/json',
-              thinkingConfig: {
-                thinkingLevel: 'low'
-              }
+              maxOutputTokens: 1024,
+              thinkingConfig: { thinkingLevel: 'low' }
             }
           })
         });
-        clearTimeout(timer);
 
         if (response.ok) {
           const data = await response.json();
@@ -104,8 +96,8 @@ Note: For multiple-choice questions, "options" must be an array of exactly 4 str
           lastError = new Error(`Gemini ${model} Error (${response.status}): ${errText.substring(0, 200)}`);
         }
       } catch (err: any) {
+        // Continue to the next fallback model rather than aborting entirely
         lastError = err;
-        if (err.name === 'AbortError') break;
       }
     }
 

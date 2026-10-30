@@ -215,12 +215,44 @@ export interface Flashcard {
   note?: string;
 }
 
+export interface LectureConcept {
+  heading: string;
+  explanation: string;
+  codeSnippet?: string;
+  codeExplanation?: string;
+  analogyOrTip?: string;
+}
+
+export interface LectureWalkthroughStep {
+  stepNumber: number;
+  stepTitle: string;
+  explanation: string;
+  codeExample?: string;
+  outputPreview?: string;
+}
+
 export interface StudyNoteSection {
   id: string;
+  lectureNumber?: number;
+  moduleTitle?: string;
   topic: MongoTopic;
   level: CurriculumLevel;
+  estimatedReadTimeMinutes?: number;
   title: string;
+  subtitle?: string;
   summary: string;
+
+  // Pedagogical Lecture Core
+  noviceMentalModel?: {
+    analogyTitle: string;
+    analogyStory: string;
+    keyTakeaway: string;
+  };
+  structuralDiagram?: string;
+  coreConcepts?: LectureConcept[];
+  stepByStepWalkthrough?: LectureWalkthroughStep[];
+
+  // Operators, Rules, and Scenarios
   keyOperators: {
     name: string;
     description: string;
@@ -229,6 +261,8 @@ export interface StudyNoteSection {
   importantRules: string[];
   commonMistakes: string[];
   realWorldScenario?: string;
+  teacherTips?: string[];
+  noviceSummaryChecklist?: string[];
 }
 
 // Student document from GptData02

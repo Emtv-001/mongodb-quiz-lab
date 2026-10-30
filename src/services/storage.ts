@@ -1,7 +1,10 @@
 import { MongoTopic, Question, QuestionAttempt, QuizMode, StudentProgress, SpacedRepetitionItem } from '../types';
 import { getOrCreateLearnerIdentity, computeProgressDigest, verifyProgressIntegrity } from './security';
 
-const PROGRESS_STORAGE_KEY = 'mongo_quiz_student_progress_v2';
+export const PROGRESS_STORAGE_KEY = 'mongo_quiz_student_progress_v2';
+export const REGISTERED_PROGRESS_PREFIX = 'mongo_quiz_progress_user_';
+export const GUEST_SESSION_PROGRESS_KEY = 'mongo_quiz_guest_session_progress';
+export const ACTIVE_LEARNER_SESSION_KEY = 'mongo_quiz_active_learner_session_v2';
 export const CUSTOM_QUESTIONS_KEY = 'mongo_quiz_custom_questions_v1';
 
 export const ALL_TOPICS: MongoTopic[] = [
@@ -59,19 +62,146 @@ function getInitialProgress(): StudentProgress {
   return p;
 }
 
+/**
+ * Returns the currently active registered learner account ID, or null if in guest/incognito mode.
+ */
+export function getActiveLearnerId(): string | null {
+  try {
+    if (typeof window === 'undefined') return null;
+    return sessionStorage.getItem(ACTIVE_LEARNER_SESSION_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Returns true if the user is in Guest / Incognito mode (unregistered or logged out).
+ * In this mode, progress is temporary and only preserved for the current tab session.
+ */
+export function isGuestMode(): boolean {
+  return !getActiveLearnerId();
+}
+
+/**
+ * Merges any temporary guest session progress into a newly registered or logged-in account.
+ */
+export function mergeGuestProgressIntoRegisteredAccount(learnerId: string): void {
+  try {
+    if (typeof window === 'undefined') return;
+    const guestRaw = sessionStorage.getItem(GUEST_SESSION_PROGRESS_KEY);
+    if (!guestRaw) return;
+
+    const guestProgress: StudentProgress = JSON.parse(guestRaw);
+    if (!guestProgress || guestProgress.questionsAttempted === 0) {
+      sessionStorage.removeItem(GUEST_SESSION_PROGRESS_KEY);
+      return;
+    }
+
+    const userKey = REGISTERED_PROGRESS_PREFIX + learnerId;
+    const userRaw = localStorage.getItem(userKey);
+    const targetProgress: StudentProgress = userRaw ? JSON.parse(userRaw) : getInitialProgress();
+
+    // Merge attempts and scores
+    targetProgress.questionsAttempted += guestProgress.questionsAttempted;
+    targetProgress.questionsCorrect += guestProgress.questionsCorrect;
+    targetProgress.questionsPartial += guestProgress.questionsPartial;
+    targetProgress.totalScore += guestProgress.totalScore;
+    targetProgress.totalMaxScore += guestProgress.totalMaxScore;
+    if (guestProgress.bestMockScore > targetProgress.bestMockScore) {
+      targetProgress.bestMockScore = guestProgress.bestMockScore;
+    }
+    if (guestProgress.currentStreak > targetProgress.currentStreak) {
+      targetProgress.currentStreak = guestProgress.currentStreak;
+    }
+    if (targetProgress.currentStreak > targetProgress.longestStreak) {
+      targetProgress.longestStreak = targetProgress.currentStreak;
+    }
+
+    // Merge completed sessions
+    if (Array.isArray(guestProgress.completedSessions) && guestProgress.completedSessions.length > 0) {
+      targetProgress.completedSessions = [
+        ...targetProgress.completedSessions,
+        ...guestProgress.completedSessions
+      ];
+    }
+
+    // Merge bookmarks
+    if (Array.isArray(guestProgress.bookmarkedQuestionIds)) {
+      targetProgress.bookmarkedQuestionIds = Array.from(new Set([
+        ...targetProgress.bookmarkedQuestionIds,
+        ...guestProgress.bookmarkedQuestionIds
+      ]));
+    }
+
+    // Merge topic stats
+    ALL_TOPICS.forEach(topic => {
+      const gStat = guestProgress.topicStats[topic];
+      if (gStat && gStat.attempted > 0) {
+        if (!targetProgress.topicStats[topic]) {
+          targetProgress.topicStats[topic] = { attempted: 0, correct: 0, totalPoints: 0, earnedPoints: 0 };
+        }
+        targetProgress.topicStats[topic].attempted += gStat.attempted;
+        targetProgress.topicStats[topic].correct += gStat.correct;
+        targetProgress.topicStats[topic].totalPoints += gStat.totalPoints;
+        targetProgress.topicStats[topic].earnedPoints += gStat.earnedPoints;
+      }
+    });
+
+    targetProgress.checksum = computeProgressDigest(targetProgress);
+    localStorage.setItem(userKey, JSON.stringify(targetProgress));
+    localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(targetProgress));
+
+    // Clear temporary guest storage now that progress is safe
+    sessionStorage.removeItem(GUEST_SESSION_PROGRESS_KEY);
+
+    window.dispatchEvent(new CustomEvent('mongo_quiz_progress_saved'));
+  } catch (err) {
+    console.error("Failed to merge guest progress into registered account", err);
+  }
+}
+
 export function loadProgress(): StudentProgress {
   try {
-    const raw = localStorage.getItem(PROGRESS_STORAGE_KEY);
-    if (!raw) return getInitialProgress();
+    const activeLearnerId = getActiveLearnerId();
+    let raw: string | null = null;
+
+    if (activeLearnerId) {
+      // 1. Registered Account: load from persistent user storage
+      raw = localStorage.getItem(REGISTERED_PROGRESS_PREFIX + activeLearnerId);
+
+      // Legacy migration fallback: if user key doesn't exist yet, check global key
+      if (!raw) {
+        const legacyRaw = localStorage.getItem(PROGRESS_STORAGE_KEY);
+        if (legacyRaw) {
+          raw = legacyRaw;
+          localStorage.setItem(REGISTERED_PROGRESS_PREFIX + activeLearnerId, legacyRaw);
+        }
+      }
+    } else {
+      // 2. Unregistered / Incognito Guest Mode: load ONLY from temporary sessionStorage
+      raw = sessionStorage.getItem(GUEST_SESSION_PROGRESS_KEY);
+    }
+
+    if (!raw) {
+      const initial = getInitialProgress();
+      if (!activeLearnerId) {
+        initial.learnerId.pseudonym = "Guest Learner (Incognito)";
+      }
+      return initial;
+    }
+
     const parsed: StudentProgress = JSON.parse(raw);
 
-    // Verify cryptographic integrity to avoid browser DevTools score tampering
+    // Verify cryptographic integrity
     if (!verifyProgressIntegrity(parsed)) {
       console.warn("Progress integrity checksum verification failed. Recomputing baseline.");
     }
 
     if (!parsed.learnerId) {
       parsed.learnerId = getOrCreateLearnerIdentity();
+    }
+    if (!activeLearnerId && !parsed.learnerId.pseudonym.includes('Guest')) {
+      parsed.learnerId.pseudonym = "Guest Learner (Incognito)";
     }
 
     if (!parsed.activityHistory) {
@@ -95,7 +225,7 @@ export function loadProgress(): StudentProgress {
 
     return parsed;
   } catch (err) {
-    console.error("Failed to load progress from localStorage", err);
+    console.error("Failed to load progress", err);
     return getInitialProgress();
   }
 }
@@ -103,14 +233,28 @@ export function loadProgress(): StudentProgress {
 export function saveProgress(progress: StudentProgress): void {
   try {
     progress.checksum = computeProgressDigest(progress);
-    localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(progress));
-    
-    // Dispatch event to trigger MongoDB Atlas background sync without circular dependencies
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('mongo_quiz_progress_saved'));
+    const activeLearnerId = getActiveLearnerId();
+
+    if (activeLearnerId) {
+      // Registered User: permanently save to localStorage keyed by user
+      localStorage.setItem(REGISTERED_PROGRESS_PREFIX + activeLearnerId, JSON.stringify(progress));
+      localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(progress));
+
+      // Dispatch event to trigger MongoDB Atlas background sync
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('mongo_quiz_progress_saved'));
+      }
+    } else {
+      // Guest / Incognito: temporary session storage ONLY, never written to permanent localStorage or cloud
+      sessionStorage.setItem(GUEST_SESSION_PROGRESS_KEY, JSON.stringify(progress));
+
+      // Dispatch local event for reactive UI updates without triggering cloud sync
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('mongo_quiz_guest_progress_saved'));
+      }
     }
   } catch (err) {
-    console.error("Failed to save progress to localStorage", err);
+    console.error("Failed to save progress", err);
   }
 }
 
@@ -477,5 +621,10 @@ export async function appendCustomQuestions(questions: Question[]): Promise<Ques
 }
 
 export function resetAllData(): void {
+  const activeLearnerId = getActiveLearnerId();
+  if (activeLearnerId) {
+    localStorage.removeItem(REGISTERED_PROGRESS_PREFIX + activeLearnerId);
+  }
+  sessionStorage.removeItem(GUEST_SESSION_PROGRESS_KEY);
   localStorage.removeItem(PROGRESS_STORAGE_KEY);
 }

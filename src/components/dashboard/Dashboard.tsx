@@ -137,6 +137,45 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {BRANDING.tagline}. Progress from absolute beginner to advanced MongoDB practitioner through 9 structured levels, real-world datasets, instant code evaluation, and verified streak tracking.
           </p>
 
+          {/* Guest / Incognito Session Banner */}
+          {!account && (
+            <div className="bg-gradient-to-r from-amber-950/40 to-slate-900 border border-amber-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+              <div className="flex items-start sm:items-center space-x-3">
+                <div className="p-2.5 bg-amber-500/20 text-amber-300 rounded-xl border border-amber-500/30 shrink-0">
+                  <Shield className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <h4 className="text-xs sm:text-sm font-bold text-white">
+                      Guest / Incognito Session Mode
+                    </h4>
+                    <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      Temporary
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Your questions, streak, and XP are stored in this temporary session. Create a free profile to save your progress permanently across devices!
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2 shrink-0 self-end sm:self-center">
+                <button
+                  onClick={() => onNavigateTab('register')}
+                  className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20 transition-all whitespace-nowrap"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Create Account (+100 🪙)</span>
+                </button>
+                <button
+                  onClick={() => onNavigateTab('learner-hub')}
+                  className="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors whitespace-nowrap"
+                >
+                  Log In
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Quick Action CTAs */}
           <div className="flex flex-wrap items-center gap-2.5 pt-2">
             <button

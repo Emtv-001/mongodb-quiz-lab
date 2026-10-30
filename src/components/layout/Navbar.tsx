@@ -121,6 +121,30 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Items & Tab Pills - Completely isolated horizontal scroll */}
           <div className="flex items-center space-x-2 sm:space-x-3 overflow-x-auto scrollbar-none overscroll-contain touch-pan-x shrink min-w-0 py-1">
+            {/* Guest / Incognito Session Pill vs Logged In Learner */}
+            {!learnerAccount ? (
+              <button
+                onClick={() => onNavigateTab && onNavigateTab('register')}
+                className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700/90 text-amber-300 border border-amber-500/30 text-xs font-semibold transition-all shrink-0 whitespace-nowrap group shadow-sm"
+                title="Guest Mode: Temporary Session (Progress resets on browser close). Click to register for free and save progress permanently."
+              >
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                <span>Guest (Incognito)</span>
+                <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 ml-0.5">
+                  Save
+                </span>
+              </button>
+            ) : (
+              <div
+                onClick={() => onNavigateTab && onNavigateTab('learner-hub')}
+                className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-300 border border-emerald-500/25 text-xs font-medium shrink-0 whitespace-nowrap cursor-pointer hover:bg-emerald-500/20 transition-colors"
+                title={`Logged in as ${learnerAccount.displayName} (@${learnerAccount.username})`}
+              >
+                <UserCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="font-semibold max-w-[100px] truncate">{learnerAccount.displayName}</span>
+              </div>
+            )}
+
             {/* Gamification / MongoCoins CTA */}
             <button
               onClick={() => onNavigateTab && onNavigateTab('learner-hub')}
