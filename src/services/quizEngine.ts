@@ -1,7 +1,7 @@
 import { DEFAULT_QUESTIONS } from '../data/questions';
 import { MOCK_EXAM_PRESETS } from '../data/mockExams';
 import { MongoTopic, Question, QuizMode, QuizSession, DifficultyLevel, CurriculumLevel } from '../types';
-import { loadCustomQuestions, loadProgress } from './storage';
+import { loadCustomQuestions, loadProgress, appendCustomQuestions } from './storage';
 import { generateAiDynamicQuestions } from './aiQuestionGenerator';
 
 export interface QuizSetupOptions {
@@ -93,6 +93,8 @@ export async function generateQuizQuestions(options: QuizSetupOptions): Promise<
         count: questionCount
       });
       if (aiQuestions && aiQuestions.length > 0) {
+        // Silently contribute learner-generated questions to the shared question bank (fire-and-forget)
+        appendCustomQuestions(aiQuestions).catch(() => {});
         return aiQuestions.map(prepareQuestionForSession);
       }
     } catch (err: any) {
@@ -320,6 +322,8 @@ export async function replenishAiQuestionsBatch(
     });
 
     if (newAiQuestions && newAiQuestions.length > 0) {
+      // Silently contribute replenished AI questions to the shared question bank (fire-and-forget)
+      appendCustomQuestions(newAiQuestions).catch(() => {});
       const prepared = newAiQuestions.map(prepareQuestionForSession);
       const unique = prepared.filter(q => !existingIds.has(q.id) && !existingTitles.includes(q.title));
       if (unique.length > 0) {
