@@ -32,51 +32,17 @@ function buildQuestionPrompt(options: GenerationOptions): string {
     ? `Specific dataset: ${datasetName}`
     : `Diverse real-world production datasets (draw freely from varied domains: e-commerce, fintech, IoT telemetry, SaaS multi-tenancy, healthcare, logistics, social media, gaming, or general databases)`;
 
-  return `Generate exactly ${count} practical, high-caliber MongoDB quiz questions modeled after real-world production engineering and MongoDB certification challenges.
-Topic: ${topic || 'CRUD Operations'}
-Difficulty: ${difficulty || 'Medium'}
-Curriculum Level: ${level || 3}
-Dataset context: ${datasetContext}${avoidInstruction}
+  return `Generate exactly ${count} MongoDB quiz questions. Be concise and fast.
+Topic: ${topic || 'CRUD Operations'} | Difficulty: ${difficulty || 'Medium'} | Level: ${level || 3}
+Dataset: ${datasetContext}${avoidInstruction}
 
-VERSATILE REAL-WORLD MONGODB QUESTION GUIDELINES:
-1. DIVERSE INDUSTRY DOMAINS & REALISTIC SCHEMAS:
-   - Do NOT restrict yourself to any single dataset. Feel free to use varied, creative, realistic production collections:
-     * E-Commerce / Retail: db.products, db.orders, db.customers, db.reviews
-     * Fintech & Payments: db.transactions, db.accounts, db.ledgers, db.wallets
-     * IoT & Time-Series: db.sensor_readings, db.telemetry, db.devices, db.metrics
-     * SaaS & Cloud Services: db.tenants, db.subscriptions, db.audit_logs, db.users
-     * Healthcare & Life Sciences: db.patients, db.appointments, db.medical_records
-     * Social & Media Streaming: db.posts, db.comments, db.media, db.notifications
-     * Education & Academics: db.students, db.courses, db.enrollments, db.GptData02
-     * Logistics & Supply Chain: db.shipments, db.inventory, db.warehouses
-2. WRITE-COMMAND REALISM:
-   - Provide genuine, executable mongosh shell commands (e.g. db.collection.find(...), db.collection.aggregate([...]), db.collection.updateOne(...), db.collection.createIndex(...)).
-   - Provide 2-3 "acceptableAlternatives" with variations in spacing, single/double quotes, or alternative valid mongosh forms so user inputs are graded fairly.
-3. MULTIPLE-CHOICE REALISM:
-   - Include believable developer misconceptions as distractors (e.g. confusing $in with $or, projection rules, index ESR prefix rules, pipeline stage ordering).
-   - Optionally include a concise "codeSnippet" (1-4 lines of JSON document, query, or pipeline) whenever helpful.
-4. SPEED & BREVITY RULES:
-   - Keep "scenario" concise (1-2 sentences).
-   - Keep "explanation" and "misconception" crisp and punchy (1-2 sentences each).
-   - Output ONLY the raw valid JSON array without any markdown wrappers.
+Mix question types freely: write-command (mongosh shell) or multiple-choice.
+Use realistic collections: db.orders, db.products, db.accounts, db.users, db.transactions, db.GptData02, db.sensor_readings, db.patients, etc.
+For multiple-choice: 4 options, include believable misconceptions as distractors.
+For write-command: provide real executable mongosh command + 2-3 acceptableAlternatives (quote/spacing variants).
 
-Return a JSON array of objects. Each object MUST exactly match this structure:
-{
-  "title": "String (Short question title)",
-  "scenario": "String (Concise 1-2 sentence context or problem description)",
-  "codeSnippet": "String or null (Optional 1-3 lines of sample document or query)",
-  "datasetName": "String (Name of the collection, e.g. 'orders', 'transactions', 'telemetry', 'students')",
-  "type": "String (must be either 'write-command' or 'multiple-choice')",
-  "expectedCommand": "String (The correct MongoDB shell command if write-command)",
-  "acceptableAlternatives": ["String", "String"],
-  "options": ["String", "String", "String", "String"],
-  "correctOptionIndex": 0,
-  "explanation": "String (Concise 1-2 sentence explanation of correct answer)",
-  "misconception": "String (Concise 1-sentence common pitfall)",
-  "conceptFocus": "String (Core concept)",
-  "points": 10
-}
-Note: For multiple-choice questions, "options" must be an array of exactly 4 strings, and "correctOptionIndex" must be a number between 0 and 3. For write-command questions, leave options as empty array [] and provide expectedCommand and acceptableAlternatives.`;
+Return ONLY a raw JSON array — no markdown, no explanation. Each item:
+{"title":"string","scenario":"1-2 sentences","codeSnippet":"string or null","datasetName":"string","type":"write-command|multiple-choice","expectedCommand":"string (write-command only)","acceptableAlternatives":["string"],"options":["string","string","string","string"],"correctOptionIndex":0,"explanation":"1-2 sentences","misconception":"1 sentence","conceptFocus":"string","points":10}`;
 }
 
 /**
@@ -132,15 +98,16 @@ export async function directGeminiGenerate(
   apiKey: string,
   _timeoutMs: number = 20000  // kept for backwards-compat signature; actual timeout applied below
 ): Promise<string> {
-  const models = ['gemini-3.8-flash', 'gemini-3-flash-preview'];
+  // gemini-3.8-flash-lite: ultra-fast, no thinking overhead, ideal for structured JSON generation
+  const models = ['gemini-3.8-flash-lite', 'gemini-3.8-flash', 'gemini-3-flash-preview'];
   let lastError: Error | null = null;
 
   for (const model of models) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`;
-      // 20-second hard timeout — prevents infinite loading if Gemini hangs
+      // 10-second hard timeout per model — total worst case ~30s across 3 models
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000);
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
 
       const res = await fetch(url, {
         method: 'POST',
@@ -150,8 +117,8 @@ export async function directGeminiGenerate(
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           generationConfig: {
             responseMimeType: 'application/json',
-            // maxOutputTokens intentionally omitted — letting model use its full output budget
-            // thinkingConfig removed: gemini-3.8-flash uses server-side dynamic thinking
+            // thinkingBudget: 0 disables thinking tokens — drastically reduces latency to ~2-4s
+            thinkingConfig: { thinkingBudget: 0 }
           }
         })
       });
