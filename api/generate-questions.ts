@@ -81,8 +81,8 @@ Note: For multiple-choice questions, "options" must be an array of exactly 4 str
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
             generationConfig: {
               responseMimeType: 'application/json',
-              maxOutputTokens: 1024,
-              thinkingConfig: { thinkingLevel: 'low' }
+              // maxOutputTokens intentionally omitted — letting model use its full output budget
+              // thinkingConfig removed: gemini-3.8-flash dynamic thinking is handled server-side
             }
           })
         });

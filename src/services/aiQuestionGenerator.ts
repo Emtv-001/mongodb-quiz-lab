@@ -130,7 +130,7 @@ function parseAndFormatQuestions(text: string, options: GenerationOptions): Ques
 export async function directGeminiGenerate(
   prompt: string,
   apiKey: string,
-  _timeoutMs: number = 7500  // kept for backwards-compat signature, no longer used
+  _timeoutMs: number = 20000  // kept for backwards-compat signature; actual timeout applied below
 ): Promise<string> {
   const models = ['gemini-3.8-flash', 'gemini-3-flash-preview'];
   let lastError: Error | null = null;
@@ -138,18 +138,24 @@ export async function directGeminiGenerate(
   for (const model of models) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`;
+      // 20-second hard timeout — prevents infinite loading if Gemini hangs
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
+
       const res = await fetch(url, {
         method: 'POST',
+        signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           generationConfig: {
             responseMimeType: 'application/json',
-            maxOutputTokens: 1024,
-            thinkingConfig: { thinkingLevel: 'low' }
+            // maxOutputTokens intentionally omitted — letting model use its full output budget
+            // thinkingConfig removed: gemini-3.8-flash uses server-side dynamic thinking
           }
         })
       });
+      clearTimeout(timeoutId);
 
       if (!res.ok) {
         const errText = await res.text().catch(() => '');
@@ -191,10 +197,7 @@ export async function testGeminiConnection(apiKey: string): Promise<{ success: b
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: 'Respond with JSON: {"status": "ok"}' }] }],
           generationConfig: {
-            responseMimeType: 'application/json',
-            thinkingConfig: {
-              thinkingLevel: 'low'
-            }
+            responseMimeType: 'application/json'
           }
         })
       });
@@ -264,10 +267,10 @@ export async function generateAiDynamicQuestions(options: GenerationOptions = {}
     }
   }
 
-  // 3. Fallback: Call Vercel backend route (/api/generate-questions) with 7.5s hard timeout
+  // 3. Fallback: Call Vercel backend route (/api/generate-questions) with 25s hard timeout
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 7500);
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
 
     const response = await fetch('/api/generate-questions', {
       method: 'POST',
