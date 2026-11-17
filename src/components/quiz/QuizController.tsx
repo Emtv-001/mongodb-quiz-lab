@@ -239,7 +239,7 @@ export const QuizController: React.FC<QuizControllerProps> = ({
               <span className="text-xs text-purple-300 font-mono bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
                 Mode: {session.mode.toUpperCase()}
               </span>
-              {session.isAiGeneratingInBackground && (
+              {session.isAiGeneratingInBackground && session.mode !== 'mock-test' && (
                 <span className="text-[11px] text-purple-300 font-semibold bg-purple-500/15 px-2.5 py-0.5 rounded-full border border-purple-500/30 flex items-center space-x-1.5 animate-pulse">
                   <Sparkles className="w-3.5 h-3.5 text-purple-400" />
                   <span>Instant Start: Initial {session.questions.length} ready, more loading in background</span>
@@ -328,10 +328,12 @@ export const QuizController: React.FC<QuizControllerProps> = ({
           </div>
           <div className="space-y-2">
             <h3 className="text-xl font-bold text-white tracking-tight">
-              Synthesizing Question {session.currentIndex + 1} with AI...
+              {session.mode === 'mock-test' ? `Loading Assessment Question ${session.currentIndex + 1}...` : `Synthesizing Question ${session.currentIndex + 1}...`}
             </h3>
             <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
-              Gemini AI is generating dynamic challenge scenarios for Question {session.currentIndex + 1} of {session.totalQuestions}. It will load automatically in just a moment.
+              {session.mode === 'mock-test'
+                ? `Preparing exam challenges for Question ${session.currentIndex + 1} of ${session.totalQuestions}. Ready in a moment.`
+                : `Dynamic challenge scenario for Question ${session.currentIndex + 1} of ${session.totalQuestions} will load automatically in just a moment.`}
             </p>
           </div>
           <div className="flex items-center justify-center space-x-3 pt-2">

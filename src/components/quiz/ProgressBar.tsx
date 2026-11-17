@@ -61,7 +61,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
           <span className="text-xs font-bold text-white bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">
             Q{currentIndex + 1} of {totalQuestions}
           </span>
-          {isAiGeneratingInBackground && (
+          {isAiGeneratingInBackground && mode !== 'mock-test' && (
             <span
               className="inline-flex items-center space-x-1.5 text-[11px] font-bold text-purple-300 bg-purple-500/15 border border-purple-500/30 px-2.5 py-1 rounded-lg animate-pulse"
               title="Gemini AI is crafting the remaining questions in background..."

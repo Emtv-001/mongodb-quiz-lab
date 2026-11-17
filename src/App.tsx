@@ -143,8 +143,8 @@ export function App() {
     isStartingQuizRef.current = true;
 
     setIsAppLoading(true);
-    if (extraOptions?.useAiGeneration) {
-      setAppLoadingMessage('Synthesizing initial questions (launching in ~2s)...');
+    if (extraOptions?.useAiGeneration || mode === 'mock-test') {
+      setAppLoadingMessage('Preparing assessment environment (ready in ~2s)...');
     } else {
       setAppLoadingMessage('Loading quiz environment...');
     }
@@ -271,7 +271,10 @@ export function App() {
           <MockExamSelectorView
             bestMockScore={progress.bestMockScore}
             onSelectExam={(preset) => {
-              handleStartQuiz('mock-test', undefined, preset.id);
+              handleStartQuiz('mock-test', undefined, preset.id, {
+                useAiGeneration: true,
+                questionCount: preset.questionCount
+              });
             }}
           />
         );
