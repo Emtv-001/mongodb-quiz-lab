@@ -34,15 +34,17 @@ function buildQuestionPrompt(options: GenerationOptions): string {
 
   return `Generate exactly ${count} MongoDB quiz questions. Be concise and fast.
 Topic: ${topic || 'CRUD Operations'} | Difficulty: ${difficulty || 'Medium'} | Level: ${level || 3}
-Dataset: ${datasetContext}${avoidInstruction}
+Dataset context: ${datasetContext}${avoidInstruction}
 
-Mix question types freely: write-command (mongosh shell) or multiple-choice.
-Use realistic collections: db.orders, db.products, db.accounts, db.users, db.transactions, db.GptData02, db.sensor_readings, db.patients, etc.
-For multiple-choice: 4 options, include believable misconceptions as distractors.
-For write-command: provide real executable mongosh command + 2-3 acceptableAlternatives (quote/spacing variants).
+REQUIREMENTS:
+1. Always specify an explicit "databaseName" (e.g. 'ecommerce_db', 'fintech_db', 'hospital_db', 'school_db', 'iot_db', 'social_db', 'inventory_db') and a clear target collection "datasetName" (e.g. 'orders', 'transactions', 'patients', 'GptData02', 'sensors', 'users').
+2. In the "scenario", explicitly name both the database and the collection so learners know their exact target context (e.g. "In database 'ecommerce_db' on collection 'orders'...").
+3. Mix question types: write-command (mongosh shell) or multiple-choice.
+4. For multiple-choice: 4 options, believable misconceptions as distractors.
+5. For write-command: real executable mongosh command (e.g. db.orders.find(...)) + 2-3 acceptableAlternatives.
 
-Return ONLY a raw JSON array — no markdown, no explanation. Each item:
-{"title":"string","scenario":"1-2 sentences","codeSnippet":"string or null","datasetName":"string","type":"write-command|multiple-choice","expectedCommand":"string (write-command only)","acceptableAlternatives":["string"],"options":["string","string","string","string"],"correctOptionIndex":0,"explanation":"1-2 sentences","misconception":"1 sentence","conceptFocus":"string","points":10}`;
+Return ONLY a raw JSON array — no markdown wrappers. Each item:
+{"title":"string","scenario":"1-2 sentences clearly stating the database and collection","codeSnippet":"string or null","databaseName":"string","datasetName":"string","type":"write-command|multiple-choice","expectedCommand":"string (write-command only)","acceptableAlternatives":["string"],"options":["string","string","string","string"],"correctOptionIndex":0,"explanation":"1-2 sentences","misconception":"1 sentence","conceptFocus":"string","points":10}`;
 }
 
 /**
@@ -79,6 +81,7 @@ function parseAndFormatQuestions(text: string, options: GenerationOptions): Ques
       topic: options.topic || 'General MongoDB',
       level: options.level || 3,
       difficulty: options.difficulty || 'Medium',
+      databaseName: q.databaseName || 'mongodb_lab',
       datasetName: q.datasetName || options.datasetName || 'General',
       type: q.type === 'multiple-choice' || q.type === 'write-command' ? q.type : 'write-command',
       codeSnippet: q.codeSnippet || undefined,

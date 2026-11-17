@@ -40,9 +40,12 @@ export const WriteCommand: React.FC<WriteCommandProps> = ({
     onChangeCommand(current + (current.endsWith(' ') || current === '' ? '' : ' ') + chip);
   };
 
+  const targetCollection = question.datasetName || 'GptData02';
+  const targetDb = question.databaseName || 'mongodb_lab';
+
   const insertStarterTemplate = () => {
     if (disabled) return;
-    const starter = `db.GptData02.updateOne(\n  { _id: 1 },\n  {\n    \n  }\n)`;
+    const starter = `db.${targetCollection}.find({\n  \n})`;
     onChangeCommand(starter);
     setCopiedTemplate(true);
     setTimeout(() => setCopiedTemplate(false), 2000);
@@ -111,7 +114,7 @@ export const WriteCommand: React.FC<WriteCommandProps> = ({
             value={studentCommand}
             onChange={(e) => onChangeCommand(e.target.value)}
             disabled={disabled}
-            placeholder={`// Write your MongoDB command here. Example:\n// db.GptData02.updateOne({_id: 1}, { ... })`}
+            placeholder={`// Target Database: ${targetDb} | Collection: db.${targetCollection}\n// Example: db.${targetCollection}.find({ ... })`}
             rows={7}
             className="w-full bg-transparent font-mono text-xs sm:text-sm text-emerald-300 placeholder-slate-600 focus:outline-none resize-y leading-relaxed"
             spellCheck={false}

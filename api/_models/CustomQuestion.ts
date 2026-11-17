@@ -8,6 +8,7 @@ const CustomQuestionSchema = new mongoose.Schema({
   type: { type: String, required: true },
   title: { type: String, required: true },
   scenario: { type: String },
+  databaseName: { type: String },
   datasetName: { type: String },
   expectedCommand: { type: String },
   options: [{ type: String }],

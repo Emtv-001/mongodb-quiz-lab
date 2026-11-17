@@ -56,7 +56,8 @@ export interface Question {
   type: QuestionType;
   title: string;
   scenario?: string;               // Given context or background
-  datasetName?: string;            // 'GptData02' | 'hospital' | 'banking' | 'ecommerce' | 'inventory' | 'library' | 'hotel' | 'social'
+  databaseName?: string;           // Target database name e.g. 'school_db', 'ecommerce_db', 'hospital_db'
+  datasetName?: string;            // Target collection/dataset name e.g. 'GptData02', 'orders', 'patients'
   codeSnippet?: string;            // Faulty command or code to fix/predict
   sampleDocument?: Record<string, any>; // Document preview
   options?: string[];              // For Type A, B, C, F, H, I

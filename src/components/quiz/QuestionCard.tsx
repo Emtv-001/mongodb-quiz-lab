@@ -145,15 +145,21 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
               Level {Number(question.level) || 1}
             </span>
+            {question.databaseName && (
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 flex items-center space-x-1" title="Target Database">
+                <Database className="w-3 h-3 text-amber-400" />
+                <span>DB: {String(question.databaseName)}</span>
+              </span>
+            )}
             {question.datasetName && (
               <button
                 type="button"
                 onClick={onOpenSeedData}
-                className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 flex items-center space-x-1 hover:bg-purple-500/20 transition-colors"
-                title="View target dataset"
+                className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 flex items-center space-x-1 hover:bg-purple-500/20 transition-colors"
+                title="View target collection / dataset"
               >
-                <Database className="w-3 h-3" />
-                <span>Dataset: {String(question.datasetName)}</span>
+                <Database className="w-3 h-3 text-purple-400" />
+                <span>Collection: {String(question.datasetName)}</span>
               </button>
             )}
           </div>

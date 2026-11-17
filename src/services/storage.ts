@@ -521,6 +521,7 @@ export function sanitizeQuestion(raw: any, index = 0): Question {
     difficulty: safeString(raw.difficulty, 'Medium') as any,
     type,
     scenario: raw.scenario ? safeString(raw.scenario) : undefined,
+    databaseName: raw.databaseName ? safeString(raw.databaseName) : undefined,
     datasetName: raw.datasetName ? safeString(raw.datasetName) : undefined,
     codeSnippet: raw.codeSnippet ? safeString(raw.codeSnippet) : undefined,
     sampleDocument: raw.sampleDocument && typeof raw.sampleDocument === 'object' ? raw.sampleDocument : undefined,
