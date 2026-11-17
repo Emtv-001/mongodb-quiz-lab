@@ -32,19 +32,26 @@ function buildQuestionPrompt(options: GenerationOptions): string {
     ? `Specific dataset: ${datasetName}`
     : `Diverse real-world production datasets (draw freely from varied domains: e-commerce, fintech, IoT telemetry, SaaS multi-tenancy, healthcare, logistics, social media, gaming, or general databases)`;
 
-  return `Generate exactly ${count} MongoDB quiz questions. Be concise and fast.
+  return `Generate exactly ${count} MongoDB quiz questions. Be concise, fast, and structured.
 Topic: ${topic || 'CRUD Operations'} | Difficulty: ${difficulty || 'Medium'} | Level: ${level || 3}
 Dataset context: ${datasetContext}${avoidInstruction}
 
-REQUIREMENTS:
-1. Always specify an explicit "databaseName" (e.g. 'ecommerce_db', 'fintech_db', 'hospital_db', 'school_db', 'iot_db', 'social_db', 'inventory_db') and a clear target collection "datasetName" (e.g. 'orders', 'transactions', 'patients', 'GptData02', 'sensors', 'users').
-2. In the "scenario", explicitly name both the database and the collection so learners know their exact target context (e.g. "In database 'ecommerce_db' on collection 'orders'...").
-3. Mix question types: write-command (mongosh shell) or multiple-choice.
-4. For multiple-choice: 4 options, believable misconceptions as distractors.
-5. For write-command: real executable mongosh command (e.g. db.orders.find(...)) + 2-3 acceptableAlternatives.
+MANDATORY SPECIFICATION RULE (DO NOT OMIT):
+Every question MUST explicitly state concrete, exact schema coordinates. Do NOT use vague names or leave learners guessing:
+1. "databaseName": Specific database name (e.g. 'ecommerce_db', 'fintech_db', 'school_db', 'hospital_db', 'iot_db').
+2. "datasetName": Specific collection name without 'db.' prefix (e.g. 'orders', 'products', 'accounts', 'GptData02', 'patients', 'sensors', 'users').
+3. "fieldNames": Array of 1-4 EXACT field names tested (e.g. ["status", "totalAmount"], ["GPA", "Course"], ["balance", "accountNumber"]).
+4. "scenario": MUST begin with the explicit target spec:
+   "Database: [database_name] | Collection: db.[collection_name] | Field(s): [exact_fields]\\n[Problem statement]"
+
+Questions missing databaseName, datasetName, or fieldNames are strictly invalid and will be discarded.
+
+Mix question types: write-command (mongosh) or multiple-choice.
+For multiple-choice: 4 options, believable misconceptions as distractors.
+For write-command: real executable mongosh command (e.g. db.orders.find(...)) + 2-3 acceptableAlternatives.
 
 Return ONLY a raw JSON array — no markdown wrappers. Each item:
-{"title":"string","scenario":"1-2 sentences clearly stating the database and collection","codeSnippet":"string or null","databaseName":"string","datasetName":"string","type":"write-command|multiple-choice","expectedCommand":"string (write-command only)","acceptableAlternatives":["string"],"options":["string","string","string","string"],"correctOptionIndex":0,"explanation":"1-2 sentences","misconception":"1 sentence","conceptFocus":"string","points":10}`;
+{"title":"string","scenario":"Database: [db] | Collection: db.[col] | Field(s): [fields]\\n[1-2 sentence scenario]","codeSnippet":"string or null","databaseName":"string","datasetName":"string","fieldNames":["string"],"type":"write-command|multiple-choice","expectedCommand":"string (write-command only)","acceptableAlternatives":["string"],"options":["string","string","string","string"],"correctOptionIndex":0,"explanation":"1-2 sentences","misconception":"1 sentence","conceptFocus":"string","points":10}`;
 }
 
 /**
@@ -64,7 +71,16 @@ function parseAndFormatQuestions(text: string, options: GenerationOptions): Ques
     parsed = [parsed];
   }
 
-  return parsed.map((q: any, i: number) => {
+  // Strict Validation: "If any of these is missing (database, collection, field name), let site not generate the question."
+  const validQuestions = parsed.filter((q: any) => {
+    const hasDb = Boolean(q.databaseName && String(q.databaseName).trim());
+    const hasCol = Boolean((q.datasetName || options.datasetName) && String(q.datasetName || options.datasetName).trim());
+    const hasFields = Array.isArray(q.fieldNames) && q.fieldNames.length > 0;
+    const hasValidTitle = Boolean(q.title && String(q.title).trim());
+    return hasDb && hasCol && hasFields && hasValidTitle;
+  });
+
+  return validQuestions.map((q: any, i: number) => {
     // Ensure acceptableAlternatives are provided for write-command
     let acceptableAlternatives = Array.isArray(q.acceptableAlternatives) ? q.acceptableAlternatives : [];
     if (q.type === 'write-command' && q.expectedCommand && acceptableAlternatives.length === 0) {
@@ -75,14 +91,19 @@ function parseAndFormatQuestions(text: string, options: GenerationOptions): Ques
       acceptableAlternatives = Array.from(new Set([cmd, singleQuoteVer, doubleQuoteVer, noSpaceVer]));
     }
 
+    const cleanDb = String(q.databaseName).trim();
+    const cleanCol = String(q.datasetName || options.datasetName).replace(/^db\./i, '').trim();
+    const cleanFields = Array.isArray(q.fieldNames) ? q.fieldNames.map((f: any) => String(f).trim()).filter(Boolean) : [];
+
     return sanitizeQuestion({
       ...q,
       id: `ai_${Date.now()}_${i}_${Math.random().toString(36).substring(2, 6)}`,
       topic: options.topic || 'General MongoDB',
       level: options.level || 3,
       difficulty: options.difficulty || 'Medium',
-      databaseName: q.databaseName || 'mongodb_lab',
-      datasetName: q.datasetName || options.datasetName || 'General',
+      databaseName: cleanDb,
+      datasetName: cleanCol,
+      fieldNames: cleanFields,
       type: q.type === 'multiple-choice' || q.type === 'write-command' ? q.type : 'write-command',
       codeSnippet: q.codeSnippet || undefined,
       acceptableAlternatives: acceptableAlternatives.length > 0 ? acceptableAlternatives : undefined,

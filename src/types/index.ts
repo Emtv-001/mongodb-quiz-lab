@@ -58,6 +58,7 @@ export interface Question {
   scenario?: string;               // Given context or background
   databaseName?: string;           // Target database name e.g. 'school_db', 'ecommerce_db', 'hospital_db'
   datasetName?: string;            // Target collection/dataset name e.g. 'GptData02', 'orders', 'patients'
+  fieldNames?: string[];           // Exact relevant field name(s) e.g. ['GPA', 'Courses', 'Active']
   codeSnippet?: string;            // Faulty command or code to fix/predict
   sampleDocument?: Record<string, any>; // Document preview
   options?: string[];              // For Type A, B, C, F, H, I

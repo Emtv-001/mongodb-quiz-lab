@@ -523,6 +523,11 @@ export function sanitizeQuestion(raw: any, index = 0): Question {
     scenario: raw.scenario ? safeString(raw.scenario) : undefined,
     databaseName: raw.databaseName ? safeString(raw.databaseName) : undefined,
     datasetName: raw.datasetName ? safeString(raw.datasetName) : undefined,
+    fieldNames: Array.isArray(raw.fieldNames)
+      ? raw.fieldNames.map((f: any) => safeString(f)).filter(Boolean)
+      : (typeof raw.fieldNames === 'string' && raw.fieldNames.trim()
+          ? raw.fieldNames.split(',').map((s: string) => s.trim()).filter(Boolean)
+          : undefined),
     codeSnippet: raw.codeSnippet ? safeString(raw.codeSnippet) : undefined,
     sampleDocument: raw.sampleDocument && typeof raw.sampleDocument === 'object' ? raw.sampleDocument : undefined,
     expectedCommand: raw.expectedCommand ? safeString(raw.expectedCommand) : undefined,

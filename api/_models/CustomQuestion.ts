@@ -10,6 +10,7 @@ const CustomQuestionSchema = new mongoose.Schema({
   scenario: { type: String },
   databaseName: { type: String },
   datasetName: { type: String },
+  fieldNames: [{ type: String }],
   expectedCommand: { type: String },
   options: [{ type: String }],
   correctOptionIndex: { type: Number },

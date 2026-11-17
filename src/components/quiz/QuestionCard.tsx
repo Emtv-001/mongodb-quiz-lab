@@ -173,6 +173,40 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           {typeof question.title === 'string' ? question.title : JSON.stringify(question.title)}
         </h3>
 
+        {/* Structured Schema Specification Card */}
+        <div className="rounded-xl border border-emerald-500/30 bg-slate-950/80 p-3.5 space-y-2 text-xs font-mono shadow-inner">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-slate-300">
+            <div className="flex items-center space-x-1.5">
+              <span className="text-slate-400 font-semibold">Database:</span>
+              <span className="text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                {question.databaseName || 'mongodb_lab'}
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-1.5">
+              <span className="text-slate-400 font-semibold">Collection:</span>
+              <span className="text-purple-300 font-bold bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
+                db.{String(question.datasetName || 'GptData02').replace(/^db\./i, '')}
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-1.5">
+              <span className="text-slate-400 font-semibold">Field(s):</span>
+              {question.fieldNames && question.fieldNames.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-1">
+                  {question.fieldNames.map((fn) => (
+                    <span key={fn} className="text-emerald-300 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                      {fn}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-slate-400 italic font-sans text-[11px]">As specified in scenario</span>
+              )}
+            </div>
+          </div>
+        </div>
+
         {question.scenario && question.type !== 'predict-output' && question.type !== 'scenario' && (
           <p className="text-sm text-slate-300 leading-relaxed bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/80">
             {typeof question.scenario === 'string' ? question.scenario : JSON.stringify(question.scenario)}
