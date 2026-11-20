@@ -1,11 +1,5 @@
 import mongoose from 'mongoose';
 
-const MONGODB_URI = process.env.MONGODB_URI;
-
-if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable inside Vercel');
-}
-
 /**
  * Global is used here to maintain a cached connection across hot reloads
  * in development and serverless invocations in production.
@@ -17,6 +11,11 @@ if (!cached) {
 }
 
 async function connectToDatabase() {
+  const mongoUri = process.env.MONGODB_URI;
+  if (!mongoUri) {
+    throw new Error('Please define the MONGODB_URI environment variable inside Vercel');
+  }
+
   if (cached.conn) {
     return cached.conn;
   }
@@ -27,7 +26,7 @@ async function connectToDatabase() {
       dbName: 'MongoDB_QuizLab'
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
+    cached.promise = mongoose.connect(mongoUri, opts).then((mongoose) => {
       console.log('Successfully connected to MongoDB Atlas!');
       return mongoose;
     });

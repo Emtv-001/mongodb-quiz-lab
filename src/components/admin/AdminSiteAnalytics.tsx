@@ -13,10 +13,22 @@ export function AdminSiteAnalytics() {
     const controller = new AbortController();
     void (async () => {
       try {
-        const response = await fetch(analyticsUrl, { signal: controller.signal });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message);
-        setSummary(data);
+        const response = await fetch(analyticsUrl, {
+          credentials: 'same-origin',
+          signal: controller.signal
+        });
+        const body = await response.text();
+        let data: Partial<Summary> & { message?: string } = {};
+        try {
+          data = body ? JSON.parse(body) as Partial<Summary> & { message?: string } : {};
+        } catch {
+          data = { message: body || 'Site analytics is temporarily unavailable.' };
+        }
+        if (!response.ok) throw new Error(data.message || 'Site analytics is temporarily unavailable.');
+        if (!Array.isArray(data.counts) || !Array.isArray(data.leaders)) {
+          throw new Error(data.message || 'Site analytics returned an invalid response.');
+        }
+        setSummary(data as Summary);
       } catch (failure) {
         if (!controller.signal.aborted) {
           setError(failure instanceof Error ? failure.message : 'Site analytics is temporarily unavailable.');
