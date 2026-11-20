@@ -160,6 +160,16 @@ export function mergeGuestProgressIntoRegisteredAccount(learnerId: string): void
   }
 }
 
+export function initializeNewLearnerProgress(learnerId: string, displayName: string): void {
+  const progress = getInitialProgress();
+  progress.learnerId.pseudonym = displayName;
+  progress.checksum = computeProgressDigest(progress);
+  localStorage.setItem(REGISTERED_PROGRESS_PREFIX + learnerId, JSON.stringify(progress));
+  localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(progress));
+  sessionStorage.removeItem(GUEST_SESSION_PROGRESS_KEY);
+  window.dispatchEvent(new CustomEvent('mongo_quiz_progress_saved'));
+}
+
 export function loadProgress(): StudentProgress {
   try {
     const activeLearnerId = getActiveLearnerId();

@@ -664,7 +664,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
             {stats.xp} XP
           </div>
           <div className="text-[11px] text-slate-400 truncate">
-            Next Tier at {stats.nextTierXp} XP
+            Next Tier at {stats.nextTierXp} learning XP · bonuses do not affect levels
           </div>
         </div>
 
@@ -1240,7 +1240,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                 <div className="text-xs text-slate-400">Current Rank Tier</div>
               </div>
               <div className="text-right">
-                <div className="text-sm font-bold text-purple-400">{stats.xp} / {stats.nextTierXp} XP</div>
+                <div className="text-sm font-bold text-purple-400">{stats.levelXp} / {stats.nextTierXp} learning XP</div>
                 <div className="text-xs text-slate-400">Progress to Next Tier</div>
               </div>
             </div>
@@ -1249,7 +1249,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
             <div className="w-full bg-slate-950 rounded-full h-3 border border-slate-800 overflow-hidden relative">
               <div 
                 className="h-full bg-gradient-to-r from-purple-600 to-purple-400 transition-all duration-1000 ease-out"
-                style={{ width: `${Math.min(100, (stats.xp / stats.nextTierXp) * 100)}%` }}
+                style={{ width: `${Math.min(100, (stats.levelXp / stats.nextTierXp) * 100)}%` }}
               />
             </div>
 

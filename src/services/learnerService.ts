@@ -8,7 +8,7 @@ import {
 } from '../types';
 import { generateRecoveryPhrase, recordDeletionStatement, addAuditLog } from './adminService';
 import { sha256Sync } from './security';
-import { loadProgress, saveProgress, mergeGuestProgressIntoRegisteredAccount } from './storage';
+import { loadProgress, saveProgress, mergeGuestProgressIntoRegisteredAccount, initializeNewLearnerProgress } from './storage';
 import { sendOtpRegistrationEmail, sendPasswordResetEmail } from './emailService';
 
 const LEARNER_ACCOUNTS_DIR_KEY = 'mongo_quiz_learner_accounts_directory_v2';
@@ -213,15 +213,9 @@ export async function verifyLearnerRegistrationOtp(
     saveRegisteredLearnerAccount(newAccount);
     sessionStorage.removeItem(LEARNER_OTP_SESSION_KEY);
 
-    // Seamlessly merge temporary guest session activity into the newly registered account
-    mergeGuestProgressIntoRegisteredAccount(newAccount.id);
+    initializeNewLearnerProgress(newAccount.id, newAccount.displayName);
 
-    // Update progress pseudonym to match chosen username (reload after merge)
-    const progress = loadProgress();
-    progress.learnerId.pseudonym = newAccount.displayName;
-    saveProgress(progress);
-
-    const welcomeCoins = newAccount.coins || 100;
+    const welcomeCoins = newAccount.coins ?? 0;
     const bonusNotice = data.referralApplied
       ? ` (including +${data.bonusCoins} Coins & +${data.bonusXp} XP referral welcome bonus from @${data.referredBy})`
       : '';
@@ -640,7 +634,7 @@ export function getLearnerGamificationStats(progress: StudentProgress) {
   const totalAttempted = progress.questionsAttempted || 0;
   const totalCorrect = progress.questionsCorrect || 0;
   const totalPartial = progress.questionsPartial || 0;
-  const streak = progress.currentStreak || 1;
+  const streak = totalAttempted > 0 ? (progress.currentStreak || 0) : 0;
   const bestMock = progress.bestMockScore || 0;
   const completedSessions = progress.completedSessions || [];
 
@@ -648,16 +642,20 @@ export function getLearnerGamificationStats(progress: StudentProgress) {
   let computedXp = (totalCorrect * 25) + (totalPartial * 10) + (streak * 35) + (completedSessions.length * 60);
   if (bestMock >= 85) computedXp += 200;
   else if (bestMock >= 70) computedXp += 100;
+  // Levels reflect learning activity; welcome and referral XP remain in the total balance.
+  const levelXp = computedXp;
+  if (account) computedXp += 250 + (account.referralBonusXp || 0);
   if (account?.xp && account.xp > computedXp) computedXp = account.xp;
 
   // MongoCoins calculation
-  let computedCoins = 50 + (totalCorrect * 5) + (streak * 15) + (completedSessions.length * 20);
+  let computedCoins = (totalCorrect * 5) + (streak * 15) + (completedSessions.length * 20);
+  if (account) computedCoins += 100;
   if (bestMock >= 85) computedCoins += 150;
   if (account?.referralBonusCoins) computedCoins += account.referralBonusCoins;
   if (account?.coins && account.coins > computedCoins) computedCoins = account.coins;
 
   // Infinite Tier & Ranking Formula
-  const rank = Math.floor(Math.sqrt(computedXp / 100)) + 1;
+  const rank = Math.floor(Math.sqrt(levelXp / 100)) + 1;
   const nextTierXp = Math.pow(rank, 2) * 100;
 
   const TIER_NAMES = [
@@ -840,6 +838,7 @@ export function getLearnerGamificationStats(progress: StudentProgress) {
     coins: computedCoins,
     xp: computedXp,
     rank,
+    levelXp,
     tier,
     nextTierXp,
     levelTitle,
