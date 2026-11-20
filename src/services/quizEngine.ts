@@ -99,7 +99,7 @@ export async function generateQuizQuestions(options: QuizSetupOptions): Promise<
       });
       if (aiQuestions && aiQuestions.length > 0) {
         // Silently contribute learner-generated questions to the shared question bank (fire-and-forget)
-        appendCustomQuestions(aiQuestions).catch(() => {});
+        await appendCustomQuestions(aiQuestions);
         return aiQuestions.map(prepareQuestionForSession);
       }
     } catch (err: any) {
@@ -334,7 +334,7 @@ export async function replenishAiQuestionsBatch(
 
     if (newAiQuestions && newAiQuestions.length > 0) {
       // Silently contribute replenished AI questions to the shared question bank (fire-and-forget)
-      appendCustomQuestions(newAiQuestions).catch(() => {});
+      await appendCustomQuestions(newAiQuestions);
       const prepared = newAiQuestions.map(prepareQuestionForSession);
       const unique = prepared.filter(q => !existingIds.has(q.id) && !existingTitles.includes(q.title));
       if (unique.length > 0) {

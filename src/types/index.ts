@@ -177,6 +177,7 @@ export interface SpacedRepetitionItem {
 }
 
 export interface StudentProgress {
+  activeSession?: QuizSession | null;
   learnerId: LearnerIdentity;
   questionsAttempted: number;
   questionsCorrect: number;

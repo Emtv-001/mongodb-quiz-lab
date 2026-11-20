@@ -443,75 +443,28 @@ export async function acceptAdminInvitation(
 ): Promise<{ success: boolean; message: string; user?: AdminUser; recoveryPhrase?: string; assignedRole?: string }> {
   const cleanCode = invitationCodeInput.trim().toUpperCase();
   
-  let invites: AdminInvitation[] = [];
+  if (details.passwordPlain.length < 6) return { success: false, message: 'Password must be at least 6 characters long.' };
   try {
-    const res = await fetch('/api/admin/invites');
-    const data = await res.json();
-    if (data.success) invites = data.invites;
-  } catch (e) {}
-
-  const invite = invites.find(i => i.invitationCode === cleanCode && i.status === 'pending');
-
-  if (!invite) {
-    return { success: false, message: "Invalid or expired invitation code." };
-  }
-
-  if (Date.now() > invite.expiresAt) {
-    return { success: false, message: "This invitation code has expired. Please request a new invitation." };
-  }
-
-  const cleanUsername = details.username.trim().toLowerCase();
-  const cleanEmail = details.email.trim().toLowerCase();
-
-  if (details.passwordPlain.length < 6) {
-    return { success: false, message: "Password must be at least 6 characters long." };
-  }
-
-  const newUser: AdminUser = {
-    id: 'admin_' + Date.now(),
-    username: details.username.trim(),
-    displayName: details.displayName.trim() || details.username.trim(),
-    email: cleanEmail,
-    recoveryPhrase: invite.recoveryPhrase || generateRecoveryPhrase(),
-    role: invite.role,
-    permissions: invite.permissions,
-    passwordHash: sha256Sync(details.passwordPlain.trim()),
-    status: 'active',
-    createdAt: new Date().toISOString(),
-    createdBy: invite.createdBy,
-    permsSynced: true
-  };
-
-  try {
-    const res = await fetch('/api/admin/admins', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newUser)
+    const res = await fetch('/api/admin/invites', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'accept', invitationCode: cleanCode,
+        username: details.username, email: details.email, displayName: details.displayName,
+        passwordHash: sha256Sync(details.passwordPlain.trim())
+      })
     });
     const data = await res.json();
-    if (!data.success) return { success: false, message: data.message };
-  } catch (e: any) {
-    return { success: false, message: "Failed to create user: " + e.message };
+    if (!res.ok || !data.success || !data.user) return { success: false, message: data.message || 'Invitation could not be accepted.' };
+    const user: AdminUser = { ...data.user, id: data.user._id || data.user.id };
+    window.dispatchEvent(new CustomEvent('admin_invitations_updated'));
+    void addAuditLog(user.username, 'Accept Admin Invitation', 'security', 'Completed registration via invitation ' + cleanCode);
+    return {
+      success: true, message: 'Your administrator account is now active.',
+      user, recoveryPhrase: user.recoveryPhrase, assignedRole: user.role
+    };
+  } catch {
+    return { success: false, message: 'Unable to accept invitation. Please check your connection and retry.' };
   }
-
-  try {
-    await fetch(`/api/admin/invites?id=${invite.id}`, { method: 'DELETE' });
-  } catch (e) {}
-
-  addAuditLog(
-    newUser.username,
-    'Accept Admin Invitation',
-    'security',
-    `Completed registration via invitation ${cleanCode} with assigned role ${invite.role}`
-  );
-
-  return {
-    success: true,
-    message: `Welcome @${newUser.username}! Your administrator account is now active.`,
-    user: newUser,
-    recoveryPhrase: newUser.recoveryPhrase,
-    assignedRole: newUser.role
-  };
 }
 
 export async function cancelAdminInvitation(id: string, executorUsername: string = 'admin'): Promise<{ success: boolean; message: string }> {

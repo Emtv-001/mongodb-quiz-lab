@@ -8,7 +8,7 @@ import {
 } from '../types';
 import { generateRecoveryPhrase, recordDeletionStatement, addAuditLog } from './adminService';
 import { sha256Sync } from './security';
-import { loadProgress, saveProgress, mergeGuestProgressIntoRegisteredAccount, initializeNewLearnerProgress } from './storage';
+import { loadProgress, fetchDatabaseProgress, persistDatabaseProgress, initializeNewLearnerProgress } from './storage';
 import { sendOtpRegistrationEmail, sendPasswordResetEmail } from './emailService';
 
 const LEARNER_ACCOUNTS_DIR_KEY = 'mongo_quiz_learner_accounts_directory_v2';
@@ -313,46 +313,13 @@ export async function loginLearner(
         id: data.user._id || data.user.id
       };
       saveRegisteredLearnerAccount(account);
-      mergeGuestProgressIntoRegisteredAccount(account.id);
+      await fetchDatabaseProgress();
       return { success: true, message: `Welcome back, ${account.displayName}!`, account };
     }
 
-    // 2. Fallback to LocalStorage directory
-    const dir = getLearnerAccountsDirectory();
-    const localAccount = Object.values(dir).find((acc: any) => 
-      (acc.email && acc.email.toLowerCase() === clean) ||
-      (acc.username && acc.username.toLowerCase() === clean)
-    );
-
-    if (localAccount && localAccount.passwordHash === inputHash) {
-      // Sync latest password to cloud
-      fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          emailOrUsername: clean,
-          newPasswordHash: inputHash
-        })
-      }).catch(() => {});
-
-      saveRegisteredLearnerAccount(localAccount);
-      return { success: true, message: `Welcome back, ${localAccount.displayName}!`, account: localAccount };
-    }
-
     return { success: false, message: data?.message || "Invalid email/username or password." };
-  } catch (err: any) {
-    const clean = emailOrUsername.trim().toLowerCase();
-    const inputHash = sha256Sync(passwordPlain.trim());
-    const dir = getLearnerAccountsDirectory();
-    const localAccount = Object.values(dir).find((acc: any) => 
-      (acc.email && acc.email.toLowerCase() === clean) ||
-      (acc.username && acc.username.toLowerCase() === clean)
-    );
-    if (localAccount && localAccount.passwordHash === inputHash) {
-      saveRegisteredLearnerAccount(localAccount);
-      return { success: true, message: `Welcome back, ${localAccount.displayName}!`, account: localAccount };
-    }
-    return { success: false, message: "Login failed: " + err.message };
+  } catch {
+    return { success: false, message: "Unable to sign in and load database progress. Please check your connection." };
   }
 }
 
@@ -362,6 +329,7 @@ export async function loginLearner(
  */
 export function logoutLearner(): void {
   saveRegisteredLearnerAccount(null);
+  void fetch('/api/learners/progress', { method: 'DELETE' }).catch(() => {});
 }
 
 /**
@@ -854,45 +822,13 @@ export function getLearnerGamificationStats(progress: StudentProgress) {
  */
 export async function syncProgressToAtlas(): Promise<void> {
   const account = getRegisteredLearnerAccount();
-  if (!account || !account.id) return;
-  
-  const progress = loadProgress();
-  const stats = getLearnerGamificationStats(progress);
-  try {
-    fetch('/api/learners/progress', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        learnerId: account.id,
-        progressData: progress,
-        coins: stats.coins,
-        xp: stats.xp
-      })
-    }).catch(() => {});
-  } catch (err) {}
+  if (!account?.id) return;
+  const stats = getLearnerGamificationStats(loadProgress());
+  await persistDatabaseProgress(stats.coins, stats.xp);
 }
 
-/**
- * Pulls progress from MongoDB Atlas and merges it locally
- */
+/** Fetch a complete database snapshot without merging browser records. */
 export async function fetchProgressFromAtlas(accountId: string): Promise<void> {
-  try {
-    const res = await fetch('/api/learners/progress?learnerId=' + accountId);
-    const data = await res.json();
-    if (data.success && data.progress) {
-      const p = data.progress;
-      const local = loadProgress();
-      
-      local.questionsAttempted = p.questionsAttempted || local.questionsAttempted;
-      local.questionsCorrect = p.questionsCorrect || local.questionsCorrect;
-      local.questionsPartial = p.questionsPartial || local.questionsPartial;
-      local.totalScore = p.totalScore || local.totalScore;
-      local.totalMaxScore = p.totalMaxScore || local.totalMaxScore;
-      local.currentStreak = p.currentStreak || local.currentStreak;
-      local.longestStreak = p.longestStreak || local.longestStreak;
-        if (p.lastActiveDate) local.lastActiveDate = p.lastActiveDate;
-      
-      saveProgress(local);
-    }
-  } catch (err) {}
+  if (getRegisteredLearnerAccount()?.id !== accountId) return;
+  await fetchDatabaseProgress();
 }

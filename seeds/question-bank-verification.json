@@ -1,0 +1,491 @@
+{
+  "verifiedAt": "2026-11-20T22:22:24.448Z",
+  "databaseTotal": 1011,
+  "verifiedSeedQuestions": 800,
+  "targetSeedQuestions": 800,
+  "remainingSeedQuestions": 0,
+  "preExistingQuestionsPreserved": 1011,
+  "credentialFreeGeneratedQuestions": true,
+  "coverage": [
+    {
+      "topic": "MongoDB Fundamentals",
+      "difficulty": "Easy",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "MongoDB Fundamentals",
+      "difficulty": "Medium",
+      "prepared": 10,
+      "inDatabase": 19
+    },
+    {
+      "topic": "MongoDB Fundamentals",
+      "difficulty": "Hard",
+      "prepared": 10,
+      "inDatabase": 15
+    },
+    {
+      "topic": "MongoDB Fundamentals",
+      "difficulty": "Expert",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Connections & Tools",
+      "difficulty": "Easy",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Connections & Tools",
+      "difficulty": "Medium",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Connections & Tools",
+      "difficulty": "Hard",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Connections & Tools",
+      "difficulty": "Expert",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "CRUD Operations",
+      "difficulty": "Easy",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "CRUD Operations",
+      "difficulty": "Medium",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "CRUD Operations",
+      "difficulty": "Hard",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "CRUD Operations",
+      "difficulty": "Expert",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Basic & Advanced Querying",
+      "difficulty": "Easy",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Basic & Advanced Querying",
+      "difficulty": "Medium",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Basic & Advanced Querying",
+      "difficulty": "Hard",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Basic & Advanced Querying",
+      "difficulty": "Expert",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Comparison & Logical Operators",
+      "difficulty": "Easy",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Comparison & Logical Operators",
+      "difficulty": "Medium",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Comparison & Logical Operators",
+      "difficulty": "Hard",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Comparison & Logical Operators",
+      "difficulty": "Expert",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Regular Expressions",
+      "difficulty": "Easy",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Regular Expressions",
+      "difficulty": "Medium",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Regular Expressions",
+      "difficulty": "Hard",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Regular Expressions",
+      "difficulty": "Expert",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Arrays & Indexing",
+      "difficulty": "Easy",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Arrays & Indexing",
+      "difficulty": "Medium",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Arrays & Indexing",
+      "difficulty": "Hard",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Arrays & Indexing",
+      "difficulty": "Expert",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Nested Documents & Dot Notation",
+      "difficulty": "Easy",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Nested Documents & Dot Notation",
+      "difficulty": "Medium",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Nested Documents & Dot Notation",
+      "difficulty": "Hard",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Nested Documents & Dot Notation",
+      "difficulty": "Expert",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Update Operators & Modifiers",
+      "difficulty": "Easy",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Update Operators & Modifiers",
+      "difficulty": "Medium",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Update Operators & Modifiers",
+      "difficulty": "Hard",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Update Operators & Modifiers",
+      "difficulty": "Expert",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Data Modeling & Schema Design",
+      "difficulty": "Easy",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Data Modeling & Schema Design",
+      "difficulty": "Medium",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Data Modeling & Schema Design",
+      "difficulty": "Hard",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Data Modeling & Schema Design",
+      "difficulty": "Expert",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Schema Validation",
+      "difficulty": "Easy",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Schema Validation",
+      "difficulty": "Medium",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Schema Validation",
+      "difficulty": "Hard",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Schema Validation",
+      "difficulty": "Expert",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Aggregation Pipelines",
+      "difficulty": "Easy",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Aggregation Pipelines",
+      "difficulty": "Medium",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Aggregation Pipelines",
+      "difficulty": "Hard",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Aggregation Pipelines",
+      "difficulty": "Expert",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "JavaScript & mongosh Scripts",
+      "difficulty": "Easy",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "JavaScript & mongosh Scripts",
+      "difficulty": "Medium",
+      "prepared": 10,
+      "inDatabase": 22
+    },
+    {
+      "topic": "JavaScript & mongosh Scripts",
+      "difficulty": "Hard",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "JavaScript & mongosh Scripts",
+      "difficulty": "Expert",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Indexes & ESR Rule",
+      "difficulty": "Easy",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Indexes & ESR Rule",
+      "difficulty": "Medium",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Indexes & ESR Rule",
+      "difficulty": "Hard",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Indexes & ESR Rule",
+      "difficulty": "Expert",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Performance & explain()",
+      "difficulty": "Easy",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Performance & explain()",
+      "difficulty": "Medium",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Performance & explain()",
+      "difficulty": "Hard",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Performance & explain()",
+      "difficulty": "Expert",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Replication & High Availability",
+      "difficulty": "Easy",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Replication & High Availability",
+      "difficulty": "Medium",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Replication & High Availability",
+      "difficulty": "Hard",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Replication & High Availability",
+      "difficulty": "Expert",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Transactions & Consistency",
+      "difficulty": "Easy",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Transactions & Consistency",
+      "difficulty": "Medium",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Transactions & Consistency",
+      "difficulty": "Hard",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Transactions & Consistency",
+      "difficulty": "Expert",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Backup & Restore",
+      "difficulty": "Easy",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Backup & Restore",
+      "difficulty": "Medium",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Backup & Restore",
+      "difficulty": "Hard",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Backup & Restore",
+      "difficulty": "Expert",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Security & RBAC",
+      "difficulty": "Easy",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Security & RBAC",
+      "difficulty": "Medium",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Security & RBAC",
+      "difficulty": "Hard",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "Security & RBAC",
+      "difficulty": "Expert",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "MongoDB Atlas & Advanced Features",
+      "difficulty": "Easy",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "MongoDB Atlas & Advanced Features",
+      "difficulty": "Medium",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "MongoDB Atlas & Advanced Features",
+      "difficulty": "Hard",
+      "prepared": 10,
+      "inDatabase": 10
+    },
+    {
+      "topic": "MongoDB Atlas & Advanced Features",
+      "difficulty": "Expert",
+      "prepared": 10,
+      "inDatabase": 10
+    }
+  ]
+}

@@ -16,8 +16,6 @@ import {
   requestLearnerPasswordResetOtp,
   verifyLearnerPasswordResetOtp,
   completeLearnerPasswordReset,
-  syncProgressToAtlas,
-  fetchProgressFromAtlas,
   claimReferralBonus,
   fetchReferralStats
 } from '../../services/learnerService';
@@ -275,18 +273,9 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
     return () => window.removeEventListener('learner_account_updated', handleUpdate);
   }, [progress]);
 
-  // Initial cloud sync
-  useEffect(() => {
-    if (account?.id) {
-      fetchProgressFromAtlas(account.id).then(() => {
-        refreshAccountState();
-      });
-    }
-  }, [account?.id]);
-
   // Background progress sync
   useEffect(() => {
-    const handleSync = () => syncProgressToAtlas();
+    const handleSync = () => refreshAccountState();
     window.addEventListener('mongo_quiz_progress_saved', handleSync);
     return () => window.removeEventListener('mongo_quiz_progress_saved', handleSync);
   }, []);

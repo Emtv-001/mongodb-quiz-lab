@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getSiteCustomization, DEFAULT_SITE_CONFIG } from './services/adminService';
 import { MongoTopic, QuizMode, QuizSession } from './types';
 import { createSession } from './services/quizEngine';
-import { loadProgress } from './services/storage';
+import { loadProgress, saveProgress, fetchDatabaseProgress, getActiveLearnerId } from './services/storage';
+import { syncProgressToAtlas, logoutLearner } from './services/learnerService';
 import { Navbar } from './components/layout/Navbar';
 import { Sidebar, NavTab } from './components/layout/Sidebar';
 import { SeedDataModal } from './components/common/SeedDataModal';
@@ -94,35 +95,56 @@ export function App() {
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [configModalMode, setConfigModalMode] = useState<QuizMode>('practice');
   const [configModalTopic, setConfigModalTopic] = useState<MongoTopic | undefined>(undefined);
-  const [activeSession, setActiveSession] = useState<QuizSession | null>(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const ref = params.get('ref') || params.get('referral');
-      const tab = params.get('tab');
-      if ((ref && ref.trim()) || tab === 'register') {
-        localStorage.removeItem('mongo_quiz_active_session');
-        return null;
-      }
-      const saved = localStorage.getItem('mongo_quiz_active_session');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [activeSession, setActiveSession] = useState<QuizSession | null>(null);
+  const [progressReady, setProgressReady] = useState(!getActiveLearnerId());
+  const [databaseError, setDatabaseError] = useState('');
+  const loadedProgressOwner = useRef<string | null | undefined>(undefined);
+  const [progress, setProgress] = useState(loadProgress());
 
+  const reloadDatabaseProgress = async () => {
+    const owner = getActiveLearnerId();
+    loadedProgressOwner.current = owner;
+    setProgressReady(false);
+    setDatabaseError('');
+    try {
+      await fetchDatabaseProgress();
+      if (getActiveLearnerId() !== owner) return;
+      setProgress(loadProgress());
+      setActiveSession(loadProgress().activeSession ?? null);
+      setProgressReady(true);
+    } catch {
+      setDatabaseError('Unable to load your saved progress. Check your connection and retry.');
+    }
+  };
+
+  useEffect(() => {
+    void reloadDatabaseProgress();
+    const accountChanged = () => {
+      if (loadedProgressOwner.current !== getActiveLearnerId()) void reloadDatabaseProgress();
+    };
+    const saved = () => { setDatabaseError(''); setProgress(loadProgress()); };
+    const failed = (event: Event) => setDatabaseError((event as CustomEvent<string>).detail);
+    window.addEventListener('learner_account_updated', accountChanged);
+    window.addEventListener('progress_database_saved', saved);
+    window.addEventListener('progress_database_error', failed);
+    return () => {
+      window.removeEventListener('learner_account_updated', accountChanged);
+      window.removeEventListener('progress_database_saved', saved);
+      window.removeEventListener('progress_database_error', failed);
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('mongo_quiz_last_tab', currentTab);
   }, [currentTab]);
 
   useEffect(() => {
-    if (activeSession) {
-      localStorage.setItem('mongo_quiz_active_session', JSON.stringify(activeSession));
-    } else {
-      localStorage.removeItem('mongo_quiz_active_session');
-    }
-  }, [activeSession]);
-  const [progress, setProgress] = useState(loadProgress());
+    if (!progressReady) return;
+    const snapshot = loadProgress();
+    if (JSON.stringify(snapshot.activeSession ?? null) === JSON.stringify(activeSession)) return;
+    snapshot.activeSession = activeSession;
+    saveProgress(snapshot);
+  }, [activeSession, progressReady]);
   const mainContentRef = React.useRef<HTMLElement | null>(null);
 
   // Reload progress when tabs or quiz completes
@@ -384,6 +406,14 @@ export function App() {
       )}
 
       {isAppLoading && <EMTVLoader message={appLoadingMessage} />}
+      {databaseError && <div role="alert" className="fixed top-0 inset-x-0 z-[100] bg-red-950 p-4 text-white">
+        {databaseError}{' '}
+        <button onClick={() => {
+          if (!progressReady) void reloadDatabaseProgress();
+          else void syncProgressToAtlas().catch(() => setDatabaseError('Save failed. Please retry.'));
+        }}>Retry</button>
+        {!progressReady && <button onClick={() => { logoutLearner(); setCurrentTab('learner-hub'); }}>Sign out</button>}
+      </div>}
       {/* Top Navbar */}
       <Navbar
         currentStreak={progress.currentStreak}
@@ -406,7 +436,7 @@ export function App() {
         {/* Content View Area */}
         <main ref={mainContentRef} className="flex-1 h-full overflow-y-auto overscroll-contain touch-pan-y p-4 sm:p-6 lg:p-8 min-w-0 w-full max-w-full">
           <ErrorBoundary fallbackName="Main View">
-            {renderContent()}
+            {progressReady ? renderContent() : <p role="status">Loading your saved progress…</p>}
           </ErrorBoundary>
         </main>
 

@@ -33,7 +33,7 @@ import { AdminAiQuestionStudioModal } from './AdminAiQuestionStudioModal';
 import { DEFAULT_QUESTIONS } from '../../data/questions';
 import { ALL_TOPICS } from '../../services/storage';
 import { DifficultyLevel, MongoTopic, Question, QuestionType, CurriculumLevel } from '../../types';
-import { loadCustomQuestions, saveCustomQuestions, sanitizeQuestion, getLocalCachedCustomQuestions } from '../../services/storage';
+import { loadCustomQuestions, saveCustomQuestions, sanitizeQuestion } from '../../services/storage';
 import { getFeedbackEntries } from '../../services/feedbackService';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 
@@ -198,9 +198,18 @@ export const AdminView: React.FC = () => {
   const [acceptedInviteDetails, setAcceptedInviteDetails] = useState<{ recoveryPhrase: string; role: string } | null>(null);
 
   // Question Management state
-  const [customQuestions, setCustomQuestions] = useState<Question[]>(() => getLocalCachedCustomQuestions());
+  const [customQuestions, setCustomQuestions] = useState<Question[]>([]);
+  const [questionBankError, setQuestionBankError] = useState('');
   useEffect(() => {
-    loadCustomQuestions().then(setCustomQuestions);
+    let active = true;
+    const refresh = () => loadCustomQuestions().then(questions => {
+      if (active) { setCustomQuestions(questions); setQuestionBankError(''); }
+    }).catch(() => { if (active) setQuestionBankError('Question bank could not refresh. Counts may be out of date.'); });
+    void refresh();
+    const timer = setInterval(refresh, 15000);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('question_bank_updated', refresh);
+    return () => { active = false; clearInterval(timer); window.removeEventListener('focus', refresh); window.removeEventListener('question_bank_updated', refresh); };
   }, []);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTopic, setSelectedTopic] = useState<string>('All');
@@ -230,7 +239,7 @@ export const AdminView: React.FC = () => {
   useEffect(() => {
     getSiteCustomization().then(setSiteConfig);
   }, []);
-  const allQuestions = [...DEFAULT_QUESTIONS, ...customQuestions];
+  const allQuestions = [...new Map([...DEFAULT_QUESTIONS, ...customQuestions].map(q => [q.id, q])).values()];
 
   const [unreadFeedbackCount, setUnreadFeedbackCount] = useState(0);
   const [unreadStatementsCount, setUnreadStatementsCount] = useState(0);
@@ -961,7 +970,7 @@ export const AdminView: React.FC = () => {
   ];
   const adminNavTabs = allAdminNavTabs.filter(t => canAccessTab(t.id));
 
-  const handleCreateQuestion = (e: React.FormEvent) => {
+  const handleCreateQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newExplanation.trim()) return;
 
@@ -988,9 +997,10 @@ export const AdminView: React.FC = () => {
       points: Number(newPoints) || 10
     };
 
-    const updated = [...customQuestions, created];
-    setCustomQuestions(updated);
-    saveCustomQuestions(updated);
+    try {
+      await saveCustomQuestions([created]);
+      setCustomQuestions(await loadCustomQuestions());
+    } catch { setQuestionBankError('Question was not saved to the database. Please retry.'); return; }
     setShowAddForm(false);
     setNewTitle('');
     setNewScenario('');
@@ -998,14 +1008,17 @@ export const AdminView: React.FC = () => {
     setNewExplanation('');
   };
 
-  const handleDeleteQuestion = (id: string) => {
+  const handleDeleteQuestion = async (id: string) => {
     if (!String(id || '').startsWith('custom_') && !String(id || '').startsWith('ai_')) {
       alert("System built-in questions cannot be deleted. Only custom questions can be removed.");
       return;
     }
-    const updated = customQuestions.filter(q => q.id !== id);
-    setCustomQuestions(updated);
-    saveCustomQuestions(updated);
+    try {
+      const res = await fetch('/api/questions?id=' + encodeURIComponent(id), { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error();
+      setCustomQuestions(await loadCustomQuestions());
+    } catch { setQuestionBankError('Question could not be deleted. Please retry.'); }
   };
 
   const handleExportJson = () => {
@@ -1022,20 +1035,19 @@ export const AdminView: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const parsed = JSON.parse(event.target?.result as string);
         if (Array.isArray(parsed)) {
           const valid = parsed.filter(item => item && (item.title || item.scenario) && item.topic);
           const sanitizedValid = valid.map((item, idx) => sanitizeQuestion(item, idx));
-          const merged = [...customQuestions, ...sanitizedValid];
-          setCustomQuestions(merged);
-          saveCustomQuestions(merged);
+          await saveCustomQuestions(sanitizedValid);
+          setCustomQuestions(await loadCustomQuestions());
           setImportedStatus(`Imported ${valid.length} questions successfully!`);
           setTimeout(() => setImportedStatus(null), 3000);
         }
       } catch {
-        alert("Invalid JSON file format.");
+        setQuestionBankError('Import failed. Check the JSON file and database connection, then retry.');
       }
     };
     reader.readAsText(file);
@@ -1173,7 +1185,7 @@ export const AdminView: React.FC = () => {
           onClose={() => setShowAiStudioModal(false)}
           currentAdminUsername={currentUser.username}
           onQuestionsSaved={() => {
-            loadCustomQuestions().then(setCustomQuestions);
+            loadCustomQuestions().then(setCustomQuestions).catch(() => setQuestionBankError('Could not refresh the saved question bank.'));
             setImportedStatus("Successfully added synthesized questions to the Question Bank!");
             setTimeout(() => setImportedStatus(null), 4000);
           }}
@@ -1193,8 +1205,9 @@ export const AdminView: React.FC = () => {
                 Practical Question Authoring & Directory
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Create custom practical questions across Levels 1–9, import JSON sets, and inspect grading models.
+                {customQuestions.length} database questions · {DEFAULT_QUESTIONS.length} built-in curriculum questions · {allQuestions.length} unique total.
               </p>
+              {questionBankError && <p role="alert" className="text-red-400 text-sm">{questionBankError}</p>}
             </div>
 
             
@@ -1266,7 +1279,7 @@ export const AdminView: React.FC = () => {
                 </div>
 
                 {/* Modal Body */}
-                <form onSubmit={(e) => { handleCreateQuestion(e); setShowAddForm(false); }} className="p-6 overflow-y-auto space-y-4 text-xs flex-1">
+                <form onSubmit={handleCreateQuestion} className="p-6 overflow-y-auto space-y-4 text-xs flex-1">
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
                     <div>
                       <label className="block text-slate-300 font-semibold mb-1">Topic</label>

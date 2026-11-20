@@ -21,6 +21,7 @@ for (const referred of [false, true]) {
     let calls = 0;
     const handler = load('../api/auth/_register.ts', {
       '../_utils/db.js': { default: async () => {} },
+      '../_utils/learnerSession.js': { setLearnerSession() {} },
       '../_models/Learner.js': { default: {
         async findOne() { return calls++ === 0 ? null : referrer; },
         async create(user) { return user; }
@@ -56,12 +57,12 @@ test('signup discards guest history and initializes empty progress', () => {
   });
   sessionStorage.setItem(storage.GUEST_SESSION_PROGRESS_KEY, JSON.stringify({ questionsAttempted: 99 }));
   storage.initializeNewLearnerProgress('new-id', 'New learner');
-  const progress = JSON.parse(localStorage.getItem(storage.REGISTERED_PROGRESS_PREFIX + 'new-id'));
+  const progress = storage.loadProgress();
   assert.equal(progress.questionsAttempted, 0);
   assert.equal(progress.currentStreak, 0);
   assert.equal(progress.totalScore, 0);
   assert.deepEqual(progress.completedSessions, []);
-  assert.equal(sessionStorage.getItem(storage.GUEST_SESSION_PROGRESS_KEY), null);
+  assert.equal(localStorage.getItem(storage.REGISTERED_PROGRESS_PREFIX + 'new-id'), null);
 });
 
 test('welcome and referral bonuses do not raise levels, but learning does', () => {

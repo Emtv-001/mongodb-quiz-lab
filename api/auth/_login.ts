@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import connectToDatabase from '../_utils/db.js';
 import Learner from '../_models/Learner.js';
+import { setLearnerSession } from '../_utils/learnerSession.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -21,6 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ success: false, message: 'Invalid email/username or password.' });
     }
 
+    setLearnerSession(res, String(user._id), user.passwordHash);
     return res.status(200).json({ success: true, user });
   } catch (error: any) {
     console.error('Login error:', error);

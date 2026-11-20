@@ -1,5 +1,5 @@
 import { MongoTopic, Question, QuestionAttempt, QuizMode, StudentProgress, SpacedRepetitionItem } from '../types';
-import { getOrCreateLearnerIdentity, computeProgressDigest, verifyProgressIntegrity } from './security';
+import { getOrCreateLearnerIdentity, computeProgressDigest } from './security';
 
 export const PROGRESS_STORAGE_KEY = 'mongo_quiz_student_progress_v2';
 export const REGISTERED_PROGRESS_PREFIX = 'mongo_quiz_progress_user_';
@@ -82,190 +82,97 @@ export function isGuestMode(): boolean {
   return !getActiveLearnerId();
 }
 
-/**
- * Merges any temporary guest session progress into a newly registered or logged-in account.
- */
-export function mergeGuestProgressIntoRegisteredAccount(learnerId: string): void {
-  try {
-    if (typeof window === 'undefined') return;
-    const guestRaw = sessionStorage.getItem(GUEST_SESSION_PROGRESS_KEY);
-    if (!guestRaw) return;
+// Database is the only persistent store. Snapshots exist only while this page is open.
+let progressOwner: string | null | undefined;
+let currentProgress: StudentProgress | undefined;
+let ready = false;
+let writeQueue: Promise<void> = Promise.resolve();
 
-    const guestProgress: StudentProgress = JSON.parse(guestRaw);
-    if (!guestProgress || guestProgress.questionsAttempted === 0) {
-      sessionStorage.removeItem(GUEST_SESSION_PROGRESS_KEY);
-      return;
-    }
-
-    const userKey = REGISTERED_PROGRESS_PREFIX + learnerId;
-    const userRaw = localStorage.getItem(userKey);
-    const targetProgress: StudentProgress = userRaw ? JSON.parse(userRaw) : getInitialProgress();
-
-    // Merge attempts and scores
-    targetProgress.questionsAttempted += guestProgress.questionsAttempted;
-    targetProgress.questionsCorrect += guestProgress.questionsCorrect;
-    targetProgress.questionsPartial += guestProgress.questionsPartial;
-    targetProgress.totalScore += guestProgress.totalScore;
-    targetProgress.totalMaxScore += guestProgress.totalMaxScore;
-    if (guestProgress.bestMockScore > targetProgress.bestMockScore) {
-      targetProgress.bestMockScore = guestProgress.bestMockScore;
-    }
-    if (guestProgress.currentStreak > targetProgress.currentStreak) {
-      targetProgress.currentStreak = guestProgress.currentStreak;
-    }
-    if (targetProgress.currentStreak > targetProgress.longestStreak) {
-      targetProgress.longestStreak = targetProgress.currentStreak;
-    }
-
-    // Merge completed sessions
-    if (Array.isArray(guestProgress.completedSessions) && guestProgress.completedSessions.length > 0) {
-      targetProgress.completedSessions = [
-        ...targetProgress.completedSessions,
-        ...guestProgress.completedSessions
-      ];
-    }
-
-    // Merge bookmarks
-    if (Array.isArray(guestProgress.bookmarkedQuestionIds)) {
-      targetProgress.bookmarkedQuestionIds = Array.from(new Set([
-        ...targetProgress.bookmarkedQuestionIds,
-        ...guestProgress.bookmarkedQuestionIds
-      ]));
-    }
-
-    // Merge topic stats
-    ALL_TOPICS.forEach(topic => {
-      const gStat = guestProgress.topicStats[topic];
-      if (gStat && gStat.attempted > 0) {
-        if (!targetProgress.topicStats[topic]) {
-          targetProgress.topicStats[topic] = { attempted: 0, correct: 0, totalPoints: 0, earnedPoints: 0 };
-        }
-        targetProgress.topicStats[topic].attempted += gStat.attempted;
-        targetProgress.topicStats[topic].correct += gStat.correct;
-        targetProgress.topicStats[topic].totalPoints += gStat.totalPoints;
-        targetProgress.topicStats[topic].earnedPoints += gStat.earnedPoints;
-      }
-    });
-
-    targetProgress.checksum = computeProgressDigest(targetProgress);
-    localStorage.setItem(userKey, JSON.stringify(targetProgress));
-    localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(targetProgress));
-
-    // Clear temporary guest storage now that progress is safe
-    sessionStorage.removeItem(GUEST_SESSION_PROGRESS_KEY);
-
-    window.dispatchEvent(new CustomEvent('mongo_quiz_progress_saved'));
-  } catch (err) {
-    console.error("Failed to merge guest progress into registered account", err);
-  }
+export function mergeGuestProgressIntoRegisteredAccount(_learnerId: string): void {
+  // Guest activity is not imported into registered accounts.
 }
 
-export function initializeNewLearnerProgress(learnerId: string, displayName: string): void {
-  const progress = getInitialProgress();
-  progress.learnerId.pseudonym = displayName;
-  progress.checksum = computeProgressDigest(progress);
-  localStorage.setItem(REGISTERED_PROGRESS_PREFIX + learnerId, JSON.stringify(progress));
-  localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(progress));
-  sessionStorage.removeItem(GUEST_SESSION_PROGRESS_KEY);
-  window.dispatchEvent(new CustomEvent('mongo_quiz_progress_saved'));
+export function initializeNewLearnerProgress(_learnerId: string, displayName: string): void {
+  progressOwner = getActiveLearnerId();
+  currentProgress = getInitialProgress();
+  currentProgress.learnerId.pseudonym = displayName;
+  ready = true;
+  void persistDatabaseProgress().catch(() => window.dispatchEvent(new CustomEvent('progress_database_error', { detail: 'Your new progress could not be saved. Please retry.' })));
 }
 
 export function loadProgress(): StudentProgress {
-  try {
-    const activeLearnerId = getActiveLearnerId();
-    let raw: string | null = null;
-
-    if (activeLearnerId) {
-      // 1. Registered Account: load from persistent user storage
-      raw = localStorage.getItem(REGISTERED_PROGRESS_PREFIX + activeLearnerId);
-
-      // Legacy migration fallback: if user key doesn't exist yet, check global key
-      if (!raw) {
-        const legacyRaw = localStorage.getItem(PROGRESS_STORAGE_KEY);
-        if (legacyRaw) {
-          raw = legacyRaw;
-          localStorage.setItem(REGISTERED_PROGRESS_PREFIX + activeLearnerId, legacyRaw);
-        }
-      }
-    } else {
-      // 2. Unregistered / Incognito Guest Mode: load ONLY from temporary sessionStorage
-      raw = sessionStorage.getItem(GUEST_SESSION_PROGRESS_KEY);
-    }
-
-    if (!raw) {
-      const initial = getInitialProgress();
-      if (!activeLearnerId) {
-        initial.learnerId.pseudonym = "Guest Learner (Incognito)";
-      }
-      return initial;
-    }
-
-    const parsed: StudentProgress = JSON.parse(raw);
-
-    // Verify cryptographic integrity
-    if (!verifyProgressIntegrity(parsed)) {
-      console.warn("Progress integrity checksum verification failed. Recomputing baseline.");
-    }
-
-    if (!parsed.learnerId) {
-      parsed.learnerId = getOrCreateLearnerIdentity();
-    }
-    if (!activeLearnerId && !parsed.learnerId.pseudonym.includes('Guest')) {
-      parsed.learnerId.pseudonym = "Guest Learner (Incognito)";
-    }
-
-    if (!parsed.activityHistory) {
-      parsed.activityHistory = {};
-    }
-
-    if (!parsed.longestStreak) {
-      parsed.longestStreak = parsed.currentStreak || 0;
-    }
-
-    if (!parsed.spacedRepetition) {
-      parsed.spacedRepetition = {};
-    }
-
-    // Ensure all 20 topics exist
-    ALL_TOPICS.forEach(t => {
-      if (!parsed.topicStats[t]) {
-        parsed.topicStats[t] = { attempted: 0, correct: 0, totalPoints: 0, earnedPoints: 0 };
-      }
-    });
-
-    return parsed;
-  } catch (err) {
-    console.error("Failed to load progress", err);
-    return getInitialProgress();
+  const owner = getActiveLearnerId();
+  if (progressOwner !== owner || !currentProgress) {
+    progressOwner = owner;
+    currentProgress = getInitialProgress();
+    ready = !owner;
   }
+  return structuredClone(currentProgress);
+}
+
+export async function fetchDatabaseProgress(): Promise<void> {
+  const owner = getActiveLearnerId();
+  loadProgress();
+  if (!owner) return;
+  await writeQueue;
+  const response = await fetch('/api/learners/progress?learnerId=' + encodeURIComponent(owner), { cache: 'no-store' });
+  const data = await response.json();
+  if (!response.ok || !data.success || !data.progress) throw new Error('Could not load your saved progress. Please retry.');
+  if (getActiveLearnerId() !== owner) return;
+  if (data.accountStats) {
+    const service = await import('./learnerService');
+    if (getActiveLearnerId() !== owner) return;
+    const account = service.getRegisteredLearnerAccount();
+    if (account?.id === owner) service.saveRegisteredLearnerAccount({ ...account, ...data.accountStats });
+  }
+  const initial = getInitialProgress();
+  const { _id, learnerId: _databaseOwner, __v, ...saved } = data.progress;
+  void _id; void _databaseOwner; void __v;
+  currentProgress = {
+    ...initial, ...saved,
+    learnerId: initial.learnerId,
+    topicStats: { ...initial.topicStats, ...saved.topicStats }
+  };
+  currentProgress!.checksum = computeProgressDigest(currentProgress!);
+  ready = true;
+  window.dispatchEvent(new CustomEvent('progress_database_loaded'));
+}
+
+export function persistDatabaseProgress(coins?: number, xp?: number): Promise<void> {
+  const owner = getActiveLearnerId();
+  if (!owner) return Promise.resolve();
+  if (!ready || owner !== progressOwner) return Promise.reject(new Error('Your saved progress has not loaded yet.'));
+  const snapshot = loadProgress();
+  const operation = writeQueue.then(async () => {
+    const response = await fetch('/api/learners/progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ learnerId: owner, progressData: snapshot, coins, xp })
+    });
+    const data = await response.json();
+    if (!response.ok || !data.success) throw new Error('Your progress could not be saved. Keep this page open and retry.');
+    window.dispatchEvent(new CustomEvent('progress_database_saved'));
+  });
+  writeQueue = operation.catch(() => {});
+  return operation;
 }
 
 export function saveProgress(progress: StudentProgress): void {
-  try {
-    progress.checksum = computeProgressDigest(progress);
-    const activeLearnerId = getActiveLearnerId();
-
-    if (activeLearnerId) {
-      // Registered User: permanently save to localStorage keyed by user
-      localStorage.setItem(REGISTERED_PROGRESS_PREFIX + activeLearnerId, JSON.stringify(progress));
-      localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(progress));
-
-      // Dispatch event to trigger MongoDB Atlas background sync
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('mongo_quiz_progress_saved'));
-      }
-    } else {
-      // Guest / Incognito: temporary session storage ONLY, never written to permanent localStorage or cloud
-      sessionStorage.setItem(GUEST_SESSION_PROGRESS_KEY, JSON.stringify(progress));
-
-      // Dispatch local event for reactive UI updates without triggering cloud sync
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('mongo_quiz_guest_progress_saved'));
-      }
-    }
-  } catch (err) {
-    console.error("Failed to save progress", err);
+  const owner = getActiveLearnerId();
+  loadProgress();
+  if (owner && !ready) {
+    window.dispatchEvent(new CustomEvent('progress_database_error', { detail: 'Your saved progress has not loaded. Please retry before continuing.' }));
+    return;
   }
+  progress.checksum = computeProgressDigest(progress);
+  currentProgress = structuredClone(progress);
+  if (owner) {
+    void import('./learnerService').then(service => service.syncProgressToAtlas())
+      .catch(() => window.dispatchEvent(new CustomEvent('progress_database_error', {
+        detail: 'Your progress could not be saved. Keep this page open and retry.'
+      })));
+  }
+  window.dispatchEvent(new CustomEvent(owner ? 'mongo_quiz_progress_saved' : 'mongo_quiz_guest_progress_saved'));
 }
 
 /**
@@ -569,78 +476,29 @@ export function getLocalCachedCustomQuestions(): Question[] {
 }
 
 export async function loadCustomQuestions(): Promise<Question[]> {
-  try {
-    const res = await fetch('/api/questions');
-    if (res.ok) {
-      const data = await res.json();
-      const rawList = Array.isArray(data.questions) ? data.questions : [];
-      const sanitized = rawList.map((q: any, idx: number) => sanitizeQuestion(q, idx));
-      if (sanitized.length > 0) {
-        localStorage.setItem(CUSTOM_QUESTIONS_KEY, JSON.stringify(sanitized));
-        return sanitized;
-      }
-    }
-  } catch (err) {
-    console.error("Failed to load custom questions from API, using local cache", err);
-  }
-  return getLocalCachedCustomQuestions();
+  const res = await fetch('/api/questions', { cache: 'no-store' });
+  const data = await res.json();
+  if (!res.ok || !data.success || !Array.isArray(data.questions)) throw new Error('Could not load the database question bank.');
+  return data.questions.map((q: any, idx: number) => sanitizeQuestion(q, idx));
 }
 
 export async function saveCustomQuestions(questions: Question[]): Promise<void> {
-  const sanitized = (questions || []).map((q, idx) => sanitizeQuestion(q, idx));
-  // Immediate local persistence
-  try {
-    localStorage.setItem(CUSTOM_QUESTIONS_KEY, JSON.stringify(sanitized));
-  } catch {}
-
-  // Sync to Atlas cloud
-  try {
-    await fetch('/api/questions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(sanitized)
-    });
-  } catch (err) {
-    console.error("Failed to save custom questions to Atlas", err);
-  }
+  await appendCustomQuestions(questions);
 }
 
 export async function appendCustomQuestions(questions: Question[]): Promise<Question[]> {
-  const sanitized = (questions || []).map((q, idx) => sanitizeQuestion(q, idx));
-  const current = getLocalCachedCustomQuestions();
-  const existingIds = new Set(current.map(q => q.id));
-  const merged = [...current, ...sanitized.filter(q => !existingIds.has(q.id))];
-  
-  try {
-    localStorage.setItem(CUSTOM_QUESTIONS_KEY, JSON.stringify(merged));
-  } catch {}
-
-  try {
-    const res = await fetch('/api/questions?mode=append', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(sanitized)
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const rawList = Array.isArray(data.questions) ? data.questions : [];
-      const cloudList = rawList.map((q: any, idx: number) => sanitizeQuestion(q, idx));
-      if (cloudList.length > 0) {
-        localStorage.setItem(CUSTOM_QUESTIONS_KEY, JSON.stringify(cloudList));
-        return cloudList;
-      }
-    }
-  } catch (err) {
-    console.error("Failed to append custom questions to Atlas", err);
-  }
-  return merged;
+  const sanitized = questions.map((q, idx) => sanitizeQuestion(q, idx));
+  const res = await fetch('/api/questions?mode=append', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(sanitized)
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success || !Array.isArray(data.questions)) throw new Error('Could not save generated questions to the shared question bank.');
+  window.dispatchEvent(new CustomEvent('question_bank_updated'));
+  return data.questions.map((q: any, idx: number) => sanitizeQuestion(q, idx));
 }
 
 export function resetAllData(): void {
-  const activeLearnerId = getActiveLearnerId();
-  if (activeLearnerId) {
-    localStorage.removeItem(REGISTERED_PROGRESS_PREFIX + activeLearnerId);
-  }
-  sessionStorage.removeItem(GUEST_SESSION_PROGRESS_KEY);
-  localStorage.removeItem(PROGRESS_STORAGE_KEY);
+  saveProgress(getInitialProgress());
 }

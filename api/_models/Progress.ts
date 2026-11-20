@@ -16,6 +16,7 @@ const TopicStatsSchema = new mongoose.Schema({
 
 const ProgressSchema = new mongoose.Schema({
   learnerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Learner', required: true, unique: true },
+  activeSession: { type: mongoose.Schema.Types.Mixed, default: null },
   questionsAttempted: { type: Number, default: 0 },
   questionsCorrect: { type: Number, default: 0 },
   questionsPartial: { type: Number, default: 0 },

@@ -2,7 +2,7 @@ import { FeedbackEntry } from '../types';
 
 export async function getFeedbackEntries(): Promise<FeedbackEntry[]> {
   try {
-    const res = await fetch('/api/feedback');
+    const res = await fetch('/api/feedback', { cache: 'no-store' });
     if (!res.ok) return [];
     const data = await res.json();
     return data.feedback || [];

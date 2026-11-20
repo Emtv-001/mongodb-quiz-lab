@@ -2,14 +2,26 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import connectToDatabase from '../_utils/db.js';
 import Progress from '../_models/Progress.js';
 import Learner from '../_models/Learner.js';
+import { readLearnerSession, clearLearnerSession } from '../_utils/learnerSession.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader('Cache-Control', 'no-store');
+  if (req.headers['sec-fetch-site'] === 'cross-site') return res.status(403).json({ success: false, message: 'Request denied.' });
+  if (req.method === 'DELETE') {
+    clearLearnerSession(res);
+    return res.status(204).end();
+  }
   try {
     await connectToDatabase();
+    const session = readLearnerSession(req);
+    const ownerId = req.method === 'GET' ? req.query.learnerId : req.body?.learnerId;
+    if (!session || session.id !== ownerId) return res.status(401).json({ success: false, message: 'Sign out and sign in online to access your saved progress.' });
+    const owner = await Learner.findById(session.id);
+    if (!owner || !session.authenticates(owner.passwordHash)) return res.status(401).json({ success: false, message: 'Please sign in again.' });
     
     if (req.method === 'GET') {
       const { learnerId } = req.query;
-      if (!learnerId) return res.status(400).json({ success: false, message: 'Missing learnerId' });
+      if (typeof learnerId !== 'string' || !/^[a-f0-9]{24}$/i.test(learnerId)) return res.status(400).json({ success: false, message: 'Invalid learnerId' });
       
       let progress = await Progress.findOne({ learnerId });
       
@@ -33,17 +45,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         };
       }
       
-      return res.status(200).json({ success: true, progress });
+      return res.status(200).json({ success: true, progress, accountStats: {
+        coins: owner.coins, xp: owner.xp,
+        referralBonusCoins: owner.referralBonusCoins, referralBonusXp: owner.referralBonusXp,
+        referralCount: owner.referralCount, unlockedBadges: owner.unlockedBadges
+      } });
     }
     
     if (req.method === 'POST') {
       const { learnerId, progressData, coins, xp } = req.body;
-      if (!learnerId || !progressData) return res.status(400).json({ success: false, message: 'Invalid payload' });
+      if (typeof learnerId !== 'string' || !/^[a-f0-9]{24}$/i.test(learnerId) || !progressData || typeof progressData !== 'object' || Array.isArray(progressData)) return res.status(400).json({ success: false, message: 'Invalid payload' });
+      const fields = ['questionsAttempted', 'questionsCorrect', 'questionsPartial', 'totalScore', 'totalMaxScore', 'bestMockScore', 'currentStreak', 'longestStreak', 'lastActiveDate', 'activityHistory', 'topicStats', 'completedSessions', 'bookmarkedQuestionIds', 'masteredFlashcardIds', 'spacedRepetition', 'activeSession'];
+      const savedData = Object.fromEntries(fields.filter(key => key in progressData).map(key => [key, progressData[key]]));
+      for (const key of fields.slice(0, 8)) {
+        if (key in savedData && (typeof savedData[key] !== 'number' || !Number.isFinite(savedData[key]) || savedData[key] < 0)) return res.status(400).json({ success: false, message: 'Invalid progress value' });
+      }
       
       const updatedProgress = await Progress.findOneAndUpdate(
         { learnerId },
-        { $set: progressData },
-        { new: true, upsert: true }
+        { $set: { ...savedData, updatedAt: new Date() } },
+        { new: true, upsert: true, runValidators: true }
       );
 
       // Synchronize Learner model and unlock pending referrer if dedication threshold is reached

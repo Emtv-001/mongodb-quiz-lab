@@ -108,6 +108,10 @@ export const AdminManagementRBAC: React.FC<AdminManagementRBACProps> = ({ curren
 
   useEffect(() => {
     refreshData();
+    const timer = setInterval(refreshData, 15000);
+    window.addEventListener('focus', refreshData);
+    window.addEventListener('admin_invitations_updated', refreshData);
+    return () => { clearInterval(timer); window.removeEventListener('focus', refreshData); window.removeEventListener('admin_invitations_updated', refreshData); };
   }, []);
 
   const handleSendInvite = async (e: React.FormEvent) => {
