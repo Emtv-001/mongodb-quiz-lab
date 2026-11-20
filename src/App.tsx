@@ -24,9 +24,11 @@ import { QuizSetupOptions } from './services/quizEngine';
 import { EMTVLoader } from './components/common/EMTVLoader';
 import { useAuthHeartbeat } from './hooks/useAuthHeartbeat';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { recordSiteVisit } from './services/siteAnalytics';
 
 export function App() {
   useAuthHeartbeat();
+  useEffect(recordSiteVisit, []);
   const [globalSiteConfig, setGlobalSiteConfig] = useState(DEFAULT_SITE_CONFIG);
 
   useEffect(() => {

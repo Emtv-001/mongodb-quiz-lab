@@ -1,9 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import connectToDatabase from '../../_utils/db.js';
 import Admin from '../../_models/Admin.js';
+import { clearAnalyticsSession, setAnalyticsSession } from '../../_utils/analyticsSession.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+  clearAnalyticsSession(res);
   try {
     await connectToDatabase();
     const { username, passwordHash } = req.body;
@@ -24,6 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           canManageQuestions: true, canResetSystem: true, canViewLearnerData: true, canExportData: true
         }
       });
+      setAnalyticsSession(res, String(masterAdmin._id), masterAdmin.passwordHash);
       return res.status(200).json({ success: true, user: masterAdmin });
     }
 
@@ -49,6 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       return res.status(401).json({ success: false, message: 'Invalid admin credentials' });
     }
+    if (user.status === 'active') setAnalyticsSession(res, String(user._id), user.passwordHash);
     return res.status(200).json({ success: true, user });
 
   } catch (error: any) {

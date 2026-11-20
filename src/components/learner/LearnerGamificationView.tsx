@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { recordSiteShare } from '../../services/siteAnalytics';
 import { StudentProgress, RegisteredLearnerAccount } from '../../types';
 import { GlobalNotificationPopup } from '../common/GlobalNotificationPopup';
 import { EMTVLoader } from '../common/EMTVLoader';
@@ -251,10 +252,15 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
     }
   };
 
-  const handleCopyReferral = (text: string, type: 'code' | 'link') => {
-    navigator.clipboard.writeText(text);
-    setCopiedReferral(type);
-    setTimeout(() => setCopiedReferral(null), 2500);
+  const handleCopyReferral = async (text: string, type: 'code' | 'link') => {
+    try {
+      await navigator.clipboard.writeText(text);
+      if (type === 'link') recordSiteShare('copy');
+      setCopiedReferral(type);
+      setTimeout(() => setCopiedReferral(null), 2500);
+    } catch {
+      setCopiedReferral(null);
+    }
   };
 
   const refreshAccountState = () => {
@@ -818,6 +824,7 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => recordSiteShare('whatsapp')}
                     className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center space-x-1.5 transition-colors shadow-sm"
                   >
                     <Share2 className="w-3.5 h-3.5" />
@@ -830,22 +837,23 @@ export const LearnerGamificationView: React.FC<LearnerGamificationViewProps> = (
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => recordSiteShare('x')}
                     className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs flex items-center space-x-1.5 transition-colors border border-slate-700"
                   >
                     <Share2 className="w-3.5 h-3.5" />
                     <span>Twitter / X</span>
                   </a>
 
-                  {typeof navigator !== 'undefined' && (navigator as any).share && (
+                  {typeof navigator !== 'undefined' && typeof navigator.share === 'function' && (
                     <button
                       onClick={() => {
                         const code = account.referralCode || referralStats?.referralCode;
                         if (!code) return;
-                        (navigator as any).share({
+                        navigator.share({
                           title: 'Join me on MongoDB Quiz Lab!',
                           text: `Use my referral link to register and get +150 bonus MongoCoins and +250 XP!`,
                           url: `${window.location.origin}${window.location.pathname}?ref=${code}&tab=register`
-                        }).catch(() => {});
+                        }).then(() => recordSiteShare('device')).catch(() => {});
                       }}
                       className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs flex items-center space-x-1.5 transition-colors border border-slate-700"
                     >

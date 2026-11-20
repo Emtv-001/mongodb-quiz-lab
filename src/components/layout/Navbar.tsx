@@ -4,6 +4,7 @@ import { SiteCustomization } from '../../types/admin';
 import { Database, Flame, Menu, Award, Server, Terminal, Sparkles, Coins, Trophy, UserCheck } from 'lucide-react';
 import { getRegisteredLearnerAccount } from '../../services/learnerService';
 import { RegisteredLearnerAccount } from '../../types';
+import { recordSiteShare } from '../../services/siteAnalytics';
 
 interface NavbarProps {
   currentStreak: number;
@@ -76,6 +77,18 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const activeGradient = colorGradients[siteConfig.accentColor] || colorGradients['emerald'];
 
+  const [siteLinkStatus, setSiteLinkStatus] = useState('');
+
+  const copySiteLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.origin + window.location.pathname);
+      recordSiteShare('copy');
+      setSiteLinkStatus('Link copied');
+    } catch {
+      setSiteLinkStatus('Unable to copy');
+    }
+  };
+
   return (
     <header className="shrink-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 w-full max-w-full shadow-sm select-none overflow-hidden overscroll-none">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 w-full min-w-0">
@@ -121,6 +134,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Items & Tab Pills - Completely isolated horizontal scroll */}
           <div className="flex items-center space-x-2 sm:space-x-3 overflow-x-auto scrollbar-none overscroll-contain touch-pan-x shrink min-w-0 py-1">
+            <button
+              type="button"
+              onClick={copySiteLink}
+              className="shrink-0 whitespace-nowrap rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+            >
+              {siteLinkStatus || 'Copy site link'}
+            </button>
             {/* Guest / Incognito Session Pill vs Logged In Learner */}
             {!learnerAccount ? (
               <button

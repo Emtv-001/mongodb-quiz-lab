@@ -23,6 +23,8 @@ import { AdminDatabaseManager } from './AdminDatabaseManager';
 import { AdminUserTracker } from './AdminUserTracker';
 import { AdminManagementRBAC } from './AdminManagementRBAC';
 import { AdminShareHub } from './AdminShareHub';
+import { AdminSiteAnalytics } from './AdminSiteAnalytics';
+import { analyticsUrl } from '../../services/siteAnalytics';
 import { AdminSecuritySettings } from './AdminSecuritySettings';
 import { AdminBroadcasts } from './AdminBroadcasts';
 import { AdminFeedbackView } from './AdminFeedbackView';
@@ -293,6 +295,7 @@ export const AdminView: React.FC = () => {
   };
 
   const handleLogout = () => {
+    void fetch(analyticsUrl, { method: 'DELETE' }).catch(() => {});
     setCurrentUser(null);
     sessionStorage.removeItem('mongo_quiz_logged_admin_user');
   };
@@ -1121,7 +1124,10 @@ export const AdminView: React.FC = () => {
 
       {/* Render Active Admin Submodule */}
       {canAccessTab(currentAdminTab) && currentAdminTab === 'overview' && (
-        <AdminDashboardOverview onNavigateTab={(tab) => setCurrentAdminTab(tab as AdminTab)} />
+        <>
+          {canAccessTab('users') && <AdminSiteAnalytics />}
+          <AdminDashboardOverview onNavigateTab={(tab) => setCurrentAdminTab(tab as AdminTab)} />
+        </>
       )}
 
       {canAccessTab(currentAdminTab) && currentAdminTab === 'branding' && (
